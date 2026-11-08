@@ -9,16 +9,37 @@ function problems(result: LoadResult): readonly string[] {
 }
 
 describe('loadConfig', () => {
-  it('accepts no settings at all: the worker and the rate fetch are on, and there is no address or key', () => {
+  it('accepts no settings at all: the worker and the rate fetch are on, there is no address or key, and the database is an sqld service at its default address', () => {
     expect(loadConfig({})).toMatchObject({
       ok: true,
       config: {
         url: undefined,
         worker: true,
         fx: { enabled: true, url: undefined },
+        database: { database: { form: 'sqld' } },
         encryption: undefined,
       },
     });
+  });
+
+  it('reports a wrong database setting with the others, naming it', () => {
+    const [problem] = problems(loadConfig({ LEDGER_DB_DIALECT: 'mysql' }));
+    expect(problem).toContain('LEDGER_DB_DIALECT');
+  });
+
+  it('reads the PostgreSQL address from a file, and keeps it out of what it reports', () => {
+    const result = loadConfig(
+      { LEDGER_DB_DIALECT: 'postgres', LEDGER_POSTGRES_URL_FILE: '/run/db' },
+      () => 'postgres://u:hunter2@db:5432/ledger\n',
+    );
+    expect(result).toMatchObject({ ok: true });
+    const bad = problems(
+      loadConfig(
+        { LEDGER_DB_DIALECT: 'postgres', LEDGER_POSTGRES_URL_FILE: '/run/db' },
+        () => 'hunter2 is not a url',
+      ),
+    );
+    expect(bad.join(' ')).not.toContain('hunter2');
   });
 
   describe('LEDGER_URL', () => {

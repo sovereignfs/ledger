@@ -2,7 +2,7 @@
 
 ## Status
 
-⏳ In progress: 4 of 11 tasks are done.
+⏳ In progress: 5 of 11 tasks are done.
 
 ## Overview
 
@@ -63,7 +63,7 @@ and stops on a wrong setting; `.env.example` held to the declarations by a test;
 
 **Done as:** `src/config/` (`env.ts`, `index.ts`, `current.ts`, `edge.ts`) and `instrumentation*.ts` copied from Tusk and trimmed: every setting is declared once through `@sovereignfs/config` 0.1.0 (prefix `LEDGER`, secrets take the `_FILE` form), `loadConfig` reports every problem at once by name and never a value, and the server stops at start-up on a wrong one (seen with the built server). Checked here: `LEDGER_URL`, `WORKER`, `FX` and `FX_URL`, the instance key with its previous one, and the all-or-none group of `CORE_*`. The database, sign-in and mail settings are declared and listed in `.env.example`, and are checked by the tasks that read them (1.5, 2.1). `src/crypto/keys.ts` and `envelope.ts` are copied with their tests; no credential table is made, since nothing in phase 1 keeps one (`DESIGN.md` §18.3 is corrected). `/api/health` answers 200; 1.5 makes it ask the database. `process-env.test.ts` holds `process.env` to `src/config` and `.env.example` to the declarations.
 
-#### 📋 1.5 — The database layer
+#### ✅ 1.5 — The database layer
 
 **Goal:** three forms, two dialects, migrations at start-up. **Design:** §18.1, §18.2. **Depends on:** 1.4.
 
@@ -72,6 +72,8 @@ vocabulary, `test-support.ts` reading `LEDGER_TEST_*`); add a `money` column (64
 stores `ledger` and `ledger_auth`; `pnpm db:generate`, `pnpm db:dev`; the parity test; CI legs on sqld, a file and PostgreSQL.
 
 **Accepts when:** an empty database of each form is provisioned and migrated at start-up, twice safely; CI fails if generating would write anything.
+
+**Done as:** `src/db/` (config, client, provision, migrate, boot with retries, `exec.ts`, the sqld namespaces, `test-support.ts` reading `LEDGER_TEST_*`), `scripts/db-generate.mjs`, `dev-db.mjs`, `boot-check.mjs`, `serve-standalone.mjs`, the drizzle configs and better-auth's migrations copied from Tusk and renamed. The column vocabulary is Ledger's own: `id`, `ref`, `epochMs`, `counter`, `money` (a 64-bit integer, `bigint` on PostgreSQL), `bool`, `isoDate`, `month`, `decimal` and `json`; its test checks amounts past 2^32 and exact sums on each form. The app store has `rate_bucket` so far (migration `0000_init`); later tasks add their tables in migrations of their own. Run here on all three forms: the data-layer tests (132 passed on sqld and a file, 131 on PostgreSQL) and `pnpm boot-check` against the built server. CI gains the `tests` legs for the three forms and the check that generating writes nothing. `DESIGN.md` §18.3 drops `job_claim`: a claim is a conditional update on the table whose work it claims (`src/jobs/claim.ts`, 1.6).
 
 #### 📋 1.6 — The job runner
 

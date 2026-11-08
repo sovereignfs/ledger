@@ -1,4 +1,5 @@
 import { type KeyRing, parseKey, ringOf } from '../crypto/keys';
+import { DatabaseConfigError, resolveDatabaseSettings, type DatabaseSettings } from '../db/config';
 import { readEnvironment, type Env, type ReadFile } from './env';
 
 /** What the app was told, once it has been checked. It grows as the tasks that read a setting are built. */
@@ -9,6 +10,8 @@ export interface Config {
   readonly worker: boolean;
   /** Whether the daily exchange-rate fetch runs (DESIGN.md §9.2), and where Frankfurter is when it is not the default. */
   readonly fx: { readonly enabled: boolean; readonly url: string | undefined };
+  /** Which database, and how to wait for it and migrate it (DESIGN.md §18.1). */
+  readonly database: DatabaseSettings;
   /** The instance key, and the one it replaces while a move to a new key is under way; absent when there is none (DESIGN.md §19). */
   readonly encryption: KeyRing | undefined;
 }
@@ -167,13 +170,27 @@ export function loadConfig(env: Env, readFile?: ReadFile): LoadResult {
     problems,
   );
 
-  if (problems.length > 0) return { ok: false, problems };
+  // The database: which of the three forms, and the address it needs. A secret address may arrive as a file.
+  let database: DatabaseSettings | undefined;
+  try {
+    database = resolveDatabaseSettings({
+      ...env,
+      LEDGER_POSTGRES_URL: read('LEDGER_POSTGRES_URL'),
+      LEDGER_POSTGRES_URL_FILE: undefined,
+    });
+  } catch (error) {
+    if (error instanceof DatabaseConfigError) problems.push(error.message);
+    else throw error;
+  }
+
+  if (problems.length > 0 || database === undefined) return { ok: false, problems };
   return {
     ok: true,
     config: {
       url,
       worker: rawWorker !== 'off',
       fx: { enabled: rawFx !== 'off', url: fxUrl },
+      database,
       encryption,
     },
   };

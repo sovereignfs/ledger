@@ -603,7 +603,7 @@ code. A rate is a decimal string.
 
 ### 18.3 Tables
 
-Beyond better-auth's, in the auth store. Every table but `fx_rate` and `job_claim` carries `book_id`.
+Beyond better-auth's, in the auth store. Every table but `fx_rate`, `notice_seen` and `rate_bucket` carries `book_id`.
 
 | Table            | Columns                                                                                                                                                                                                               |
 | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -626,7 +626,6 @@ Beyond better-auth's, in the auth store. Every table but `fx_rate` and `job_clai
 | `month_review`   | `book_id`, `month` (the key), `reviewed_at`                                                                                                                                                                           |
 | `book_job_mark`  | `book_id`, `job`, `period` (the key), `done_at`: the recap's month, the bell's day, an insight's month                                                                                                                |
 | `fx_rate`        | `currency`, `as_of` (the key), `rate`, `source`, `fetched_at`                                                                                                                                                         |
-| `job_claim`      | As Tusk's                                                                                                                                                                                                             |
 | `notice_seen`    | A notice's `jti` and when, for replay (§13.2)                                                                                                                                                                         |
 | `rate_bucket`    | As Tusk's                                                                                                                                                                                                             |
 
