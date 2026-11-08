@@ -52,6 +52,49 @@ describe('the proxy', () => {
     expect(rewrite(proxy(request('/sign-up')))).toBeNull();
   });
 
+  it('sends the other address of Overview to the front one for someone with a cookie, and leaves it to the page for anyone else', () => {
+    const reply = proxy(
+      new NextRequest('https://ledger.example.com/home', {
+        headers: { cookie: 'ledger.session_token=x' },
+      }),
+    );
+    expect(reply.status).toBe(308);
+    expect(reply.headers.get('location')).toBe('https://ledger.example.com/');
+    expect(
+      proxy(new NextRequest('https://ledger.example.com/home')).headers.get('location'),
+    ).toBeNull();
+  });
+
+  it('shows Overview at the front address for a request with a session cookie, and keeps the address', () => {
+    const rewrite = (response: Response) => response.headers.get('x-middleware-rewrite');
+    for (const name of ['ledger.session_token', '__Secure-ledger.session_token']) {
+      const signedIn = new NextRequest('https://ledger.example.com/', {
+        headers: { cookie: `${name}=anything` },
+      });
+      expect(rewrite(proxy(signedIn)), name).toMatch(/\/home$/);
+    }
+    vi.stubEnv('LEDGER_AUTH_LOCAL', '1');
+    // Only for the front address, and only for a cookie that is there: not for another page, an empty value, or a cookie of another name.
+    expect(rewrite(proxy(request('/')))).toBeNull();
+    for (const [path, cookie] of [
+      ['/', 'ledger.session_token='],
+      ['/', 'other=1; session_token=1'],
+      ['/sign-in', 'ledger.session_token=x'],
+      ['/budget', 'ledger.session_token=x'],
+    ] as const)
+      expect(
+        rewrite(
+          proxy(new NextRequest(`https://ledger.example.com${path}`, { headers: { cookie } })),
+        ),
+        `${path} ${cookie}`,
+      ).toBeNull();
+    // A policy and a nonce are on it all the same.
+    const signedIn = new NextRequest('https://ledger.example.com/', {
+      headers: { cookie: 'ledger.session_token=x' },
+    });
+    expect(proxy(signedIn).headers.get('content-security-policy')).toContain('nonce-');
+  });
+
   it('does not make a page of an API: its answer is data, and has no nonce to leak', () => {
     for (const path of ['/api/health', '/api/export']) {
       const response = proxy(request(path));

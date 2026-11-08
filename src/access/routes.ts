@@ -22,8 +22,10 @@ export interface RouteRule {
 
 export const ROUTES: RouteRule[] = [
   // Pages
-  // The front address: Overview for someone signed in (the layout and the page both ask who). A visitor's landing page joins it with task 2.2.
-  { route: '/', page: { kind: 'book' } },
+  // The front address (DESIGN.md §14.3): the landing page for a visitor, and Overview for someone with a session cookie, which the proxy shows here by
+  // rewriting to `/home`: the address stays `/`, and `/home` itself is sent back to it.
+  { route: '/', page: { kind: 'public' } },
+  { route: '/home', page: { kind: 'book' } },
   { route: '/sign-in', page: { kind: 'public' } },
   { route: '/sign-up', page: { kind: 'public' } },
   // Only with mail (DESIGN.md §13.1): without it they are 404, like the routes under /api/auth that send and use the links.

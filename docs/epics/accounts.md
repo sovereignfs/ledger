@@ -2,7 +2,7 @@
 
 ## Status
 
-⏳ In progress: 1 of 6 tasks are done.
+⏳ In progress: 2 of 6 tasks are done.
 
 ## Overview
 
@@ -28,7 +28,7 @@ requests; the pages answer 404 with local sign-in off.
 
 **Done as:** better-auth 1.7 on the auth store, copied from Tusk (`src/auth/`, `src/mail/`, `src/limits/`, the four pages, `/api/auth`) and trimmed to local sign-in: the passkey and authenticator-app plugins, email verification and reset only with SMTP, sign-up `closed` unless said open (enforced in the user-create hook, so it holds for every way an account is made), rate limits in the database, and sessions with a ten-minute fresh window kept for a later use. Sovereign sign-in is left out here and belongs to 2.3; the sign-in form still carries its button, switched off (`sovereign={false}`). `/api/auth` and the four pages answer 404 with `LEDGER_AUTH_LOCAL` off, by the proxy. The signed-in layout now requires a session, so a visitor is sent to `/sign-in` (`/` becomes the landing page in 2.2), and the avatar menu has Sign out (Settings joins in 2.6). `src/db/test-store.ts` is the shared migrated store for data-layer tests. Run here: 278 tests on a SQLite file and on sqld, 277 on PostgreSQL; 26 browser tests in Chromium and WebKit on a file, and the smoke and auth specs on sqld and PostgreSQL. `LEDGER_CORE_*` are accepted and checked as a group but do nothing yet.
 
-#### 📋 2.2 — Landing page and the address `/`
+#### ✅ 2.2 — Landing page and the address `/`
 
 **Goal:** a visitor sees what Ledger is; a signed-in person sees Overview. **Design:** §14.3. **Depends on:** 2.1.
 
@@ -36,6 +36,8 @@ requests; the pages answer 404 with local sign-in off.
 cookie, as Tusk's.
 
 **Accepts when:** `/` shows the landing page signed out and Overview (or setup) signed in, with no redirect loop.
+
+**Done as:** `src/landing/` (the page, its CSS, typed content and the test that holds the content to what is built) copied from Tusk and written for Ledger, and `app/page.tsx` as the landing page for a visitor, with sign-in and, where the server would take it, sign-up. The proxy shows Overview at `/` for a request with a session cookie by rewriting to `/home`, so the address stays `/`, and sends `/home` itself back to `/` (a mark on the request stops a loop). Only the cookie's presence is looked at; a forged one reaches a page that checks the session and sends it to sign in. The landing says only what is so today (an account of one's own, sign-in, phone and desktop), and its test keeps the words of what is not built out until it is. 32 browser tests (Chromium and WebKit), including the landing, Overview at the same address, and a phone's width.
 
 #### 📋 2.3 — Sign-in through core
 

@@ -46,7 +46,7 @@ One person signs in to a book of their own, and every statement carries the perm
 | --- | ----------------------------- | -------------------------------- | -------- | ---------- | ------ |
 | 11  | [2.1](docs/epics/accounts.md) | Local sign-in                    | P0       | 1.5, 1.8   | ✅     |
 | 12  | [3.1](docs/epics/money.md)    | Books and access                 | P0       | 2.1        | ✅     |
-| 13  | [2.2](docs/epics/accounts.md) | Landing page and the address `/` | P1       | 2.1        | 📋     |
+| 13  | [2.2](docs/epics/accounts.md) | Landing page and the address `/` | P1       | 2.1        | ✅     |
 | 14  | [2.5](docs/epics/accounts.md) | Deleting a person                | P0       | 3.1        | 📋     |
 | 15  | [2.6](docs/epics/accounts.md) | Settings                         | P1       | 2.1, 1.8   | 📋     |
 | 16  | [3.2](docs/epics/money.md)    | Money and currencies             | P0       | 1.5        | 📋     |
