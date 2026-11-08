@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { signedIn } from './helpers';
 import { PORTS } from './ports';
 
 /**
@@ -30,6 +31,7 @@ test('the app is up on its database, and says which', async ({ request }) => {
 test('the page is the shell: a header with the wordmark, the places, and the main area', async ({
   page,
 }) => {
+  await signedIn(page);
   const violations = await recordViolations(page);
   const errors: string[] = [];
   page.on('console', (message) => message.type() === 'error' && errors.push(message.text()));
@@ -48,6 +50,7 @@ test('the page is the shell: a header with the wordmark, the places, and the mai
 });
 
 test('each place opens, and is marked as the current one', async ({ page }) => {
+  await signedIn(page);
   await page.goto('/');
   const places = page.getByRole('navigation', { name: 'Main' });
   for (const name of ['Transactions', 'Budget', 'Accounts', 'Reports']) {
@@ -61,7 +64,7 @@ test('the browser refuses an inline event handler, which the policy does not all
   page,
 }) => {
   const violations = await recordViolations(page);
-  await page.goto('/');
+  await page.goto('/sign-in');
   await page.evaluate(() => {
     document.body.insertAdjacentHTML(
       'beforeend',
@@ -78,15 +81,14 @@ test('a page that is not there is a page, with a way back', async ({ page }) => 
   const response = await page.goto('/no-such-page');
   expect(response?.status()).toBe(404);
   await expect(page.getByRole('heading', { name: 'That is not here' })).toBeVisible();
-  await page.getByRole('link', { name: 'Go back to Ledger' }).click();
-  await expect(page).toHaveURL('/');
+  await expect(page.getByRole('link', { name: 'Go back to Ledger' })).toHaveAttribute('href', '/');
 });
 
 test.describe('in dark mode', () => {
   test.use({ colorScheme: 'dark' });
 
   test('the page is dark from the first paint, with no flash of light', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/sign-in');
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
     const background = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
     expect(background).toBe('rgb(9, 9, 11)');
@@ -97,6 +99,7 @@ test.describe('at a phone’s width', () => {
   test.use({ viewport: { width: 375, height: 812 } });
 
   test('the header and the page fit, with nothing to scroll sideways', async ({ page }) => {
+    await signedIn(page);
     await page.goto('/');
     await expect(page.getByRole('banner')).toBeVisible();
     const overflows = await page.evaluate(
@@ -106,6 +109,7 @@ test.describe('at a phone’s width', () => {
   });
 
   test('the footer has the places, and the sidebar is not drawn', async ({ page }) => {
+    await signedIn(page);
     await page.goto('/budget');
     const footer = page.getByRole('contentinfo');
     await expect(footer.getByRole('link', { name: 'Budget' })).toHaveAttribute('href', '/budget');
@@ -128,7 +132,7 @@ test.describe('at a phone’s width', () => {
 test('the typeface is the design system’s, served from this origin', async ({ page }) => {
   const requested: string[] = [];
   page.on('request', (request) => requested.push(request.url()));
-  await page.goto('/');
+  await page.goto('/sign-in');
   const family = await page.evaluate(() => getComputedStyle(document.body).fontFamily);
   expect(family).toContain('Hanken Grotesk');
   const foreign = requested.filter(

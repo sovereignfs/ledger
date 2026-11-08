@@ -2,7 +2,7 @@
 
 ## Status
 
-📋 Planned.
+⏳ In progress: 1 of 6 tasks are done.
 
 ## Overview
 
@@ -15,7 +15,7 @@ Signing in, locally and through a Sovereign core, from one image; core's two not
 
 ## Tasks
 
-#### 📋 2.1 — Local sign-in
+#### ✅ 2.1 — Local sign-in
 
 **Goal:** accounts of the app's own. **Design:** §13.1. **Depends on:** 1.5, 1.8.
 
@@ -25,6 +25,8 @@ SMTP; the `Auth` components; `getSession`, `requireAccount`. Copied: Tusk's `src
 
 **Accepts when:** the first account can register and the second is refused with sign-up closed; sign-in works on all three databases over real
 requests; the pages answer 404 with local sign-in off.
+
+**Done as:** better-auth 1.7 on the auth store, copied from Tusk (`src/auth/`, `src/mail/`, `src/limits/`, the four pages, `/api/auth`) and trimmed to local sign-in: the passkey and authenticator-app plugins, email verification and reset only with SMTP, sign-up `closed` unless said open (enforced in the user-create hook, so it holds for every way an account is made), rate limits in the database, and sessions with a ten-minute fresh window kept for a later use. Sovereign sign-in is left out here and belongs to 2.3; the sign-in form still carries its button, switched off (`sovereign={false}`). `/api/auth` and the four pages answer 404 with `LEDGER_AUTH_LOCAL` off, by the proxy. The signed-in layout now requires a session, so a visitor is sent to `/sign-in` (`/` becomes the landing page in 2.2), and the avatar menu has Sign out (Settings joins in 2.6). `src/db/test-store.ts` is the shared migrated store for data-layer tests. Run here: 278 tests on a SQLite file and on sqld, 277 on PostgreSQL; 26 browser tests in Chromium and WebKit on a file, and the smoke and auth specs on sqld and PostgreSQL. `LEDGER_CORE_*` are accepted and checked as a group but do nothing yet.
 
 #### 📋 2.2 — Landing page and the address `/`
 

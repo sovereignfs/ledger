@@ -160,7 +160,7 @@ A command a task adds is written here in that task's change, and `verify` means 
 ## Not in place yet
 
 Each is a task in `ROADMAP.md`, not a thing to assume exists: sign-in and the book (Milestone B), then the ledger, the budget, recurring entries, jars and
-reports. Add them in their own branches, and move the line out of this section as each lands.
+reports; and sign-in through a Sovereign core (2.3). Add them in their own branches, and move the line out of this section as each lands.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

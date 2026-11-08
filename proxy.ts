@@ -9,10 +9,12 @@ import { HSTS, contentSecurityPolicy, newNonce } from './src/security/csp';
  * answer is data, with no page to protect, so it gets only the headers every response has (`next.config.ts`).
  *
  * It keeps the Edge discipline: no Node built-ins and no database. It only looks at the request, so a session is for the page to check, and a
- * proxy is never the only thing standing in the way (DESIGN.md §5.2). Sign-in's addresses (task 2.1) and the front address (task 2.2) join it.
+ * proxy is never the only thing standing in the way (DESIGN.md §5.2). The front address (task 2.2) joins it.
  */
+const SIGN_IN_PAGES = new Set(['/sign-in', '/sign-up', '/forgot-password', '/reset-password']);
+
 export function proxy(request: NextRequest) {
-  const { secure, development } = edgeSettings();
+  const { secure, development, authLocal } = edgeSettings();
   const page = !request.nextUrl.pathname.startsWith('/api/');
   const nonce = newNonce();
   const policy = contentSecurityPolicy({ nonce, secure, development });
@@ -27,7 +29,14 @@ export function proxy(request: NextRequest) {
     requestHeaders.delete('content-security-policy');
   }
 
-  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  // Off means off (DESIGN.md §13.1): with local sign-in off, the sign-in pages are not there. A page cannot say so itself: the root loading state has
+  // already sent a 200 by the time it would, so the proxy answers with the page that is not found, and its status.
+  const absent = !authLocal && SIGN_IN_PAGES.has(request.nextUrl.pathname);
+  const response = absent
+    ? NextResponse.rewrite(new URL('/not-found', request.url), {
+        request: { headers: requestHeaders },
+      })
+    : NextResponse.next({ request: { headers: requestHeaders } });
   if (page) response.headers.set('content-security-policy', policy);
   if (secure) response.headers.set('strict-transport-security', HSTS);
   return response;

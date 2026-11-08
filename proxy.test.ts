@@ -38,6 +38,20 @@ describe('the proxy', () => {
     }
   });
 
+  it('turns the sign-in pages into a page that is not found when local sign-in is off, and leaves them when it is on', () => {
+    const rewrite = (response: Response) => response.headers.get('x-middleware-rewrite');
+    vi.stubEnv('LEDGER_AUTH_LOCAL', '');
+    for (const path of ['/sign-in', '/sign-up', '/forgot-password', '/reset-password']) {
+      expect(rewrite(proxy(request(path))), path).toMatch(/\/not-found$/);
+      // Still a page with a policy: the page that is not found is sent like any other.
+      expect(proxy(request(path)).headers.get('content-security-policy'), path).toContain('nonce-');
+    }
+    expect(rewrite(proxy(request('/')))).toBeNull();
+    vi.stubEnv('LEDGER_AUTH_LOCAL', '1');
+    expect(rewrite(proxy(request('/sign-in')))).toBeNull();
+    expect(rewrite(proxy(request('/sign-up')))).toBeNull();
+  });
+
   it('does not make a page of an API: its answer is data, and has no nonce to leak', () => {
     for (const path of ['/api/health', '/api/export']) {
       const response = proxy(request(path));

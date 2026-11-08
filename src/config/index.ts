@@ -1,4 +1,7 @@
+import { resolveAuth, type AuthSettings } from '../auth/config';
 import { type KeyRing, parseKey, ringOf } from '../crypto/keys';
+import { resolveMail } from '../mail/config';
+import type { MailSettings } from '../mail/mailer';
 import { DatabaseConfigError, resolveDatabaseSettings, type DatabaseSettings } from '../db/config';
 import { readEnvironment, type Env, type ReadFile } from './env';
 
@@ -6,6 +9,10 @@ import { readEnvironment, type Env, type ReadFile } from './env';
 export interface Config {
   /** The address people use, with no path. Absent when the app is run with no sign-in, which only a development machine does. */
   readonly url: string | undefined;
+  /** How people sign in, or `undefined` when no way is on: there is then no sign-in, and its addresses answer 404 (DESIGN.md §13.1). */
+  readonly auth: AuthSettings | undefined;
+  /** Where mail goes, or `undefined`: then an address is not verified, a password is not reset by mail, and no screen or route offers either (DESIGN.md §13.1). */
+  readonly mail: MailSettings | undefined;
   /** Whether this process runs the background jobs (DESIGN.md §5): off for all but one process when several share a database. */
   readonly worker: boolean;
   /** Whether the daily exchange-rate fetch runs (DESIGN.md §9.2), and where Frankfurter is when it is not the default. */
@@ -134,6 +141,12 @@ export function loadConfig(env: Env, readFile?: ReadFile): LoadResult {
     else url = checked.url;
   }
 
+  // Signing in: checked with the address, since links, cookies and passkeys are made from it.
+  const auth = resolveAuth(read, url, problems);
+
+  // Mail is optional, but a host with no sender would send nothing anyone could answer, so it stops here rather than at the first message.
+  const mail = resolveMail(read, problems);
+
   const rawWorker = read('LEDGER_WORKER');
   if (rawWorker !== undefined && rawWorker !== 'on' && rawWorker !== 'off') {
     problems.push('LEDGER_WORKER is on or off.');
@@ -188,6 +201,8 @@ export function loadConfig(env: Env, readFile?: ReadFile): LoadResult {
     ok: true,
     config: {
       url,
+      auth,
+      mail,
       worker: rawWorker !== 'off',
       fx: { enabled: rawFx !== 'off', url: fxUrl },
       database,
