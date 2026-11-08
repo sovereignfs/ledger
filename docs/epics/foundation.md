@@ -2,7 +2,7 @@
 
 ## Status
 
-⏳ In progress: 5 of 11 tasks are done.
+⏳ In progress: 6 of 11 tasks are done.
 
 ## Overview
 
@@ -75,13 +75,15 @@ stores `ledger` and `ledger_auth`; `pnpm db:generate`, `pnpm db:dev`; the parity
 
 **Done as:** `src/db/` (config, client, provision, migrate, boot with retries, `exec.ts`, the sqld namespaces, `test-support.ts` reading `LEDGER_TEST_*`), `scripts/db-generate.mjs`, `dev-db.mjs`, `boot-check.mjs`, `serve-standalone.mjs`, the drizzle configs and better-auth's migrations copied from Tusk and renamed. The column vocabulary is Ledger's own: `id`, `ref`, `epochMs`, `counter`, `money` (a 64-bit integer, `bigint` on PostgreSQL), `bool`, `isoDate`, `month`, `decimal` and `json`; its test checks amounts past 2^32 and exact sums on each form. The app store has `rate_bucket` so far (migration `0000_init`); later tasks add their tables in migrations of their own. Run here on all three forms: the data-layer tests (132 passed on sqld and a file, 131 on PostgreSQL) and `pnpm boot-check` against the built server. CI gains the `tests` legs for the three forms and the check that generating writes nothing. `DESIGN.md` §18.3 drops `job_claim`: a claim is a conditional update on the table whose work it claims (`src/jobs/claim.ts`, 1.6).
 
-#### 📋 1.6 — The job runner
+#### ✅ 1.6 — The job runner
 
 **Goal:** background work in the web process, safe across processes. **Design:** §5. **Depends on:** 1.5.
 
-**Technical:** copy Tusk's `src/jobs/` (runner, `claim.ts`, `index.ts`) and `job_claim`; `LEDGER_WORKER=off`; stopped on SIGTERM.
+**Technical:** copy Tusk's `src/jobs/` (runner, `claim.ts`, `index.ts`) (no table: a claim is a conditional update); `LEDGER_WORKER=off`; stopped on SIGTERM.
 
 **Accepts when:** a job's work is done once when two processes run it; SIGTERM stops the runner and the server cleanly.
+
+**Done as:** `src/jobs/` (`runner.ts`, `claim.ts`, `index.ts`) and their tests copied from Tusk and renamed; the job list is empty, and each task that has a job adds it (3.3, 6.2, 8.6). The runner starts from `instrumentation-node.ts` after the database, is off with `LEDGER_WORKER=off`, and is stopped on SIGTERM and SIGINT. The claim test races two database handles on each form (file, sqld and PostgreSQL, all passing). Seen with the built server: SIGTERM stops it, and `LEDGER_WORKER=off` runs no job.
 
 #### 📋 1.7 — Security headers
 
