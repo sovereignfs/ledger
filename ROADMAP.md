@@ -27,7 +27,7 @@ The repository can hold the app. Nothing a person would notice. **Done when** an
 
 | #   | ID                               | Task                             | Priority | Depends on | Status |
 | --- | -------------------------------- | -------------------------------- | -------- | ---------- | ------ |
-| 1   | [1.1](docs/epics/foundation.md)  | Repository conventions           | P0       | —          | 📋     |
+| 1   | [1.1](docs/epics/foundation.md)  | Repository conventions           | P0       | —          | ✅     |
 | 2   | [1.2](docs/epics/foundation.md)  | Format, lint and test tooling    | P0       | 1.1        | 📋     |
 | 3   | [1.3](docs/epics/foundation.md)  | Continuous integration           | P0       | 1.2        | 📋     |
 | 4   | [1.4](docs/epics/foundation.md)  | Configuration and start-up       | P0       | 1.2        | 📋     |

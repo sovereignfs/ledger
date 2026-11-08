@@ -2,7 +2,7 @@
 
 ## Status
 
-📋 Planned.
+⏳ In progress: 1 of 11 tasks are done.
 
 ## Overview
 
@@ -16,7 +16,7 @@ Ledger does not use (sync, workspaces, the cipher, backup). Each task says which
 
 ## Tasks
 
-#### 📋 1.1 — Repository conventions
+#### ✅ 1.1 — Repository conventions
 
 **Goal:** the files a repository of the suite is expected to have. **Design:** §19, `AGENTS.md`. **Depends on:** nothing.
 
@@ -26,6 +26,8 @@ Ledger does not use (sync, workspaces, the cipher, backup). Each task says which
 `manifest` pinned exactly at Tusk's versions.
 
 **Accepts when:** a clean checkout installs with `pnpm install --frozen-lockfile`, `pnpm typecheck` passes, and `git status` is clean after.
+
+**Done as:** licence (Tusk's AGPL text), changelog, contributing guide, pull request template, Dependabot, `.editorconfig` and `.node-version` (24.18.0), copied from Tusk and renamed; `package.json` (`@sovereignfs/ledger`, `type`, `engines`, pnpm 11) with Next.js 16, React 19, TypeScript 6.0.x strict with `noUncheckedIndexedAccess`; `@sovereignfs/ui` pinned at 0.92.0 and listed in `minimumReleaseAgeExclude`. `@sovereignfs/config` and `sdk` are added by the tasks that use them (1.4, 2.4). A placeholder page keeps `next typegen` honest until the shell (1.8).
 
 #### 📋 1.2 — Format, lint and test tooling
 
