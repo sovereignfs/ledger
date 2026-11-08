@@ -1,0 +1,105 @@
+/* The frame of every signed-in page: a header, and under it a sidebar and the main area on a wide screen, or the main area and a footer on a phone
+   (DESIGN.md §14.2, §14.6). The main area is as tall as what is left of the viewport and does not scroll itself: its content does. The header's
+   measurements follow the design system's own `Header`. */
+.shell {
+  /* Published for the design system's overlays (Dialog, Drawer, Sheet), which stop below the header. */
+  --sv-shell-header-height: 56px;
+  --sv-shell-sidebar-width: 240px;
+  --sv-dialog-inset-top: var(--sv-shell-header-height);
+  display: flex;
+  flex-direction: column;
+  /* dvh avoids clipping by a mobile browser's own bars; vh for engines without it. */
+  height: 100vh;
+  height: 100dvh;
+  background-color: var(--sv-color-surface);
+}
+
+.header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sv-space-3);
+  min-height: var(--sv-shell-header-height);
+  padding: var(--sv-space-2) var(--sv-space-4);
+  padding-top: max(var(--sv-space-2), env(safe-area-inset-top));
+  padding-right: max(var(--sv-space-4), env(safe-area-inset-right));
+  padding-left: max(var(--sv-space-4), env(safe-area-inset-left));
+  border-bottom: var(--sv-border-width-hairline) solid var(--sv-color-border);
+  background-color: var(--sv-color-surface);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sv-space-2);
+  min-width: 0;
+  color: var(--sv-color-text-primary);
+  text-decoration: none;
+  border-radius: var(--sv-radius-md);
+}
+
+/* The wordmark: lowercase, in the design system's own face at its heaviest and drawn close, so that it reads as a mark and not as a title. */
+.wordmark {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  line-height: 1;
+  /* The letters of a lowercase word sit low: a little room under, so that it centres by its x-height and not by its box. */
+  padding-bottom: 3px;
+}
+
+.actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--sv-space-1);
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* The sidebar of a wide screen: the add button above the places. Not drawn on a phone, whose footer holds the same places. */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: var(--sv-space-3);
+  width: var(--sv-shell-sidebar-width);
+  padding: var(--sv-space-3);
+  overflow-y: auto;
+  border-right: var(--sv-border-width-hairline) solid var(--sv-color-border);
+  background-color: var(--sv-color-surface);
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* The phone's footer: below the main area. The design system's footer has its own border, background and clearance of the home indicator, so
+   this only keeps its place. */
+.footer {
+  display: none;
+  flex-shrink: 0;
+}
+
+/* The width the design system calls a phone (768px): only what is drawn changes, never an address or a decision (src/ui/no-fork.test.ts). */
+@media (max-width: 768px) {
+  .sidebar {
+    display: none;
+  }
+
+  .footer {
+    display: block;
+  }
+}
+
+.more {
+  padding: var(--sv-space-2) var(--sv-space-4) var(--sv-space-4);
+}

@@ -2,7 +2,7 @@
 
 ## Status
 
-⏳ In progress: 7 of 11 tasks are done.
+⏳ In progress: 8 of 11 tasks are done.
 
 ## Overview
 
@@ -95,7 +95,7 @@ stores `ledger` and `ledger_auth`; `pnpm db:generate`, `pnpm db:dev`; the parity
 
 **Done as:** `src/security/csp.ts` and its tests copied from Tusk and `proxy.ts` written for Ledger: a nonce per request, a policy with `script-src 'self' 'nonce-…' 'strict-dynamic'` and never `'unsafe-inline'`, `connect-src 'self'`, HSTS over https only, and the static headers from `next.config.ts`. The proxy replaces any nonce or policy the client sent, keeps the Edge discipline, and treats `/api/` as data (no policy, no nonce). Seen on the built server: a page, a 404 and an API carry the headers they should. Sign-in's addresses (2.1) and the front address (2.2) join the proxy with their tasks. Left out: Tusk's matcher exception for an import body, which returns with 11.2 if it is needed.
 
-#### 📋 1.8 — Design system boundary and shell
+#### ✅ 1.8 — Design system boundary and shell
 
 **Goal:** `@sovereignfs/ui` wired in, with the app's shell. **Design:** §14.1, §14.2. **Depends on:** 1.2.
 
@@ -104,6 +104,8 @@ Transactions, Budget, Accounts, Reports; Add pinned) and `MobileFooter` at a pho
 in `public/icons/`; not-found and error pages.
 
 **Accepts when:** the shell renders in light and dark at desktop and phone widths, with no literal colour anywhere.
+
+**Done as:** Root layout (`@sovereignfs/ui` tokens, Hanken Grotesk from the package, the nonce on the theme script, `ToastProvider`), `src/theme/` and `globals.css` copied from Tusk and renamed, and `src/ui/design-tokens.ts` with its test (no literal colour, no undefined token). `src/ui/AppShell.tsx` is Ledger's own: a header with the wordmark and a slot for the avatar menu, a sidebar of the five places with **Add** pinned above (drawn disabled until 4.3), and on a phone the design system's `MobileFooter` (four places, and a drawer for Reports). Both navigations are drawn and the stylesheet shows one at 768px, so nothing asks for the width; `no-fork.test.ts` holds the code to that. `src/ui/nav.ts` is the one list of places (tested); `LedgerMark`, `public/icons/icon.svg`, not-found, error and loading pages, and a placeholder for each place. Peer dependencies `@dnd-kit/core` and `sortable` added. Seen in the browser pane: dark and light, at a desktop width and at 375px, the drawer opens, no console errors. The PNG icons come with the PWA (1.11).
 
 #### 📋 1.9 — Browser tests
 

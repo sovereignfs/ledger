@@ -32,7 +32,7 @@ The repository can hold the app. Nothing a person would notice. **Done when** an
 | 3   | [1.3](docs/epics/foundation.md)  | Continuous integration           | P0       | 1.2        | ✅     |
 | 4   | [1.4](docs/epics/foundation.md)  | Configuration and start-up       | P0       | 1.2        | ✅     |
 | 5   | [1.5](docs/epics/foundation.md)  | The database layer               | P0       | 1.4        | ✅     |
-| 6   | [1.8](docs/epics/foundation.md)  | Design system boundary and shell | P0       | 1.2        | 📋     |
+| 6   | [1.8](docs/epics/foundation.md)  | Design system boundary and shell | P0       | 1.2        | ✅     |
 | 7   | [1.7](docs/epics/foundation.md)  | Security headers                 | P0       | 1.4        | ✅     |
 | 8   | [1.6](docs/epics/foundation.md)  | The job runner                   | P0       | 1.5        | ✅     |
 | 9   | [1.9](docs/epics/foundation.md)  | Browser tests                    | P0       | 1.5        | 📋     |
