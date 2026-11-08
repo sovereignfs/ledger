@@ -2,7 +2,7 @@
 
 ## Status
 
-⏳ In progress: 2 of 11 tasks are done.
+⏳ In progress: 3 of 11 tasks are done.
 
 ## Overview
 
@@ -40,7 +40,7 @@ Ledger does not use (sync, workspaces, the cipher, backup). Each task says which
 
 **Done as:** Prettier and ESLint with Tusk's configuration (strict TypeScript rules, jsx-a11y; `eslint-plugin-jsx-a11y` is allowed on ESLint 10 by one named peer rule); Vitest with the design system inlined for its CSS Modules and files run one after another; a smoke test that reads `package.json`, so a runner that finds nothing cannot pass. Each of format, lint, typecheck and test was seen to fail on a planted fault. Left out: git hooks, which can follow if wanted.
 
-#### 📋 1.3 — Continuous integration
+#### ✅ 1.3 — Continuous integration
 
 **Goal:** CI that runs what a change can affect. **Design:** §19. **Depends on:** 1.2.
 
@@ -48,6 +48,8 @@ Ledger does not use (sync, workspaces, the cipher, backup). Each task says which
 with 1.10, the browser with 1.9. Skipped on drafts and `skip-ci`.
 
 **Accepts when:** a PR runs only the legs its files affect, and a failing leg fails the PR.
+
+**Done as:** `scripts/ci-changes.sh` and its tests copied from Tusk, and `.github/workflows/ci.yml`: a `changes` job with the draft and `skip-ci` guard, then `check` (format, lint, types, build, test) and `scripts` (shellcheck, the classifier's tests). Linted with actionlint and shellcheck locally; it has not run on GitHub yet. The database, browser and image legs join with 1.5, 1.9 and 1.10, as the task says.
 
 #### 📋 1.4 — Configuration and start-up
 
