@@ -1,10 +1,12 @@
 import type { Metadata } from 'next';
+import { requireBook } from '@/src/access/page';
 import { EmptyState, PageContainer, PageHeader } from '@sovereignfs/ui';
 
 export const metadata: Metadata = { title: 'Transactions' };
 
 /** A place the shell has, with nothing in it yet: task 4.7 builds it. */
-export default function Page() {
+export default async function Page() {
+  await requireBook();
   return (
     <PageContainer>
       <PageHeader title="Transactions" description="Every entry, findable." />

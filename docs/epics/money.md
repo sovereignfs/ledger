@@ -2,7 +2,7 @@
 
 ## Status
 
-📋 Planned.
+⏳ In progress: 1 of 4 tasks are done.
 
 ## Overview
 
@@ -15,7 +15,7 @@ date. Everything after stands on these.
 
 ## Tasks
 
-#### 📋 3.1 — Books and access
+#### ✅ 3.1 — Books and access
 
 **Goal:** a book per person, and the permission in every statement. **Design:** §5.2, §5.3. **Depends on:** 2.1.
 
@@ -25,6 +25,8 @@ holding it to `app/`; two real accounts for tests (`two-accounts.ts`, copied).
 
 **Accepts when:** every route and action in the list is called as a second person and answers not found; a route missing from the list fails the
 test.
+
+**Done as:** `book` and `book_member` (migration `0001_books`, both dialects), and `src/ledger/books.ts`: `ensureBook` makes a person's book at their first request with an id derived from the account's (`uuid5`, copied from Tusk with Ledger's namespace), so two requests that find none make the same row and one makes it; seen with four at once. `src/access/`: `inBook`, the membership condition that every statement on a book's rows carries; `bookRoute` (session, `Origin` on a write, then the account and its book, never what a request names), `requireBook` for pages and server actions, `routes.ts` with `routes.test.ts` holding it to `app/` both ways (a route with no rule, a page that never asks, a handler that is not wrapped all fail, each seen to), and `two-accounts.ts`, two real accounts for later tests. The `book` kind replaces Tusk's `account`. Run here: 310 tests on a file and sqld, 309 on PostgreSQL; 13 browser tests. Left for the tasks that make rows: calling each route as the second person (there is none that reads a row yet; `book.test.ts` shows the statement-level answer, and a hostile account id is bound and matches nothing).
 
 #### 📋 3.2 — Money and currencies
 
