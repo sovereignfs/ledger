@@ -141,27 +141,27 @@ User-facing text says "budgeted", "spent", "subcategory", "account" and "app"; n
 
 As Tusk's: `app/` for routes, `src/` for everything else, tests beside the code.
 
-| Path                      | What                                                                                                                |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `app/`                    | Routes: the landing page, sign-in, the signed-in area, `/api/*`                                                     |
-| `src/db/`                 | Configuration, clients, schemas per dialect, migrations at start-up (§18) — **copied from Tusk**                    |
-| `src/auth/`               | better-auth, its settings, the screens, the fake Sovereign for tests (§13) — **copied from Tusk**                   |
-| `src/access/`             | Every page and route with who may use it; `bookRoute`; input parsers (§5.2)                                         |
-| `src/money/`              | Minor units, currencies and their decimals, formatting, rounding, conversion (§9) — pure                            |
-| `src/fx/`                 | The rate table, the fetch job, "the rate in force on a date" (§9.2)                                                 |
-| `src/ledger/`             | Money accounts, transactions and lines, payees, balances, reconciling, revaluation (§6)                             |
-| `src/budget/`             | Categories, income sources, budgeted amounts with history, the monthly equivalent (§7)                              |
-| `src/recurring/`          | Rules, the next occurrence, posting and "upcoming" (§8) — the rule copied from Tusk's `recurrence.ts`               |
-| `src/jars/`               | Jars and their movements (§10)                                                                                      |
-| `src/reports/`            | Month and year figures, net worth over time, the review, the recap (§11) — pure over rows                           |
-| `src/insights/`           | The rules (§12) — pure                                                                                              |
-| `src/portability/`        | The file format, export and import (§16)                                                                            |
-| `src/sovereign/`          | Core's notices, `People.deletePerson`, the bell, email and activity calls (§13, §17) — **from Tusk**                |
-| `src/jobs/`               | The runner and claims — **copied from Tusk**                                                                        |
-| `src/crypto/`             | Envelope encryption under `LEDGER_ENCRYPTION_KEY` — **copied from Tusk**, used by nothing in phase 1 but SMTP (§19) |
-| `src/mail/`               | The SMTP mailer — **copied from Tusk**                                                                              |
-| `src/screens/`, `src/ui/` | The signed-in screens and the shell                                                                                 |
-| `migrations/`, `deploy/`  | Generated SQL (`sqlite/`, `postgres/`, `auth/`); the Compose setups                                                 |
+| Path                      | What                                                                                                                           |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `app/`                    | Routes: the landing page, sign-in, the signed-in area, `/api/*`                                                                |
+| `src/db/`                 | Configuration, clients, schemas per dialect, migrations at start-up (§18) — **copied from Tusk**                               |
+| `src/auth/`               | better-auth, its settings, the screens, the fake Sovereign for tests (§13) — **copied from Tusk**                              |
+| `src/access/`             | Every page and route with who may use it; `bookRoute`; input parsers (§5.2)                                                    |
+| `src/money/`              | Minor units, currencies and their decimals, formatting, rounding, conversion (§9) — pure                                       |
+| `src/fx/`                 | The rate table, the fetch job, "the rate in force on a date" (§9.2)                                                            |
+| `src/ledger/`             | Money accounts, transactions and lines, payees, balances, reconciling, revaluation (§6)                                        |
+| `src/budget/`             | Categories, income sources, budgeted amounts with history, the monthly equivalent (§7)                                         |
+| `src/recurring/`          | Rules, the next occurrence, posting and "upcoming" (§8) — the rule copied from Tusk's `recurrence.ts`                          |
+| `src/jars/`               | Jars and their movements (§10)                                                                                                 |
+| `src/reports/`            | Month and year figures, net worth over time, the review, the recap (§11) — pure over rows                                      |
+| `src/insights/`           | The rules (§12) — pure                                                                                                         |
+| `src/portability/`        | The file format, export and import (§16)                                                                                       |
+| `src/sovereign/`          | Core's notices, `People.deletePerson`, the bell, email and activity calls (§13, §17) — **from Tusk**                           |
+| `src/jobs/`               | The runner and claims — **copied from Tusk**                                                                                   |
+| `src/crypto/`             | The instance key and envelope encryption — **copied from Tusk**, used by nothing in phase 1, since no credential is kept (§19) |
+| `src/mail/`               | The SMTP mailer — **copied from Tusk**                                                                                         |
+| `src/screens/`, `src/ui/` | The signed-in screens and the shell                                                                                            |
+| `migrations/`, `deploy/`  | Generated SQL (`sqlite/`, `postgres/`, `auth/`); the Compose setups                                                            |
 
 **Copied from Tusk** (building-an-app §15: until the kit is published, an app copies, and says which files): `src/db/` (boot, retry, sqld
 namespaces, migrations at start-up, the column vocabulary, `exec.ts`, `test-support.ts`), `src/jobs/`, `src/auth/` and its fake Sovereign,
@@ -628,7 +628,6 @@ Beyond better-auth's, in the auth store. Every table but `fx_rate` and `job_clai
 | `fx_rate`        | `currency`, `as_of` (the key), `rate`, `source`, `fetched_at`                                                                                                                                                         |
 | `job_claim`      | As Tusk's                                                                                                                                                                                                             |
 | `notice_seen`    | A notice's `jti` and when, for replay (§13.2)                                                                                                                                                                         |
-| `credential`     | As Tusk's (envelope encryption), unused in phase 1 but present with `src/crypto/`                                                                                                                                     |
 | `rate_bucket`    | As Tusk's                                                                                                                                                                                                             |
 
 Indexes follow the queries: lines by `(book_id, account_id, …)` with the transaction's date, by `(book_id, subcategory_id)`, by income source;

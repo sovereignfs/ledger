@@ -2,7 +2,7 @@
 
 ## Status
 
-⏳ In progress: 3 of 11 tasks are done.
+⏳ In progress: 4 of 11 tasks are done.
 
 ## Overview
 
@@ -51,7 +51,7 @@ with 1.10, the browser with 1.9. Skipped on drafts and `skip-ci`.
 
 **Done as:** `scripts/ci-changes.sh` and its tests copied from Tusk, and `.github/workflows/ci.yml`: a `changes` job with the draft and `skip-ci` guard, then `check` (format, lint, types, build, test) and `scripts` (shellcheck, the classifier's tests). Linted with actionlint and shellcheck locally; it has not run on GitHub yet. The database, browser and image legs join with 1.5, 1.9 and 1.10, as the task says.
 
-#### 📋 1.4 — Configuration and start-up
+#### ✅ 1.4 — Configuration and start-up
 
 **Goal:** settings declared once and checked before anything is served. **Design:** §13.1, §19 Deployment. **Depends on:** 1.2.
 
@@ -60,6 +60,8 @@ with 1.10, the browser with 1.9. Skipped on drafts and `skip-ci`.
 and stops on a wrong setting; `.env.example` held to the declarations by a test; `/api/health`. Copied: Tusk's `src/config/`, instrumentation.
 
 **Accepts when:** a missing or malformed setting stops start-up with every problem named and no value printed; `.env.example` matches the code.
+
+**Done as:** `src/config/` (`env.ts`, `index.ts`, `current.ts`, `edge.ts`) and `instrumentation*.ts` copied from Tusk and trimmed: every setting is declared once through `@sovereignfs/config` 0.1.0 (prefix `LEDGER`, secrets take the `_FILE` form), `loadConfig` reports every problem at once by name and never a value, and the server stops at start-up on a wrong one (seen with the built server). Checked here: `LEDGER_URL`, `WORKER`, `FX` and `FX_URL`, the instance key with its previous one, and the all-or-none group of `CORE_*`. The database, sign-in and mail settings are declared and listed in `.env.example`, and are checked by the tasks that read them (1.5, 2.1). `src/crypto/keys.ts` and `envelope.ts` are copied with their tests; no credential table is made, since nothing in phase 1 keeps one (`DESIGN.md` §18.3 is corrected). `/api/health` answers 200; 1.5 makes it ask the database. `process-env.test.ts` holds `process.env` to `src/config` and `.env.example` to the declarations.
 
 #### 📋 1.5 — The database layer
 

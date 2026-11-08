@@ -25,6 +25,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@sovereignfs/config": "0.1.0",
     "@sovereignfs/ui": "0.92.0",
     "next": "^16.4.3",
     "react": "^19.3.1",
