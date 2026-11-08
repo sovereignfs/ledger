@@ -2,7 +2,7 @@
 
 ## Status
 
-⏳ In progress: 8 of 11 tasks are done.
+⏳ In progress: 9 of 11 tasks are done.
 
 ## Overview
 
@@ -107,13 +107,15 @@ in `public/icons/`; not-found and error pages.
 
 **Done as:** Root layout (`@sovereignfs/ui` tokens, Hanken Grotesk from the package, the nonce on the theme script, `ToastProvider`), `src/theme/` and `globals.css` copied from Tusk and renamed, and `src/ui/design-tokens.ts` with its test (no literal colour, no undefined token). `src/ui/AppShell.tsx` is Ledger's own: a header with the wordmark and a slot for the avatar menu, a sidebar of the five places with **Add** pinned above (drawn disabled until 4.3), and on a phone the design system's `MobileFooter` (four places, and a drawer for Reports). Both navigations are drawn and the stylesheet shows one at 768px, so nothing asks for the width; `no-fork.test.ts` holds the code to that. `src/ui/nav.ts` is the one list of places (tested); `LedgerMark`, `public/icons/icon.svg`, not-found, error and loading pages, and a placeholder for each place. Peer dependencies `@dnd-kit/core` and `sortable` added. Seen in the browser pane: dark and light, at a desktop width and at 375px, the drawer opens, no console errors. The PNG icons come with the PWA (1.11).
 
-#### 📋 1.9 — Browser tests
+#### ✅ 1.9 — Browser tests
 
 **Goal:** Playwright on the built app. **Design:** §19 Testing. **Depends on:** 1.5.
 
 **Technical:** Tusk's Playwright setup copied: Chromium and WebKit, the database form from the environment, shards in CI.
 
 **Accepts when:** a smoke test opens the built app on each database form in CI.
+
+**Done as:** Playwright 1.64.1 (the browsers were already installed here): `playwright.config.ts`, `e2e/ports.ts` and `scripts/e2e-shard.mjs` copied from Tusk and trimmed to one instance of the app, on the database form the environment names, with `LEDGER_FX=off` so that no test reaches the network. `e2e/smoke.spec.ts` covers the health route, the shell and its five places, the policy a browser enforces (an inline handler is refused), the not-found page, dark mode from first paint, a phone's width (the footer has the places, the sidebar is not drawn) and the typeface from this origin. 18 tests pass in Chromium and WebKit, and the smoke spec passes on sqld and PostgreSQL. CI gains a smoke step in each `tests` leg and a `browser` job of two shards; a shard with no spec stops instead of running every test, which Playwright would otherwise do. Instances for core, passkeys and the like join with the tasks that need them.
 
 #### 📋 1.10 — The image and deployment setups
 
