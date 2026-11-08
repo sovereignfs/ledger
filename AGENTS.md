@@ -16,8 +16,9 @@ instance can host it, and it also runs fully self-hosted, needing no instance. I
 whose behaviour is the starting point and none of whose code or data is carried over. It is a PWA on Next.js, with its own database (sqld, a SQLite
 file or PostgreSQL), signing people in locally, through a Sovereign core, or both, from one image.
 
-**What is built:** the foundation (Milestone A): settings, the database on three forms, the job runner, the policy and headers, the shell, browser
-tests, the image and its setups. Sign-in, the book and the ledger are not (`ROADMAP.md` has each). `DESIGN.md` is the design, `ROADMAP.md` the order.
+**What is built:** the foundation (Milestone A: settings, the database on three forms, the job runner, the policy and headers, the shell, browser tests, the
+image and its setups) and the first people's part (Milestone B: local sign-in, the book and the permission, the landing page, deleting a person, Settings, and
+amounts and currencies). The ledger, the budget and everything after are not (`ROADMAP.md` has each). `DESIGN.md` is the design, `ROADMAP.md` the order.
 
 ## Source of truth
 
@@ -160,8 +161,8 @@ A command a task adds is written here in that task's change, and `verify` means 
 
 ## Not in place yet
 
-Each is a task in `ROADMAP.md`, not a thing to assume exists: sign-in and the book (Milestone B), then the ledger, the budget, recurring entries, jars and
-reports; and sign-in through a Sovereign core (2.3). Add them in their own branches, and move the line out of this section as each lands.
+Each is a task in `ROADMAP.md`, not a thing to assume exists: the ledger, the budget, recurring entries, jars and reports; sign-in through a Sovereign
+core (2.3, 2.4); the PWA (1.11). Add them in their own branches, and move the line out of this section as each lands.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

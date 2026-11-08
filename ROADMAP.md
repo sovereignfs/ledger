@@ -2,7 +2,7 @@
 
 The order of work. **This file tracks progress; it does not define behaviour.** [`DESIGN.md`](DESIGN.md) says what Ledger does, and where it disagrees with this file, this file is stale and should be corrected. The detail of every task, with its technical notes and what makes it done, is in [`docs/epics/`](docs/epics/). How a task is run is in [`AGENTS.md`](AGENTS.md).
 
-State as of 2026-11-08: **Milestone A is done** (the foundation, 1.1 to 1.10); the PWA (1.11) waits in Milestone G. The developer assigns each task; the first row not done, with its dependencies met, is what the order recommends.
+State as of 2026-11-08: **Milestones A and B are done** (the foundation, 1.1 to 1.10; and sign-in, the book, the front address, deleting a person, Settings, and money and currencies: 2.1, 3.1, 2.2, 2.5, 2.6, 3.2). The PWA (1.11) waits in Milestone G, and sign-in through core (2.3, 2.4) in Milestone G too. The developer assigns each task; the first row not done, with its dependencies met, is what the order recommends.
 
 _Status key: ✅ Done · ⏳ In progress · 📋 Planned · 🚧 Waits on a decision · ➖ Superseded_
 
