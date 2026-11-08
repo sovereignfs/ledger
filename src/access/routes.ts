@@ -31,6 +31,8 @@ export const ROUTES: RouteRule[] = [
   // Only with mail (DESIGN.md §13.1): without it they are 404, like the routes under /api/auth that send and use the links.
   { route: '/forgot-password', page: { kind: 'public' } },
   { route: '/reset-password', page: { kind: 'public' } },
+  // Settings (DESIGN.md §15.1): a page of its own, and a dialog over another page by an intercepting route at the same address.
+  { route: '/account', page: { kind: 'book' } },
   // The places of the app (DESIGN.md §14.3), for someone signed in.
   { route: '/transactions', page: { kind: 'book' } },
   { route: '/budget', page: { kind: 'book' } },

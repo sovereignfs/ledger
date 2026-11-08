@@ -13,6 +13,7 @@ const ROOT = path.resolve(__dirname, '..', '..');
 /** Files that draw differently by width (or by the device's scheme), and why. */
 const RENDERING_ONLY: Record<string, string> = {
   'src/theme/script.ts': 'the colour scheme the device prefers, not a width',
+  'src/account/PreferencesSection.tsx': 'the colour scheme the device prefers, not a width',
 };
 /** What a file that draws by width must not also do. */
 const NOT_BY_WIDTH = /\b(router\.(push|replace)|window\.location\.(assign|replace)|fetch\()/;

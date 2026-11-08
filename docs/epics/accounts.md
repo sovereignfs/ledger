@@ -2,7 +2,7 @@
 
 ## Status
 
-⏳ In progress: 3 of 6 tasks are done.
+⏳ In progress: 4 of 6 tasks are done.
 
 ## Overview
 
@@ -72,7 +72,7 @@ of every table and fails for a table nobody decided about.
 
 **Done as:** `src/sovereign/people.ts`: `deletePerson`, one routine in a fixed order and safe to run again. A book of which the person is the only member is deleted in one transaction with every row of it by `book_id` (`BOOK_TABLES` in `src/ledger/tables.ts`, empty until a task makes such a table); whether they are alone is decided in the statement that deletes the book, not by a look beforehand. With another member (phase 2) only the membership goes. Then the rate counters, and the sign-in store (sessions, sign-ins, second factors, passkeys, verifications, and the account last). `people.test.ts` asks the schema for its tables and fails for one that is in none of its lists (seen failing with `rate_bucket` taken out of one), then seeds both accounts and finds nothing of the first and everything of the second, twice. `/api/account/delete` (copied from Tusk and trimmed): a preview, and a POST that asks for the password, counted, or for a session made in the last ten minutes for an account with none (core sign-in, 2.3). `src/access/body.ts` reads a body capped as it arrives. Run here on a file, sqld and PostgreSQL (323, 323 and 322 tests). The Settings section that offers it is 2.6.
 
-#### 📋 2.6 — Settings
+#### ✅ 2.6 — Settings
 
 **Goal:** Settings as a dialog over the page and as a page. **Design:** §15.1. **Depends on:** 2.1, 1.8.
 
@@ -80,3 +80,5 @@ of every table and fails for a table nobody decided about.
 and a Data section holding delete account. The book's sections arrive with 9.3.
 
 **Accepts when:** Settings opens from the avatar menu on every page and at `/account`, and each account section works on all three databases.
+
+**Done as:** Settings copied from Tusk and trimmed to what Ledger has: `src/account/` (the shell, the dialog, `query.ts`, Profile, Security (password, authenticator app, passkeys and the list of devices), Preferences (the theme, kept on the device) and Data, which holds deleting the account with a preview that names the budget that would go), the page at `/account`, and the same content as a dialog over the page it was opened from by an intercepting route in the layout's `modal` slot. The avatar menu gains Settings. Sovereign's link and unlink panel, the notifications and activity sections, export, import and backup are left out; the book's own sections join in 9.3. 10 browser tests added (Chromium and WebKit): the dialog and its way back from three places, the page and a named section, the sections, the theme surviving a reload, and a wrong password deleting nothing; the Settings and smoke specs also pass on sqld and PostgreSQL. 328 unit tests.
