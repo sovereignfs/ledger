@@ -2,7 +2,7 @@
 
 ## Status
 
-⏳ In progress: 1 of 11 tasks are done.
+⏳ In progress: 2 of 11 tasks are done.
 
 ## Overview
 
@@ -29,7 +29,7 @@ Ledger does not use (sync, workspaces, the cipher, backup). Each task says which
 
 **Done as:** licence (Tusk's AGPL text), changelog, contributing guide, pull request template, Dependabot, `.editorconfig` and `.node-version` (24.18.0), copied from Tusk and renamed; `package.json` (`@sovereignfs/ledger`, `type`, `engines`, pnpm 11) with Next.js 16, React 19, TypeScript 6.0.x strict with `noUncheckedIndexedAccess`; `@sovereignfs/ui` pinned at 0.92.0 and listed in `minimumReleaseAgeExclude`. `@sovereignfs/config` and `sdk` are added by the tasks that use them (1.4, 2.4). A placeholder page keeps `next typegen` honest until the shell (1.8).
 
-#### 📋 1.2 — Format, lint and test tooling
+#### ✅ 1.2 — Format, lint and test tooling
 
 **Goal:** the checks every later task runs. **Design:** §19 Testing. **Depends on:** 1.1.
 
@@ -37,6 +37,8 @@ Ledger does not use (sync, workspaces, the cipher, backup). Each task says which
 `format`, `format:check`, `lint`, `typecheck` (`next typegen && tsc --noEmit`), `test`; one real test.
 
 **Accepts when:** each check passes, and each is seen to fail on a planted fault.
+
+**Done as:** Prettier and ESLint with Tusk's configuration (strict TypeScript rules, jsx-a11y; `eslint-plugin-jsx-a11y` is allowed on ESLint 10 by one named peer rule); Vitest with the design system inlined for its CSS Modules and files run one after another; a smoke test that reads `package.json`, so a runner that finds nothing cannot pass. Each of format, lint, typecheck and test was seen to fail on a planted fault. Left out: git hooks, which can follow if wanted.
 
 #### 📋 1.3 — Continuous integration
 
