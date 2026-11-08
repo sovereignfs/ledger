@@ -1,0 +1,125 @@
+# AGENTS.md
+
+Guidance for every AI agent working in this repository (Codex reads this file directly; Claude Code loads it through `CLAUDE.md`). It is
+the one copy of the conventions. Do not duplicate them elsewhere, and do not add task history or release narrative to it: those belong
+in `ROADMAP.md`, the task's epic and the PR body.
+
+This repository follows the conventions of [`sovereignfs/sovereign`](https://github.com/sovereignfs/sovereign) (its `AGENTS.md`,
+`docs/building-an-app.md` and `docs/development-workflow.md`) and of [`sovereignfs/tusk`](https://github.com/sovereignfs/tusk) (its `AGENTS.md`,
+the closest model: an app of its own built from a roadmap). Where this file is silent, do what Tusk does; where they differ, this file says which.
+
+## What this is
+
+**Ledger**, an app of the Sovereign suite exactly as Tusk and Fjord are: a person's budget, their accounts and their net worth, in every currency they
+use. It is a **two-sided ledger**: a money account's balance is the sum of its lines, and every expense says which account paid it. A Sovereign
+instance can host it, and it also runs fully self-hosted, needing no instance. It replaces the legacy plugin `sovereignfs/sovereign-plugin-ledger`,
+whose behaviour is the starting point and none of whose code or data is carried over. It is a PWA on Next.js, with its own database (sqld, a SQLite
+file or PostgreSQL), signing people in locally, through a Sovereign core, or both, from one image.
+
+**Nothing is built yet.** `DESIGN.md` is the design, `ROADMAP.md` the order, and Milestone A starts by copying Tusk's infrastructure (`DESIGN.md`
+§5.1).
+
+## Source of truth
+
+Read the relevant document before a task. Where two disagree, the earlier one wins and the later one is stale and should be fixed:
+
+1. **The contracts Sovereign publishes**, in the `sovereign` repository: `contracts/app-manifest.md`, `contracts/env.md`, `docs/using-the-sdk.md` and
+   `docs/specs/sdk.md`, `docs/specs/design-system.md` and `docs/design-system.md`, `docs/connecting-an-app.md`. A gap is raised in `sovereign`, not
+   patched here.
+2. **`DESIGN.md`**: what Ledger is and how it is built, with numbered sections that tasks cite.
+3. **`ROADMAP.md`**: the order of work, one row per task, canonical for status.
+4. **`docs/epics/`**: each task's detail (goal, "Accepts when", and once done, how it was done and what was left out).
+
+Directories are created when they are needed. Research (`docs/research/`), RFCs (`docs/rfcs/`), ADRs (`docs/adrs/`) and workstreams
+(`docs/workstreams/`) are used as Sovereign and Tusk use them. A documented "not now" is a valid outcome.
+
+## Planning workflow
+
+- **The developer assigns the task** at the start of a session. There is no "next task" pointer in any file; read `ROADMAP.md` for the queue and ask
+  which to pick up.
+- **Task IDs are permanent** (`4.3`): use them in cross-references and dependency lists, never in branch names, commit messages or PR titles.
+- **A finished task is marked done in its roadmap row and written up in its epic** (Done as: what, where, what was left out), in the same change as
+  the work.
+- **Copying from Tusk is said, not hidden:** a task that copies a file names it in its Done as, and changes in behaviour from Tusk's are stated.
+
+## Working conventions
+
+- **One task, one branch, one draft PR.** Branch from an up-to-date `main`, named `feat/<slug>`, `fix/<slug>`, `docs/<slug>` or `chore/<slug>`. Do not
+  start a second task on a branch whose PR is not merged.
+- **Nothing goes to `main` directly,** except the owner's bypass, which is theirs to use.
+- **Never commit or push without being asked.** Prepare changes in the working tree and stop.
+- **Commits explain why.** `type(scope): summary` under 72 characters, body wrapped at 100, a `Verified:` line naming what was run, one logical change
+  per commit. Every commit an agent makes ends with `Co-Authored-By: Claude Code <noreply@anthropic.com>`: model-agnostic, never a specific model
+  name.
+- **PRs target `main`, are opened as drafts** (`gh pr create --draft --base main`), and are marked ready only on instruction. The body says what changed
+  and why, cites the `DESIGN.md` section, carries no task numbers, and ends with `🤖 Generated with [Claude Code](https://claude.com/claude-code)`.
+- **Merge with rebase and merge,** never squash and never a merge commit. **Never merge a PR automatically.**
+- **Verify before claiming done.** Run the commands under Commands and show the output. A regression test is trusted only after it has been seen to
+  fail against the code it guards.
+- **Docs are part of the change.** A statement a change makes false is fixed in the same PR; a change to behaviour adds a line under `## [Unreleased]`
+  in `CHANGELOG.md`.
+- **Releases are their own PR,** as Tusk's: `scripts/release.sh`, a `vX.Y.Z` tag publishes the image. A patch has no migration and no setting change.
+- **Flag Docker-config impact immediately:** a new setting, port, path or native dependency updates the `Dockerfile` and `.dockerignore` in the same
+  change.
+
+## Rules of an app
+
+Tusk's rules, as they apply to an online app, and Ledger's own. They describe the app as `DESIGN.md` designs it.
+
+- **An account is known by its better-auth user id (`account_id`).** A `sub` is looked up only for core's notices and never matched to an account by
+  email.
+- **Everything of a person is deleted by `People.deletePerson`** (`src/sovereign/people.ts`), safe to run twice. **A new table is deleted there, and
+  exported and imported, in the same change,** with a test that seeds one of each.
+- **Every row of a book carries `book_id`, and the permission is in the statement:** membership of the book as a condition of the same query
+  (`DESIGN.md` §5.2), never checked first and then touched. Anything a write points at must be the same book's, in the same statement. **A refusal
+  reads as not found.** A route or server action finds the session first, checks `Origin` on a write, is listed in `src/access/routes.ts`, and has a
+  test calling it as a second person.
+- **Money is integer minor units, always** (`DESIGN.md` §9.1). No floating point touches an amount; a rate is a decimal string; conversion and rounding
+  (half to even) happen only in `src/money/`. An amount with no rate is reported as not included, never counted as zero.
+- **A balance is derived, never written.** It is the sum of an account's lines. A correction is an `adjustment` transaction; nothing edits a balance.
+- **Every transaction is written through `src/ledger/`'s one path,** whose validators hold that lines add up (`DESIGN.md` §6.2) and that every line
+  names exactly one target. Recurring posting, jars, loans and import use the same path. The invariant property test passes.
+- **A past month is never rewritten by a budget change:** budgeted amounts are effective-dated rows (`DESIGN.md` §7.3).
+- **A job claims its work in the database** and is safe to run twice and from two processes; a posting from a recurring entry is unique on
+  `(recurring_id, occurrence_date)`.
+- **Report figures and insights are pure functions over rows,** shared by the screens, the recap and the tests; one figure has one implementation.
+- **Logs hold no amounts, names, payees or notes:** an id and a kind of failure. Nothing of a book leaves the server except the currency codes sent for
+  rates, and what core is asked to deliver.
+- **The database has three forms and two dialects:** a schema and migrations per dialect, generated with `pnpm db:generate`, never written by hand or
+  `push`ed; standard SQL, values bound; no `LISTEN/NOTIFY`, trigger, extension or foreign key; every deletion names what it deletes, in a transaction;
+  short transactions, nothing held across a call to core or Frankfurter. A data-layer test runs on sqld, a `file:` database and PostgreSQL. **Tests
+  read `LEDGER_TEST_*` and never the app's variables.**
+- **A released migration is never edited:** a fix is a new migration.
+- **A credential is stored only through `src/crypto/`** (envelope encryption under `LEDGER_ENCRYPTION_KEY`). Secrets never appear in an error, a log, a
+  URL or the browser.
+- **The manifest is the one copy** (`sovereign.manifest.json`) of what an instance reads. `pnpm manifest:check` passes, and the image is built with
+  `pnpm exec sovereign-manifest docker-args`.
+- **Environment variables carry the prefix `LEDGER_`,** declared once through `@sovereignfs/config`; every one is in `.env.example`; the server refuses
+  to start on a wrong setting; no secret has a default; never `NEXT_PUBLIC_*` for a value that varies at run time.
+- **The design system is imported from `@sovereignfs/ui` directly,** pinned exactly; style with `--sv-*` tokens only; Hanken Grotesk served by the app.
+  **Reusable UI (charts first of all) is built in `@sovereignfs/ui` in `sovereign`, released, then used,** never forked here.
+- **Never fork a navigation decision by viewport;** fork only what is rendered.
+- **The service worker caches the shell only,** by allow-list; no page with money on it is ever cached.
+- **No third-party loads and no third-party requests from the browser.** What people write is rendered as text, never as HTML.
+- **User-facing words are "budgeted", "spent", "subcategory", "account", "app"** (`DESIGN.md` §4), never "predicted", "actual", "kind", "debit",
+  "client" or "plugin".
+- **Next.js tracks the latest stable release.** Read the guide bundled with the installed version (`node_modules/next/dist/docs/`) before writing
+  Next code.
+- **TypeScript is strict.** No `any` without a comment; prefix an intentionally unused identifier with `_`; never disable a lint rule inline without a
+  comment.
+
+## pnpm
+
+As Tusk's: `pnpm install --frozen-lockfile` for every routine install; `pnpm-workspace.yaml` carries pnpm's settings and the Dockerfile copies it;
+pnpm refuses a release less than a day old and an install script nobody decided on; an exception in `minimumReleaseAgeExclude` only for a package of
+ours, exact-pinned. Never accept pnpm's offer to add one.
+
+## Commands
+
+None exist yet. Milestone A brings Tusk's set (`format`, `lint`, `typecheck`, `test`, `db:generate`, `db:dev`, `seed`, `boot-check`, `e2e`,
+`manifest:check`, `build`, `scripts/deploy-check.sh`), and this list is where they are written as they land. Until then, `verify` means the Markdown is
+formatted and every relative link resolves.
+
+## Layout
+
+`DESIGN.md` §5.1 is where things go as the app is built. Today the repository holds only `DESIGN.md`, `ROADMAP.md`, `docs/epics/` and this file.
