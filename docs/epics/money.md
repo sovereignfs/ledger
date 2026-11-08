@@ -2,7 +2,7 @@
 
 ## Status
 
-⏳ In progress: 1 of 4 tasks are done.
+⏳ In progress: 2 of 4 tasks are done.
 
 ## Overview
 
@@ -28,7 +28,7 @@ test.
 
 **Done as:** `book` and `book_member` (migration `0001_books`, both dialects), and `src/ledger/books.ts`: `ensureBook` makes a person's book at their first request with an id derived from the account's (`uuid5`, copied from Tusk with Ledger's namespace), so two requests that find none make the same row and one makes it; seen with four at once. `src/access/`: `inBook`, the membership condition that every statement on a book's rows carries; `bookRoute` (session, `Origin` on a write, then the account and its book, never what a request names), `requireBook` for pages and server actions, `routes.ts` with `routes.test.ts` holding it to `app/` both ways (a route with no rule, a page that never asks, a handler that is not wrapped all fail, each seen to), and `two-accounts.ts`, two real accounts for later tests. The `book` kind replaces Tusk's `account`. Run here: 310 tests on a file and sqld, 309 on PostgreSQL; 13 browser tests. Left for the tasks that make rows: calling each route as the second person (there is none that reads a row yet; `book.test.ts` shows the statement-level answer, and a hostile account id is bound and matches nothing).
 
-#### 📋 3.2 — Money and currencies
+#### ✅ 3.2 — Money and currencies
 
 **Goal:** amounts that are always right. **Design:** §9.1, §18.2. **Depends on:** 1.5.
 
@@ -38,6 +38,8 @@ idea), `parse`, `format` in a locale with the currency's decimals, add and split
 
 **Accepts when:** ¥1,500 reads ¥1,500, 1.005 BHD keeps three decimals, splitting 100.00 three ways sums to 100.00, and a float never reaches a column
 (a test feeds one and is refused).
+
+**Done as:** `src/money/`: `currencies.ts` generated from ICU by `scripts/generate-currencies.ts` (160 ISO 4217 currencies, each with its own decimals, **fiat only**: BTC is not carried and the IMF's Special Drawing Right and the Sucre are left out); `amount.ts` (an amount is a safe integer or a `MoneyError`; exact sums that refuse a total too large to be exact; `divideRoundHalfEven` on bigints, tested at the halves in both directions; `splitMinor`, whose parts always add up, with a randomised property over 2,000 runs); `text.ts` (`formatMoney` and `parseAmount` go through decimal text and integers, never a float). `parseAmount` refuses more decimals than the currency has and refuses a grouping mark anywhere but where it groups, so `3,40` typed in English is not 340. `book_currency` (migration `0002`, and listed in `BOOK_TABLES` so that deleting a book deletes it) with `addCurrency` and `listCurrencies`, whose statements carry `inBook`: a code that is not a currency is refused, another person's book reads as one that is not there, and four at once add one row. `MoneyInput` and `CurrencyPicker` in `src/ui/`, with a guard test that only `MoneyInput` may use the design system's `CurrencyInput`. ¥1,500 reads ¥1,500, 1.005 BHD keeps its three, 100.00 split three ways is 33.34, 33.33 and 33.33, and a float is refused by `assertMinor` before it can reach a column (tested against the vocabulary table on each database). 365 unit tests on a file and sqld, 364 on PostgreSQL.
 
 #### 📋 3.3 — Exchange rates
 

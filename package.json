@@ -28,7 +28,8 @@
     "boot-check": "node scripts/boot-check.mjs",
     "e2e": "playwright test",
     "e2e:fast": "node scripts/e2e-shard.mjs --all",
-    "manifest:check": "sovereign-manifest check"
+    "manifest:check": "sovereign-manifest check",
+    "generate:currencies": "node scripts/generate-currencies.ts && prettier --write src/money/currencies.ts"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "~1.7.18",

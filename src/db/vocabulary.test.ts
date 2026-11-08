@@ -9,6 +9,7 @@ import {
 } from 'drizzle-kit/api';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Database } from './client';
+import { assertMinor } from '../money/amount';
 import { dbAll, dbGet, dbRun } from './exec';
 import * as pgColumns from './schema/postgres/columns';
 import * as sqliteColumns from './schema/sqlite/columns';
@@ -180,6 +181,23 @@ describe(`the column vocabulary (${leg})`, () => {
     expect(
       await dbGet<{ data: string }>(database, sql`SELECT data FROM ${table} WHERE id = 'j1'`),
     ).toEqual({ data });
+  });
+
+  it('is written only after `assertMinor`, so a float never reaches the column: it is refused, and nothing is stored', async () => {
+    for (const bad of [12.5, 0.1 + 0.2, NaN, 2 ** 60]) {
+      const id = `float-${String(bad)}`;
+      await expect(
+        (async () => {
+          assertMinor(bad);
+          await insert(id, { amount: bad });
+        })(),
+        String(bad),
+      ).rejects.toThrow(/whole number/);
+      expect(
+        await dbAll(database, sql`SELECT id FROM ${table} WHERE id = ${id}`),
+        `${bad} stored`,
+      ).toEqual([]);
+    }
   });
 
   it('has a primary key on the id', async () => {

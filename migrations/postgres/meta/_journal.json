@@ -15,6 +15,13 @@
       "when": 1794176104508,
       "tag": "0001_books",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794177443680,
+      "tag": "0002_book_currency",
+      "breakpoints": true
     }
   ]
 }

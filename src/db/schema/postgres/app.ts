@@ -44,3 +44,14 @@ export const bookMember = app.table(
     index('book_member_account_idx').on(table.accountId),
   ],
 );
+
+/** See `schema/sqlite/app.ts`. */
+export const bookCurrency = app.table(
+  'book_currency',
+  {
+    bookId: ref('book_id').notNull(),
+    code: text('code').notNull(),
+    createdAt: epochMs('created_at').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.bookId, table.code] })],
+);

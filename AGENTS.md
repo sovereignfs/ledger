@@ -125,6 +125,7 @@ pnpm typecheck                   # next typegen && tsc --noEmit
 pnpm test                        # Vitest; the data layer runs on the database LEDGER_TEST_* names (a SQLite file with none)
 pnpm db:generate <name>          # migrations for both dialects and both stores, from the schemas
 pnpm db:dev sqld | postgres      # a local database in Docker (not needed: a file: URL works)
+pnpm generate:currencies         # regenerate src/money/currencies.ts from ICU
 pnpm manifest:check              # sovereign.manifest.json is a valid manifest
 pnpm build                       # next build (standalone)
 pnpm boot-check                  # after pnpm build: a fresh instance boots on the database in the environment

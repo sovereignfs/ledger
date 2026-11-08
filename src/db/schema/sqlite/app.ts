@@ -62,3 +62,17 @@ export const bookMember = sqliteTable(
     index('book_member_account_idx').on(table.accountId),
   ],
 );
+
+/**
+ * The currencies a book uses (DESIGN.md §9.1): the ones its accounts and categories name, added when one needs one, and the ones the daily rate fetch is
+ * asked for (task 3.3). The code is an ISO 4217 one from `src/money/currencies.ts`, checked where it is written.
+ */
+export const bookCurrency = sqliteTable(
+  'book_currency',
+  {
+    bookId: ref('book_id').notNull(),
+    code: text('code').notNull(),
+    createdAt: epochMs('created_at').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.bookId, table.code] })],
+);
