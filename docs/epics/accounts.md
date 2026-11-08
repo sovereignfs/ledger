@@ -2,7 +2,7 @@
 
 ## Status
 
-⏳ In progress: 2 of 6 tasks are done.
+⏳ In progress: 3 of 6 tasks are done.
 
 ## Overview
 
@@ -60,7 +60,7 @@ answers `200` only once done. Copied: Tusk's `src/sovereign/http.ts`, `verifiers
 **Accepts when:** against `createFakeCore`, a logout notice ends every session of the person, an account-deleted notice leaves nothing of them, and a
 replayed `jti` is refused after a restart.
 
-#### 📋 2.5 — Deleting a person
+#### ✅ 2.5 — Deleting a person
 
 **Goal:** one routine that deletes everything of an account. **Design:** §17. **Depends on:** 3.1.
 
@@ -69,6 +69,8 @@ marks, better-auth's rows, the `sub` link last; safe to run twice. `/api/account
 of every table and fails for a table nobody decided about.
 
 **Accepts when:** after deletion no table holds a row of the person, a second person's book is untouched, and a second run succeeds.
+
+**Done as:** `src/sovereign/people.ts`: `deletePerson`, one routine in a fixed order and safe to run again. A book of which the person is the only member is deleted in one transaction with every row of it by `book_id` (`BOOK_TABLES` in `src/ledger/tables.ts`, empty until a task makes such a table); whether they are alone is decided in the statement that deletes the book, not by a look beforehand. With another member (phase 2) only the membership goes. Then the rate counters, and the sign-in store (sessions, sign-ins, second factors, passkeys, verifications, and the account last). `people.test.ts` asks the schema for its tables and fails for one that is in none of its lists (seen failing with `rate_bucket` taken out of one), then seeds both accounts and finds nothing of the first and everything of the second, twice. `/api/account/delete` (copied from Tusk and trimmed): a preview, and a POST that asks for the password, counted, or for a session made in the last ten minutes for an account with none (core sign-in, 2.3). `src/access/body.ts` reads a body capped as it arrives. Run here on a file, sqld and PostgreSQL (323, 323 and 322 tests). The Settings section that offers it is 2.6.
 
 #### 📋 2.6 — Settings
 

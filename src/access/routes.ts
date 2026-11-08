@@ -38,6 +38,11 @@ export const ROUTES: RouteRule[] = [
   { route: '/reports', page: { kind: 'book' } },
 
   // APIs
+  // Deleting the account (DESIGN.md §17): what it would do, and doing it with the password; the account is the session's.
+  {
+    route: '/api/account/delete',
+    methods: { GET: { kind: 'book' }, POST: { kind: 'book' } },
+  },
   // The instance asks it before it sends anyone to the app, and a container's health check does: it says only whether the database answers.
   { route: '/api/health', methods: { GET: { kind: 'public' } } },
   // better-auth's own: it checks `Origin` and the session cookie itself, and rate-limits sign-in (src/auth/auth.ts). Absent, with a 404, when sign-in is off.
