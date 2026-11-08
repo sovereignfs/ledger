@@ -6,7 +6,7 @@ Your budget, your accounts and your net worth, in every currency you use. Ledger
 It is a two-sided ledger: an account's balance is the sum of what was entered against it, every expense says which account paid it, and a budget
 keeps its history so that a past month shows what was planned then. It replaces the Sovereign ledger plugin; none of its code is carried over.
 
-**Status: being built.** Nothing runs yet. [`DESIGN.md`](DESIGN.md) says what Ledger is and how it is built, [`ROADMAP.md`](ROADMAP.md) puts the work
+**Status: being built.** The foundation runs (settings, three databases, the shell, the image); sign-in and the ledger do not yet. [`DESIGN.md`](DESIGN.md) says what Ledger is and how it is built, [`ROADMAP.md`](ROADMAP.md) puts the work
 in order, and [`docs/epics/`](docs/epics/) holds each task. How to work on it is in [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`AGENTS.md`](AGENTS.md).
 
 ## Develop

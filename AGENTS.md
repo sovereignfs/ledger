@@ -16,8 +16,8 @@ instance can host it, and it also runs fully self-hosted, needing no instance. I
 whose behaviour is the starting point and none of whose code or data is carried over. It is a PWA on Next.js, with its own database (sqld, a SQLite
 file or PostgreSQL), signing people in locally, through a Sovereign core, or both, from one image.
 
-**Nothing is built yet.** `DESIGN.md` is the design, `ROADMAP.md` the order, and Milestone A starts by copying Tusk's infrastructure (`DESIGN.md`
-§5.1).
+**What is built:** the foundation (Milestone A): settings, the database on three forms, the job runner, the policy and headers, the shell, browser
+tests, the image and its setups. Sign-in, the book and the ledger are not (`ROADMAP.md` has each). `DESIGN.md` is the design, `ROADMAP.md` the order.
 
 ## Source of truth
 
@@ -116,13 +116,51 @@ ours, exact-pinned. Never accept pnpm's offer to add one.
 
 ## Commands
 
-None exist yet. Milestone A brings Tusk's set (`format`, `lint`, `typecheck`, `test`, `db:generate`, `db:dev`, `seed`, `boot-check`, `e2e`,
-`manifest:check`, `build`, `scripts/deploy-check.sh`), and this list is where they are written as they land. Until then, `verify` means the Markdown is
-formatted and every relative link resolves.
+```bash
+pnpm install --frozen-lockfile   # routine install
+pnpm dev                         # next dev, on port 3003
+pnpm format / format:check       # Prettier
+pnpm lint / lint:fix             # ESLint
+pnpm typecheck                   # next typegen && tsc --noEmit
+pnpm test                        # Vitest; the data layer runs on the database LEDGER_TEST_* names (a SQLite file with none)
+pnpm db:generate <name>          # migrations for both dialects and both stores, from the schemas
+pnpm db:dev sqld | postgres      # a local database in Docker (not needed: a file: URL works)
+pnpm manifest:check              # sovereign.manifest.json is a valid manifest
+pnpm build                       # next build (standalone)
+pnpm boot-check                  # after pnpm build: a fresh instance boots on the database in the environment
+pnpm e2e                         # after pnpm build: browser tests (pnpm exec playwright install chromium webkit once)
+pnpm e2e:fast                    # after pnpm build: the same, in shards at once (scripts/e2e-shard.mjs)
+scripts/deploy-check.sh          # every setup of deploy/, from nothing (needs the image: see deploy/README.md)
+scripts/test-ci-changes.sh       # the CI classifier's tests
+eval "docker build $(pnpm exec sovereign-manifest docker-args) -t ledger:ci ."   # the image, with its port and label from the manifest
+```
+
+A command a task adds is written here in that task's change, and `verify` means all of it that applies.
 
 ## Layout
 
-`DESIGN.md` §5.1 is where things go as the app is built. Today the repository holds only `DESIGN.md`, `ROADMAP.md`, `docs/epics/` and this file.
+`DESIGN.md` §5.1 is where things go as the app is built; this is what is here now.
+
+| Path                           | What                                                                                                                                                                                                    |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `app/`                         | Routes and layouts (App Router): the signed-in area `(app)/` with a placeholder for each place, `/api/health`, and the pages for a missing or failed route                                              |
+| `src/config/`                  | Settings: `env.ts` is the only place `process.env` is read, `index.ts` checks them, `current.ts` keeps them, `edge.ts` is what the proxy reads                                                          |
+| `src/db/`                      | The database layer (`DESIGN.md` §18): `config.ts` (which form), `client.ts`, `provision.ts`, `migrate.ts`, `boot.ts`, `exec.ts`, `schema/{sqlite,postgres}/` with the column vocabulary in `columns.ts` |
+| `src/jobs/`                    | Background work in the web process: `runner.ts`, `claim.ts` (a conditional update that says who won), `index.ts` (the list of jobs, which each task that has one adds to)                               |
+| `src/security/`, `proxy.ts`    | The nonce policy and the headers every response has; the proxy keeps the Edge discipline (no Node built-ins, no database)                                                                               |
+| `src/ui/`, `src/theme/`        | `AppShell` (header, sidebar of five places, the phone's footer), `nav.ts` (the one list of places), the CSS token check; `data-theme` is set before first paint                                         |
+| `src/crypto/`                  | The instance key and envelope encryption, copied from Tusk and used by nothing yet (no credential is kept)                                                                                              |
+| `e2e/`, `playwright.config.ts` | Browser tests: the built app in Chromium and WebKit, on the database form the environment names                                                                                                         |
+| `migrations/`                  | The generated SQL, `sqlite/`, `postgres/` and `auth/` (better-auth's, per dialect), committed and reviewed. Never written by hand                                                                       |
+| `scripts/`                     | The CI classifier, `db-generate.mjs`, `dev-db.mjs`, `boot-check.mjs`, `serve-standalone.mjs`, `e2e-shard.mjs`, `deploy-check.sh`                                                                        |
+| `sovereign.manifest.json`      | What an instance reads to host the app, held to its schema and to the code it names by `src/sovereign-manifest.test.ts`                                                                                 |
+| `Dockerfile`, `deploy/`        | One image on Debian (libSQL has no musl build), not root, on the manifest's port; the Compose setups for sqld, a file and PostgreSQL                                                                    |
+| `.github/workflows/`           | `ci.yml` and `publish.yml` (a `vX.Y.Z` tag publishes the image to `ghcr.io`, with provenance)                                                                                                           |
+
+## Not in place yet
+
+Each is a task in `ROADMAP.md`, not a thing to assume exists: sign-in and the book (Milestone B), then the ledger, the budget, recurring entries, jars and
+reports. Add them in their own branches, and move the line out of this section as each lands.
 
 <!-- BEGIN:nextjs-agent-rules -->
 
