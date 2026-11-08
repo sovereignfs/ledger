@@ -2,7 +2,7 @@
 
 ## Status
 
-⏳ In progress: 6 of 11 tasks are done.
+⏳ In progress: 7 of 11 tasks are done.
 
 ## Overview
 
@@ -85,13 +85,15 @@ stores `ledger` and `ledger_auth`; `pnpm db:generate`, `pnpm db:dev`; the parity
 
 **Done as:** `src/jobs/` (`runner.ts`, `claim.ts`, `index.ts`) and their tests copied from Tusk and renamed; the job list is empty, and each task that has a job adds it (3.3, 6.2, 8.6). The runner starts from `instrumentation-node.ts` after the database, is off with `LEDGER_WORKER=off`, and is stopped on SIGTERM and SIGINT. The claim test races two database handles on each form (file, sqld and PostgreSQL, all passing). Seen with the built server: SIGTERM stops it, and `LEDGER_WORKER=off` runs no job.
 
-#### 📋 1.7 — Security headers
+#### ✅ 1.7 — Security headers
 
 **Goal:** the CSP and headers every response has. **Design:** §19 Security. **Depends on:** 1.4.
 
 **Technical:** copy Tusk's `proxy.ts` and `src/security/` (nonce CSP, `connect-src 'self'`, no `'unsafe-inline'`, HSTS over https, Edge discipline).
 
 **Accepts when:** every response, including errors and redirects, carries the policy; a test fails if `'unsafe-inline'` appears in `script-src`.
+
+**Done as:** `src/security/csp.ts` and its tests copied from Tusk and `proxy.ts` written for Ledger: a nonce per request, a policy with `script-src 'self' 'nonce-…' 'strict-dynamic'` and never `'unsafe-inline'`, `connect-src 'self'`, HSTS over https only, and the static headers from `next.config.ts`. The proxy replaces any nonce or policy the client sent, keeps the Edge discipline, and treats `/api/` as data (no policy, no nonce). Seen on the built server: a page, a 404 and an API carry the headers they should. Sign-in's addresses (2.1) and the front address (2.2) join the proxy with their tasks. Left out: Tusk's matcher exception for an import body, which returns with 11.2 if it is needed.
 
 #### 📋 1.8 — Design system boundary and shell
 
