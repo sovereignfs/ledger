@@ -36,7 +36,7 @@ The repository can hold the app. Nothing a person would notice. **Done when** an
 | 7   | [1.7](docs/epics/foundation.md)  | Security headers                 | P0       | 1.4        | ✅     |
 | 8   | [1.6](docs/epics/foundation.md)  | The job runner                   | P0       | 1.5        | ✅     |
 | 9   | [1.9](docs/epics/foundation.md)  | Browser tests                    | P0       | 1.5        | ✅     |
-| 10  | [1.10](docs/epics/foundation.md) | The image and deployment setups  | P0       | 1.5, 1.6   | 📋     |
+| 10  | [1.10](docs/epics/foundation.md) | The image and deployment setups  | P0       | 1.5, 1.6   | ✅     |
 
 ### Milestone B — Sign-in and the book
 

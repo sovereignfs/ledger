@@ -2,7 +2,7 @@
 
 ## Status
 
-⏳ In progress: 9 of 11 tasks are done.
+⏳ In progress: 10 of 11 tasks are done.
 
 ## Overview
 
@@ -117,7 +117,7 @@ in `public/icons/`; not-found and error pages.
 
 **Done as:** Playwright 1.64.1 (the browsers were already installed here): `playwright.config.ts`, `e2e/ports.ts` and `scripts/e2e-shard.mjs` copied from Tusk and trimmed to one instance of the app, on the database form the environment names, with `LEDGER_FX=off` so that no test reaches the network. `e2e/smoke.spec.ts` covers the health route, the shell and its five places, the policy a browser enforces (an inline handler is refused), the not-found page, dark mode from first paint, a phone's width (the footer has the places, the sidebar is not drawn) and the typeface from this origin. 18 tests pass in Chromium and WebKit, and the smoke spec passes on sqld and PostgreSQL. CI gains a smoke step in each `tests` leg and a `browser` job of two shards; a shard with no spec stops instead of running every test, which Playwright would otherwise do. Instances for core, passkeys and the like join with the tasks that need them.
 
-#### 📋 1.10 — The image and deployment setups
+#### ✅ 1.10 — The image and deployment setups
 
 **Goal:** one image, three Compose setups. **Design:** §19 Deployment. **Depends on:** 1.5, 1.6.
 
@@ -126,6 +126,8 @@ in `public/icons/`; not-found and error pages.
 `scripts/deploy-check.sh`; `publish.yml` on a `vX.Y.Z` tag.
 
 **Accepts when:** `scripts/deploy-check.sh` boots every setup from nothing and as an instance would host it, answering `/api/health` with `200`.
+
+**Done as:** `sovereign.manifest.json` (§13.3 of the design, port 3003, checked by `pnpm manifest:check` and held to the code by `src/sovereign-manifest.test.ts`), the Dockerfile (Debian, `USER node`, a required `ARG PORT`, migrations beside the server, the licences), `.dockerignore`, `deploy/` (sqld, a file, PostgreSQL, README and `.env.example`), `scripts/deploy-check.sh`, `src/deploy.test.ts` and `publish.yml` copied from Tusk and renamed, minus what Ledger has no use for (the operator tools, backup, GitHub). Built as an operator builds it (`sovereign-manifest docker-args`) and run through `scripts/deploy-check.sh` here: sqld, a file, PostgreSQL, the one `docker run`, an instance's way of hosting it (secrets as files, a PostgreSQL of its own, another port) and a wrong setting, all passing. CI gains the `image` job on both architectures and `manifest:check`. The sign-in page, `/sign-up` and the notices' addresses are not checked by the deploy script yet; marked TODO for 2.3 and 2.4, where the routes are built. The deploy README documents the rates fetch and keeps only the keys Ledger has.
 
 #### 📋 1.11 — The PWA
 

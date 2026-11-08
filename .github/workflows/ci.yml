@@ -97,6 +97,10 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm build
+
+      # The manifest an instance reads is valid.
+      - run: pnpm manifest:check
+
       - run: pnpm test
 
       # A schema changed without its migration, or a migration was edited by hand, if generating from the committed schemas writes anything

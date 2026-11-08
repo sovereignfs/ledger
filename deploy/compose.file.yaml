@@ -1,0 +1,31 @@
+# The smallest setup: one container, and the database is a file on a volume (DESIGN.md §23).
+#
+#   cp .env.example .env     # then edit it: at least LEDGER_URL, LEDGER_AUTH_SECRET and LEDGER_ENCRYPTION_KEY
+#   docker compose -f compose.file.yaml up -d --build
+#
+# One process, so there is nothing to wait for and nothing else to run. It suits one person or a small group; a second instance cannot
+# share the file, so this setup does not scale out. The file must stay on a local disk, never a network filesystem.
+name: ledger
+
+services:
+  web:
+    build:
+      context: ..
+      # The port is written in sovereign.manifest.json, which Compose cannot read; a test holds this to it.
+      args:
+        PORT: '3003'
+    image: ${LEDGER_IMAGE:-ledger}
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      LEDGER_DB_DIALECT: sqlite
+      LEDGER_SQLITE_URL: file:/data/ledger.db
+    volumes:
+      - ledger-data:/data
+    ports:
+      - '127.0.0.1:${LEDGER_PORT:-3003}:3003'
+
+volumes:
+  ledger-data:
