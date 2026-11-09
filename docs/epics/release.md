@@ -37,7 +37,7 @@ person and part paid back, side work, revaluations of an investment and a proper
 euro rate for each month and **no rate for the Swiss franc**, which is the missing rate said on Accounts and Overview. Random amounts come from a seeded generator, so the same day
 makes the same book. 6 tests on all three databases (the invariants hold over the whole book, **every screen's own loader reads it**, what is listed above is there, the other
 person's book is untouched, a book with accounts is refused, `clearBook` and a second seed make the same book) and 2 pure (what is local); and the built server was seeded and signed
-into, and every page answered 200 with the data. **Left out, and said:** _reviewed and unreviewed months_, which wait for the month-end review (8.5); the seed grows with the tasks after it.
+into, and every page answered 200 with the data. **Left out, and said:** _reviewed and unreviewed months_, which wait for the month-end review (8.5); the seed grows with the tasks after it. **Grown since:** `src/seed/states.ts` and `docs/seed.md` add a state for every feature built by Milestone G (reviewed months, insights, archived and merged things, overdue and skipped and ended bills, jars that reached their target, never fit or are archived, yen and dinars with rates, a person you owe, other scripts and markup as names, a raise from next month); `seed.test.ts` finds each, and the export and import round trip runs over the richer book.
 
 #### ✅ 12.2 — Security review
 

@@ -293,7 +293,8 @@ describe(`a book that goes out and comes back (${leg})`, () => {
     for (const table of BOOK_TABLES)
       expect(again.tables[table]?.length, table).toBe(file.tables[table]?.length);
     expect(again.book).toEqual(file.book);
-    expect(file.tables.month_review?.length).toBe(1);
+    // The seed reviews nine months, and this test one more.
+    expect(file.tables.month_review?.length).toBe(10);
   });
 
   it('makes every id again, and points the new rows at the new ids, in the rows and in a template', async () => {

@@ -27,13 +27,14 @@ import {
   postOccurrence,
 } from '../recurring/recurring';
 import { finishSetup, setupCurrency } from '../setup/setup';
+import { seedStates } from './states';
 
 /**
  * A book worth looking at (DESIGN.md §19), for development: **a year deep, in two currencies and a third with no rate**, with an account of every kind, splits, transfers
  * (one between currencies), a refund, a card paid off, money lent to a person, a loan paying itself down, jars with their contributions and a flight paid from one,
  * recurring entries of both modes (a rent that posts itself and an electricity bill that waits to be confirmed, one due today), a bill that budgets its subcategory,
- * revaluations, a reconciled account and a month's budget history. Every figure comes from the same code the screens use, through the same write path, so the book
- * obeys what a real one does. **The seed writes to a book that is empty**, and `clearBook` empties one. Months reviewed and not reviewed wait for the review (task 8.5).
+ * revaluations, a reconciled account and a month's budget history, and then the states a screen has besides "everything is fine" (`states.ts`, listed in `docs/seed.md`). Every figure comes from the same code the screens use, through the same write path, so the book
+ * obeys what a real one does. **The seed writes to a book that is empty**, and `clearBook` empties one.
  */
 export interface SeedSummary {
   readonly accounts: number;
@@ -570,6 +571,24 @@ export async function seedBook(
     },
     'a flight from the Travel jar',
   );
+
+  // The states a screen has besides "everything is fine" (`states.ts`): insights, reviewed months, archived things, overdue bills, jars of every kind, other currencies, other scripts.
+  await seedStates({
+    database,
+    accountId,
+    bookId,
+    now,
+    nowMs,
+    today,
+    thisMonth,
+    first,
+    months,
+    checking,
+    savings,
+    visa,
+    sub,
+    on,
+  });
 
   // Reconciling: the checking account and the savings, to what they hold last month end (which clears what came before), and the wallet, which was short.
   const lastEnd = on(addMonths(thisMonth, -1), 28);

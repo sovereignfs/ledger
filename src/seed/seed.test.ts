@@ -15,6 +15,8 @@ import { findViolations } from '../ledger/invariants';
 import { loadJarsOverview } from '../jars/notes';
 import { loadOverviewPage } from '../overview/overview';
 import { listRecurring, listUpcoming } from '../recurring/recurring';
+import { loadInsights } from '../insights/load';
+import { loadReviewBanner, reviewedMonths } from '../reports/review';
 import { clearBook, seedBook } from './seed';
 
 /**
@@ -48,7 +50,7 @@ const count = async (table: string, bookId: string) =>
 describe(`the development seed (${leg})`, () => {
   it('makes a book a year deep that the invariants hold for, and every screen reads', async () => {
     const summary = await seedBook(t.database, t.ada.id, book.id, NOW);
-    expect(summary).toMatchObject({ accounts: 11, jars: 2, recurring: 7, months: 13 });
+    expect(summary).toMatchObject({ accounts: 17, jars: 5, recurring: 11, months: 13 });
     expect(summary.entries).toBeGreaterThan(250);
     expect(await findViolations(t.database, book.id)).toEqual([]);
     const fresh = (await findBook(t.database, t.ada.id)) as Book;
@@ -58,10 +60,11 @@ describe(`the development seed (${leg})`, () => {
     // Every screen's own loader reads it.
     const overview = await loadOverviewPage(t.database, t.ada.id, fresh, NOW);
     expect(overview.hasAccounts).toBe(true);
-    expect(overview.upcoming.map((u) => [u.template.payee, u.state])).toEqual([
-      ['City Power', 'due'],
-    ]);
-    expect(overview.jars.count).toBe(2);
+    // The bills that ask first: today's, and two that are behind (the paper's first occurrence was skipped, so one of its is left).
+    expect(new Set(overview.upcoming.map((u) => u.template.payee))).toEqual(
+      new Set(['City Power', 'Climbing Gym', 'Daily Paper']),
+    );
+    expect(overview.jars.count).toBe(4);
     expect(overview.thisMonth.received?.amount).toBeGreaterThan(0);
     for (const month of [monthOf('2025-11-15'), '2026-03', '2026-11']) {
       const budget = await loadBudget(t.database, t.ada.id, fresh, month, NOW);
@@ -73,7 +76,7 @@ describe(`the development seed (${leg})`, () => {
     const page = await listEntries(t.database, t.ada.id, fresh.id, {}, undefined, 50);
     expect(page.entries.length).toBe(50);
     expect(page.next).toBeDefined();
-    expect((await listRecurring(t.database, t.ada.id, fresh.id)).length).toBe(7);
+    expect((await listRecurring(t.database, t.ada.id, fresh.id)).length).toBe(11);
     expect(
       (await loadJarsOverview(t.database, t.ada.id, fresh, NOW)).total?.amount,
     ).toBeGreaterThan(0);
@@ -94,7 +97,9 @@ describe(`the development seed (${leg})`, () => {
         'person',
       ]),
     );
-    expect(new Set(accounts.map((a) => a.currency))).toEqual(new Set(['USD', 'EUR', 'CHF']));
+    expect(new Set(accounts.map((a) => a.currency))).toEqual(
+      new Set(['USD', 'EUR', 'CHF', 'JPY', 'BHD']),
+    );
     const loan = accounts.find((a) => a.type === 'loan');
     expect(loan?.balance).toBeGreaterThan(-1_000_000);
     expect(loan?.balance).toBeLessThan(-700_000);
@@ -122,7 +127,122 @@ describe(`the development seed (${leg})`, () => {
       sql`SELECT budget_source AS source FROM ${tableNamed(t.database, 'subcategory')} WHERE book_id = ${book.id} AND name = 'Insurance'`,
     );
     expect(insurance?.source).toBe('bills');
-    expect((await listUpcoming(t.database, t.ada.id, book.id, 'UTC', NOW)).length).toBe(1);
+    expect(
+      (await listUpcoming(t.database, t.ada.id, book.id, 'UTC', NOW)).length,
+    ).toBeGreaterThanOrEqual(3);
+  });
+
+  it('has a state for every screen besides the fine one: insights, reviewed months, archived and merged things, bills behind, jars of every kind, other currencies and other scripts', async () => {
+    const fresh = (await findBook(t.database, t.ada.id)) as Book;
+    const one = async <T>(query: ReturnType<typeof sql>) =>
+      (await dbGet<T>(t.database, query)) as T;
+    const named = (table: string) => tableNamed(t.database, table);
+
+    // Insights: Eating out over budget two completed months running, and a garage bill far above fuel's usual.
+    const kinds = (await loadInsights(t.database, t.ada.id, fresh, NOW, { limit: 10 })).map(
+      (i) => i.kind,
+    );
+    expect(kinds).toContain('over_budget_again');
+    expect(kinds).toContain('unusually_large');
+
+    // Reviewing: nine months reviewed and the last three not, and Overview's banner names the latest of those.
+    expect((await reviewedMonths(t.database, t.ada.id, book.id)).size).toBe(9);
+    expect(await loadReviewBanner(t.database, t.ada.id, fresh, NOW)).toBe('2026-10');
+
+    // Archived and merged: a category with history, a closed account, an archived payee and a jar; a payee typed twice is one.
+    for (const [table, where] of [
+      ['category', "name = 'Old hobbies'"],
+      ['money_account', "name = 'Closed savings'"],
+      ['payee', "name = 'Chemist'"],
+      ['jar', "name = 'Old plan'"],
+    ] as const)
+      expect(
+        Number(
+          (
+            await one<{ n: number | string }>(
+              sql`SELECT COUNT(*) AS n FROM ${named(table)} WHERE book_id = ${book.id} AND archived_at IS NOT NULL AND ${sql.raw(where)}`,
+            )
+          ).n,
+        ),
+        table,
+      ).toBe(1);
+    expect(
+      Number(
+        (
+          await one<{ n: number | string }>(
+            sql`SELECT COUNT(*) AS n FROM ${named('payee')} WHERE book_id = ${book.id} AND name = 'Corner Mart'`,
+          )
+        ).n,
+      ),
+    ).toBe(0);
+    const market = await one<{ n: number | string }>(
+      sql`SELECT COUNT(*) AS n FROM ${named('txn')} t JOIN ${named('payee')} p ON p.id = t.payee_id AND p.book_id = t.book_id WHERE t.book_id = ${book.id} AND p.name = 'Corner Market' AND t.date IN ('2026-07-04', '2026-08-04')`,
+    );
+    expect(Number(market.n)).toBe(2);
+
+    // Bills: one skipped, one on a rule that is not monthly, one ended.
+    expect(
+      Number(
+        (
+          await one<{ n: number | string }>(
+            sql`SELECT COUNT(*) AS n FROM ${named('recurring_skip')} WHERE book_id = ${book.id}`,
+          )
+        ).n,
+      ),
+    ).toBe(1);
+    const rules = await listRecurring(t.database, t.ada.id, fresh.id);
+    expect(rules.filter((r) => r.endedAt !== null).map((r) => r.template.payee)).toEqual([
+      'Old Gym',
+    ]);
+    expect(rules.some((r) => r.rule.unit === 'week' && r.rule.every === 2)).toBe(true);
+
+    // Jars: the laptop has reached its target of 120,000, the holiday jar's contribution never fits and Overview says so.
+    const moved = async (name: string) =>
+      Number(
+        (
+          await one<{ n: number | string | null }>(
+            sql`SELECT COALESCE(SUM(v.amount), 0) AS n FROM ${named('jar_movement')} v JOIN ${named('jar')} j ON j.id = v.jar_id AND j.book_id = v.book_id WHERE v.book_id = ${book.id} AND j.name = ${name}`,
+          )
+        ).n,
+      );
+    expect(await moved('Laptop')).toBe(120_000);
+    expect(await moved('Holiday')).toBe(0);
+    expect((await loadJarsOverview(t.database, t.ada.id, fresh, NOW)).notes.length).toBeGreaterThan(
+      0,
+    );
+
+    // Other currencies: yen without decimals, dinars with three, and a person you owe.
+    const accounts = await listAccounts(t.database, t.ada.id, book.id);
+    const balance = (name: string) => accounts.find((a) => a.name === name)?.balance;
+    expect(balance('Japan trip (JPY)')).toBe(300_000 - 4_800);
+    expect(balance('Gulf (BHD)')).toBe(150_000);
+    expect(balance('Sam')).toBe(-8_000);
+    expect(accounts.some((a) => a.name.startsWith('Конто 🏦'))).toBe(true);
+
+    // Text: markup is kept as the text it is, here as a payee; showing it as text is the screens' job, tried in the browser tests.
+    expect(
+      Number(
+        (
+          await one<{ n: number | string }>(
+            sql`SELECT COUNT(*) AS n FROM ${named('payee')} WHERE book_id = ${book.id} AND name LIKE '%<script>%'`,
+          )
+        ).n,
+      ),
+    ).toBe(1);
+
+    // Budget history: Groceries was raised four months ago and Eating out is raised from next month.
+    const groceries = async (month: string) =>
+      (await loadBudget(t.database, t.ada.id, fresh, month, NOW)).groups
+        .flatMap((g) => g.rows)
+        .find((r) => r.subcategory.name === 'Groceries')?.budgeted;
+    expect(await groceries('2026-06')).toBe(50_000);
+    expect(await groceries('2026-07')).toBe(55_000);
+    const eating = async (month: string) =>
+      (await loadBudget(t.database, t.ada.id, fresh, month, NOW)).groups
+        .flatMap((g) => g.rows)
+        .find((r) => r.subcategory.name === 'Eating out')?.budgeted;
+    expect(await eating('2026-11')).toBe(15_000);
+    expect(await eating('2026-12')).toBe(18_000);
   });
 
   it('writes to the book it is given alone, and refuses a book that has accounts', async () => {
