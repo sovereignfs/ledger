@@ -119,7 +119,7 @@ ours, exact-pinned. Never accept pnpm's offer to add one.
 
 ```bash
 pnpm install --frozen-lockfile   # routine install
-pnpm dev                         # next dev, on port 3003
+pnpm dev                         # next dev, on port 3003 (scripts/dev.mjs makes .env.local the first time: a SQLite file in ./data, local sign-in)
 pnpm format / format:check       # Prettier
 pnpm lint / lint:fix             # ESLint
 pnpm typecheck                   # next typegen && tsc --noEmit

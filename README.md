@@ -16,7 +16,7 @@ You need Node 24.15 or newer and [pnpm](https://pnpm.io) (the version is `packag
 ```bash
 pnpm install --frozen-lockfile
 pnpm format:check && pnpm lint && pnpm typecheck && pnpm test
-pnpm dev   # http://localhost:3003
+pnpm dev   # http://localhost:3003; the first time it makes .env.local (a SQLite file in ./data, local sign-in)
 ```
 
 ## Licence

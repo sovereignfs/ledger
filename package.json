@@ -14,7 +14,7 @@
     "node": ">=24.15 <25"
   },
   "scripts": {
-    "dev": "next dev --port 3003",
+    "dev": "node scripts/dev.mjs",
     "build": "next build",
     "start": "PORT=${PORT:-3003} node .next/standalone/server.js",
     "typecheck": "next typegen && tsc --noEmit",
