@@ -21,6 +21,7 @@ import { signInsOf } from './sign-ins';
  */
 export async function AccountPanel({ query }: { query: AccountQuery }) {
   const { user } = await requireSession();
+  const settings = authSettings();
   const { accountId, book } = await requireBook();
   const signIns = await signInsOf(user.id);
   const currencies = await listCurrencies(await getDatabase(), accountId, book.id);
@@ -31,8 +32,17 @@ export async function AccountPanel({ query }: { query: AccountQuery }) {
         profile: <ProfileSection name={user.name} email={user.email} />,
         security: (
           <SecuritySection
-            passwordMinLength={authSettings()?.passwordMinLength ?? 10}
+            passwordMinLength={settings?.passwordMinLength ?? 10}
             hasPassword={signIns.hasPassword}
+            sovereign={
+              settings?.sovereign ? { linkedAccountId: signIns.sovereignAccountId } : undefined
+            }
+            email={user.email}
+            result={{
+              linked: query.linked === '1',
+              unlinked: query.unlinked === '1',
+              error: query.error ?? null,
+            }}
           />
         ),
         preferences: <PreferencesSection />,

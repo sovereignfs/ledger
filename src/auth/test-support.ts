@@ -23,6 +23,7 @@ const SETTINGS: AuthSettings = {
   signUp: 'closed',
   passwordMinLength: 10,
   local: true,
+  sovereign: undefined,
 };
 
 /** What a test changes about the instance it gets. */

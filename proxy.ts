@@ -18,11 +18,14 @@ import { HSTS, contentSecurityPolicy, newNonce } from './src/security/csp';
  */
 const SIGN_IN_PAGES = new Set(['/sign-in', '/sign-up', '/forgot-password', '/reset-password']);
 
+/** What a core-only instance has of them: the page that takes a person away to sign in there. Sign-up, and resetting a password, are local. */
+const SOVEREIGN_PAGES = new Set(['/sign-in']);
+
 /** Set on the request the proxy rewrites `/` into, so that the page it is rewritten to is not sent back to `/` (which would be a loop). */
 const HOME_MARK = 'x-ledger-home';
 
 export function proxy(request: NextRequest) {
-  const { secure, development, authLocal } = edgeSettings();
+  const { secure, development, authLocal, authSovereign } = edgeSettings();
   const page = !request.nextUrl.pathname.startsWith('/api/');
   const nonce = newNonce();
   const policy = contentSecurityPolicy({ nonce, secure, development });
@@ -37,10 +40,12 @@ export function proxy(request: NextRequest) {
     requestHeaders.delete('content-security-policy');
   }
 
-  // Off means off (DESIGN.md §13.1): with local sign-in off, the sign-in pages are not there. A page cannot say so itself: the root loading state has
-  // already sent a 200 by the time it would, so the proxy answers with the page that is not found, and its status.
+  // Off means off (DESIGN.md §13.1): with local sign-in off, the sign-in pages are not there (but the one page that takes a person to Sovereign, when that is
+  // set up). A page cannot say so itself: the root loading state has already sent a 200 by the time it would, so the proxy answers with the page that is not
+  // found, and its status.
   const path = request.nextUrl.pathname;
-  const absent = !authLocal && SIGN_IN_PAGES.has(path);
+  const absent =
+    !authLocal && SIGN_IN_PAGES.has(path) && !(authSovereign && SOVEREIGN_PAGES.has(path));
   const cookie = hasSessionCookie(request.cookies);
   if (cookie && path === '/home' && !request.headers.has(HOME_MARK))
     return NextResponse.redirect(new URL('/', request.url), 308);

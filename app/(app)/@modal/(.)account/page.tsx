@@ -13,7 +13,14 @@ export default async function AccountModal({
   const query = await searchParams;
   return (
     <AccountDialog>
-      <AccountPanel query={{ section: one(query.section) }} />
+      <AccountPanel
+        query={{
+          section: one(query.section),
+          linked: one(query.linked),
+          unlinked: one(query.unlinked),
+          error: one(query.error),
+        }}
+      />
     </AccountDialog>
   );
 }

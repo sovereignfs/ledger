@@ -15,5 +15,14 @@ export default async function AccountPage({
 }) {
   await requireBook();
   const query = await searchParams;
-  return <AccountPanel query={{ section: one(query.section) }} />;
+  return (
+    <AccountPanel
+      query={{
+        section: one(query.section),
+        linked: one(query.linked),
+        unlinked: one(query.unlinked),
+        error: one(query.error),
+      }}
+    />
+  );
 }

@@ -7,12 +7,14 @@ import type { Problem } from '../config';
  *   LEDGER_AUTH_LOCAL                 1 or true: email and password. Off means off: `/sign-in`, `/sign-up` and `/api/auth` answer 404.
  *   LEDGER_AUTH_SECRET[_FILE]         32 characters or more, to sign sessions and tokens. Required with local sign-in.
  *   LEDGER_AUTH_SIGNUP                `closed` (the default with local sign-in): the first account is made and then sign-up is refused, by the
- *                                      server. `open`: anyone who can reach the page. A self-hoster who forgets is not an open registration.
+ *                                    server. `open`: anyone who can reach the page. A self-hoster who forgets is not an open registration.
+ *                                    With a core as the only way in the default is `open`: the core decides who may sign in.
  *   LEDGER_AUTH_PASSWORD_MIN_LENGTH   the shortest password, 10 by default.
- *   LEDGER_URL                        the address people use; required (links, cookies and passkeys are made from it).
+ *   LEDGER_URL                        the address people use; required with either way (links, cookies, passkeys and the redirect are made from it).
+ *   LEDGER_CORE_URL, LEDGER_CORE_CLIENT_ID, LEDGER_CORE_CLIENT_SECRET[_FILE]
+ *                                   Sovereign sign-in, through a core (DESIGN.md §13.1): all three or none. Either way, or both, can be on.
  *
- * Sign-in through a Sovereign core (`LEDGER_CORE_*`) joins with task 2.3. With the way off there is no sign-in at all, and the other settings here are
- * not read.
+ * With none of the ways on there is no sign-in at all, and the other settings here are not read.
  */
 export interface AuthSettings {
   /** The address people use, an origin with no path. */
@@ -22,7 +24,22 @@ export interface AuthSettings {
   readonly passwordMinLength: number;
   /** Email and password, passkeys and an authenticator app are on. Off means off: their pages and routes answer 404. */
   readonly local: boolean;
+  /** Sign-in through a core, or `undefined` when it is not set up. */
+  readonly sovereign: SovereignSettings | undefined;
 }
+
+export interface SovereignSettings {
+  /** Core's address, its OIDC issuer: no trailing slash. Its discovery document is at `/.well-known/openid-configuration` under it. */
+  readonly issuer: string;
+  readonly clientId: string;
+  readonly clientSecret: string;
+}
+
+/** The id Sovereign sign-in is known by: it is in the redirect address registered with core, and it is the `provider_id` of the account it makes. */
+export const SOVEREIGN_PROVIDER_ID = 'sovereign';
+
+/** What Ledger asks core for. The manifest (`sovereign.manifest.json`) says the same, which a test holds it to. */
+export const SOVEREIGN_SCOPES = ['openid', 'profile', 'email'];
 
 export const MIN_SECRET_LENGTH = 32;
 const DEFAULT_PASSWORD_MIN_LENGTH = 10;
@@ -44,8 +61,9 @@ export function resolveAuth(
   problems: Problem[],
 ): AuthSettings | undefined {
   const local = readFlag(read, 'LEDGER_AUTH_LOCAL', problems);
-  if (!local) return undefined;
-  const why = 'LEDGER_AUTH_LOCAL is on';
+  const sovereign = resolveSovereign(read, problems);
+  if (!local && !sovereign) return undefined;
+  const why = local ? 'LEDGER_AUTH_LOCAL is on' : 'Sovereign sign-in is set';
 
   if (url === undefined && read('LEDGER_URL') === undefined) {
     problems.push(
@@ -62,8 +80,9 @@ export function resolveAuth(
     );
   }
 
-  // Unset, it is closed. (With a core as the only way in it will be open, task 2.3: the core already decides who may sign in.)
-  const rawSignUp = (read('LEDGER_AUTH_SIGNUP') ?? '').toLowerCase() || 'closed';
+  // Unset, it is closed, unless a core is the only way in: then the core already decides who may sign in, and closed would admit only the
+  // first of its people (contracts/app-manifest.md §4 in sovereignfs/sovereign).
+  const rawSignUp = (read('LEDGER_AUTH_SIGNUP') ?? '').toLowerCase() || (local ? 'closed' : 'open');
   if (rawSignUp !== 'open' && rawSignUp !== 'closed') {
     problems.push('LEDGER_AUTH_SIGNUP is open or closed.');
   }
@@ -83,7 +102,53 @@ export function resolveAuth(
   if (secret.length < MIN_SECRET_LENGTH || (rawSignUp !== 'open' && rawSignUp !== 'closed')) {
     return undefined;
   }
-  return { url, secret, signUp: rawSignUp, passwordMinLength, local };
+  return { url, secret, signUp: rawSignUp, passwordMinLength, local, sovereign };
+}
+
+/**
+ * Sovereign sign-in: off when none of the three is given, and a problem (from `loadConfig`'s groups) when only some are, in which case it is
+ * left off here and the problem is what stops the server. The secret may be a file.
+ */
+function resolveSovereign(read: Read, problems: Problem[]): SovereignSettings | undefined {
+  const issuer = read('LEDGER_CORE_URL');
+  const clientId = read('LEDGER_CORE_CLIENT_ID');
+  const clientSecret = read('LEDGER_CORE_CLIENT_SECRET');
+  if (issuer === undefined || clientId === undefined || clientSecret === undefined) {
+    return undefined;
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(issuer);
+  } catch {
+    problems.push('LEDGER_CORE_URL is not an address. Give it as https://sovereign.example.com.');
+    return undefined;
+  }
+  // The client secret goes to this host, and the people who sign in are trusted as it says they are.
+  if (
+    parsed.protocol !== 'https:' &&
+    !(parsed.protocol === 'http:' && isLocalHost(parsed.hostname))
+  ) {
+    problems.push('LEDGER_CORE_URL must be https, except on localhost.');
+    return undefined;
+  }
+  if (parsed.search || parsed.hash || parsed.username || parsed.password) {
+    problems.push('LEDGER_CORE_URL has no user, query or fragment.');
+    return undefined;
+  }
+  return {
+    issuer: `${parsed.origin}${parsed.pathname}`.replace(/\/+$/, ''),
+    clientId,
+    clientSecret,
+  };
+}
+
+function isLocalHost(hostname: string): boolean {
+  return (
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname === '[::1]' ||
+    hostname.endsWith('.localhost')
+  );
 }
 
 /** A switch is 1 or true to be on, 0 or false (or nothing) to be off; anything else is a mistake and is not guessed at. */

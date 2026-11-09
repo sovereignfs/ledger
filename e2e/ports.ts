@@ -11,4 +11,10 @@ if (!Number.isInteger(offset) || offset < 0 || offset > 20_000) {
 export const PORTS = {
   /** The app under test, on the database the environment names. */
   app: 3999 + offset,
+  /** The instance that takes only Sovereign, and the one that takes both ways (`e2e/sovereign.spec.ts`). */
+  sovereign: 3995 + offset,
+  both: 3994 + offset,
+  /** The fake Sovereign: the OIDC provider, and the control port a test says who signs in next on. */
+  coreAuth: 3190 + offset,
+  coreControl: 3191 + offset,
 } as const;

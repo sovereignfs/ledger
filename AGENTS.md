@@ -178,8 +178,8 @@ A command a task adds is written here in that task's change, and `verify` means 
 
 ## Not in place yet
 
-Each is a task in `ROADMAP.md`, not a thing to assume exists: the charts of the reports (8.4) and the recap (8.6); sign-in through a Sovereign
-core (2.3, 2.4), and what follows from it (the bell, 10.1, and the recap, 8.6). Add them in their own branches, and move the line out of this section as each lands.
+Each is a task in `ROADMAP.md`, not a thing to assume exists: the charts of the reports (8.4); core's notices (2.4), and what follows from
+sign-in through a core (the bell, 10.1, and the recap, 8.6). Add them in their own branches, and move the line out of this section as each lands.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

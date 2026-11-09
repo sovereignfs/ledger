@@ -8,6 +8,12 @@ function problems(result: LoadResult): readonly string[] {
   return result.problems;
 }
 
+/** What signing in needs besides a way to: the address people use and the secret the sessions are signed with. */
+const SIGNED_IN = {
+  LEDGER_URL: 'https://ledger.example.com',
+  LEDGER_AUTH_SECRET: 'a-secret-of-at-least-thirty-two-characters',
+};
+
 describe('loadConfig', () => {
   it('accepts no settings at all: the worker and the rate fetch are on, there is no address or key, and the database is an sqld service at its default address', () => {
     expect(loadConfig({})).toMatchObject({
@@ -133,6 +139,7 @@ describe('loadConfig', () => {
       expect(
         loadConfig(
           {
+            ...SIGNED_IN,
             LEDGER_CORE_URL: 'https://core.example.com',
             LEDGER_CORE_CLIENT_ID: 'a',
             LEDGER_CORE_CLIENT_SECRET_FILE: '/run/secret',

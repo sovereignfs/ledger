@@ -2,7 +2,7 @@
 
 ## Status
 
-⏳ In progress: 4 of 6 tasks are done.
+⏳ In progress: 5 of 6 tasks are done; 2.4 (core's notices) is next.
 
 ## Overview
 
@@ -39,7 +39,7 @@ cookie, as Tusk's.
 
 **Done as:** `src/landing/` (the page, its CSS, typed content and the test that holds the content to what is built) copied from Tusk and written for Ledger, and `app/page.tsx` as the landing page for a visitor, with sign-in and, where the server would take it, sign-up. The proxy shows Overview at `/` for a request with a session cookie by rewriting to `/home`, so the address stays `/`, and sends `/home` itself back to `/` (a mark on the request stops a loop). Only the cookie's presence is looked at; a forged one reaches a page that checks the session and sends it to sign in. The landing says only what is so today (an account of one's own, sign-in, phone and desktop), and its test keeps the words of what is not built out until it is. 32 browser tests (Chromium and WebKit), including the landing, Overview at the same address, and a phone's width.
 
-#### 📋 2.3 — Sign-in through core
+#### ✅ 2.3 — Sign-in through core
 
 **Goal:** a Sovereign core as a way in. **Design:** §13.1. **Depends on:** 2.1.
 
@@ -48,6 +48,18 @@ sign-up `open` when core is the only way; no linking by email, linking from a si
 
 **Accepts when:** sign-in through the fake Sovereign works; a core login whose email matches a local account is refused until linked from a session;
 a partial `LEDGER_CORE_*` stops start-up.
+
+**Done as:** **copied from Tusk's, whose Ledger counterpart had been copied without the core parts, so this puts them back**: `src/auth/config.ts` (`SovereignSettings`: the issuer, which must be https except on localhost and have no user, query or fragment, the client id
+and the secret, which may be a file; a core alone is a way to sign in, and then **sign-up defaults to open, since the core already decides who may**, and to closed whenever local sign-in is on), `src/auth/auth.ts` (better-auth's `genericOAuth` with
+**PKCE S256**, discovery from the issuer, the **ID token required to verify against the issuer's published keys** (a discovery document with none is a refusal to offer sign-in, not trust in what the token endpoint says), the client secret by basic auth, scopes
+`openid profile email`, the callback `/api/auth/callback/sovereign`, no logout of the core when signing out here; **no linking by email**: `disableImplicitLinking`, `allowDifferentEmails: false`, no unlinking of the last way in, and tokens stored encrypted; an account with no
+password cannot set up an authenticator app or a passkey, which core has its own of), `src/auth/testing/fake-sovereign.ts` (the fake Sovereign, strict where core is: the redirect matched exactly, PKCE checked, the secret, a code that works once, an EdDSA ID token) with the recorded
+discovery document it is held to, and `src/sovereign/identity.ts` (an account by its `sub`, and ending its sessions, for 2.4). **The proxy** now leaves `/sign-in` for an instance that takes only a core (and `/sign-up`, `/forgot-password` and `/reset-password` stay absent), the sign-in
+page offers _Sign in with Sovereign_, and **Settings > Security** shows what is linked, with _Link_ from a signed-in session and _Unlink_, which is refused for the only way in (`SovereignPanel`, `sign-ins.ts`, `AccountPanel` and the address that comes back from core). Two instances join
+the browser tests, **each in a directory of its own** (the auth database is `ledger_auth.db` beside the app's, so two in one directory would have shared their accounts, which a first version of this did): one takes only the fake core and only its first account, and one takes both ways and anyone, with the fake as a process of its own
+(`e2e/fake-sovereign-server.ts`). Differences from Tusk, stated: a new book is sent to its setup, so the browser tests go on to a page with the menu before looking for it; the sign-in-through-core tests of notices wait for 2.4. Tests: the 37 of Tusk's `sovereign.test.ts` and the 6 of its discovery test, adapted (a new person by their `sub`, the same person next time even if the address changed, an address that is a local account's
+refused until linked, a different address refused to link, unlinking, the last way in kept, no keys no sign-in), the config tests for a core alone, both ways, a file's secret, a partial set and an address that would send the secret in the clear, and 22 in the browser (three runs in a row). Each key test was seen to fail
+against the code it guards (linking by email, PKCE off, the ID token not verified, the core-only default for sign-up); one test did not exist for the last, and was added.
 
 #### 📋 2.4 — Core's notices
 

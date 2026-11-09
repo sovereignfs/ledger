@@ -16,6 +16,10 @@ export type AccountSection = (typeof SECTIONS)[number];
 
 export interface AccountQuery {
   section?: string | undefined;
+  /** The way back from Sovereign (`linked=1`, `unlinked=1`, or an `error` code) leaves what happened in the address. */
+  linked?: string | undefined;
+  unlinked?: string | undefined;
+  error?: string | undefined;
 }
 
 export function sectionOf(query: AccountQuery): AccountSection {

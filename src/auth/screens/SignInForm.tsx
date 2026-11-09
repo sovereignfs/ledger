@@ -16,7 +16,7 @@ import {
 } from '@sovereignfs/ui';
 
 /**
- * Email and password (`local`), and/or Sovereign, which takes the person away to sign in there and back (DESIGN.md §6). No message says whether an address
+ * Email and password (`local`), and/or Sovereign, which takes the person away to sign in there and back (DESIGN.md §13.1). No message says whether an address
  * has an account: a wrong address and a wrong password read the same. `failure` is what went wrong on the way back from Sovereign, if anything.
  */
 export function SignInForm({
