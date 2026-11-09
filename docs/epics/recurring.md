@@ -2,7 +2,7 @@
 
 ## Status
 
-📋 Planned.
+⏳ In progress: 1 of 5 tasks is done.
 
 ## Overview
 
@@ -15,7 +15,7 @@ loan's instalment split into principal and interest.
 
 ## Tasks
 
-#### 📋 6.1 — The rule
+#### ✅ 6.1 — The rule
 
 **Goal:** the next occurrence, right in every month and zone. **Design:** §8.1. **Depends on:** 1.2.
 
@@ -23,6 +23,8 @@ loan's instalment split into principal and interest.
 the last day of a shorter month; `monthlyEquivalent(rule, amount)` (§8.4), pure. Tests under three time zones.
 
 **Accepts when:** worked examples (31 Jan monthly, 29 Feb yearly, every 2 weeks across a DST change) give the expected dates.
+
+**Done as:** `src/recurring/rule.ts`, pure, **written and not copied from Tusk's `recurrence.ts`**, which this task said to copy and trim: Tusk's rule is an RFC 5545 `RRULE` run by the `rrule` package, which **skips a month that lacks the day** (a monthly rule on the 31st never lands in February), and `DESIGN.md` §8.1 says the opposite, that **the 31st falls on the last day of a shorter month**, so rent due on the 31st is due every month. That is a short piece of calendar arithmetic, so there is no new dependency, and the rule is the one `DESIGN.md` §18.3 stores (`unit`, `every`, `anchor`, `end`); Tusk's names are kept where they fit (`nextOccurrence`, `firstOnOrAfter`, an occurrences-between). **Every occurrence is counted from the anchor and not from the one before**, so 31 January monthly is 28 February and then 31 March, not 28 March; 29 February yearly is the 28th in a year that is not a leap year and the 29th again in the next that is; every 3 months from 30 November is 28 February and then 30 May. A date crosses into the arithmetic only through `Date.UTC` and comes back only through `getUTC*`, and the tests run the same dates under UTC, Los Angeles and Kiritimati (+14) with the clocks changing in March. `nextOccurrence(rule, after)` is the first occurrence strictly after a day (given the day an entry was last posted for, the day it is next due), `firstOnOrAfter`, `occurrenceIs`, and `occurrencesBetween` (the same dates that posting in turn would make, oldest first, at most `limit`), all found by a search over a sequence that only grows, bounded by the year 9999 so that a search always ends and no date is one the calendar cannot write; `null` once the rule has ended (the end is inclusive and the last occurrence is the last on or before it). **`monthlyEquivalent(rule, amount)`** is daily × 365/12, weekly × 52/12, monthly ÷ N and yearly ÷ 12N (a yearly 600 is 50 a month; every 2 weeks is half a weekly one), in integers, **rounded half to even** and keeping the sign; the conversion to the budget's currency is 6.4's. `checkRule` says in sentences what is wrong with a rule (every 1 to 999, a real start, an end not before it) and `describeRule` writes it for a screen ("Every 2 weeks, until 2027-06-30"). 18 tests: the worked examples above and a leap year, every 2 weeks across both clock changes, the three zones, strict next, ended rules, between against a walk of next-after-next, 300 random rules against the calendar (strictly increasing, the anchor's day clamped to the month's length, nothing between two occurrences), and the monthly equivalents with their halves. Each key test was seen to fail against the code it guards (the 31st skipping or clamping to 28, a next that is not strict, a monthly equivalent that ignores N, a leap day lost). No table or screen: recurring entries are 6.2.
 
 #### 📋 6.2 — Recurring entries and auto-posting
 
