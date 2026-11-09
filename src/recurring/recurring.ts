@@ -379,6 +379,31 @@ export async function endRecurring(
   return rows.length > 0;
 }
 
+/**
+ * Takes the entry's next occurrence for this process and moves the entry on to the one after (ending it after its last): a conditional update that says who won,
+ * so two that try at once take it once. The caller handles what the occurrence is, in the same transaction.
+ */
+async function claim(
+  tx: Database,
+  accountId: string,
+  bookId: string,
+  row: RecurringRow,
+  now: number,
+): Promise<boolean> {
+  const s = schema(tx);
+  const date = row.nextDate;
+  if (date === null) return false;
+  const following = nextOccurrence(row.rule, date);
+  const claimed = await dbAll<{ id: string }>(
+    tx,
+    sql`UPDATE ${s.recurring} SET next_date = ${following}, ended_at = ${following === null ? now : null}, updated_at = ${now}
+         WHERE id = ${row.id} AND book_id = ${bookId} AND next_date = ${date} AND ended_at IS NULL
+           AND ${inBook(tx, sql`${s.recurring.bookId}`, accountId)}
+        RETURNING id`,
+  );
+  return claimed.length > 0;
+}
+
 export type PostResult =
   | { readonly status: 'posted'; readonly date: string }
   /** The occurrence was one the person skipped, or was posted already: the entry is moved on and nothing is made. */
@@ -387,6 +412,8 @@ export type PostResult =
   | { readonly status: 'none' }
   /** Another process took this occurrence between the look and the claim. */
   | { readonly status: 'lost' }
+  /** The occurrence asked for is not the entry's next: it was handled meanwhile, here or in another window. */
+  | { readonly status: 'stale' }
   /** The template no longer makes a valid entry (an account archived, a subcategory deleted): the entry stays due and is tried again, never wedged. */
   | { readonly status: 'failed'; readonly problems: readonly string[] };
 
@@ -396,6 +423,13 @@ export type PostResult =
  * once post it once and a posting that is refused moves nothing. A skipped occurrence, or one already posted, only moves the entry on. The last occurrence
  * ends the entry.
  */
+export interface PostOptions {
+  /** Post this in place of the stored template (a corrected amount, when a person confirms). */
+  readonly template?: Template;
+  /** The occurrence the person was shown: if the entry's next is another, nothing is posted and the answer is `stale`. */
+  readonly expect?: string;
+}
+
 export async function postOccurrence(
   database: Database,
   actingAccountId: string,
@@ -403,23 +437,20 @@ export async function postOccurrence(
   recurringId: string,
   dueOn: string,
   now: number = Date.now(),
+  options: PostOptions = {},
 ): Promise<PostResult> {
   const s = schema(database);
   let outcome: PostResult = { status: 'none' };
   const result = await runWrite(database, async (tx) => {
     const row = await one(tx, actingAccountId, bookId, recurringId);
-    if (!row || row.endedAt !== null || row.nextDate === null || row.nextDate > dueOn)
+    if (!row || row.endedAt !== null || row.nextDate === null) return recurringId;
+    if (options.expect !== undefined && row.nextDate !== options.expect) {
+      outcome = { status: 'stale' };
       return recurringId;
+    }
+    if (row.nextDate > dueOn) return recurringId;
     const date = row.nextDate;
-    const following = nextOccurrence(row.rule, date);
-    const claimed = await dbAll<{ id: string }>(
-      tx,
-      sql`UPDATE ${s.recurring} SET next_date = ${following}, ended_at = ${following === null ? now : null}, updated_at = ${now}
-           WHERE id = ${recurringId} AND book_id = ${bookId} AND next_date = ${date} AND ended_at IS NULL
-             AND ${inBook(tx, sql`${s.recurring.bookId}`, actingAccountId)}
-          RETURNING id`,
-    );
-    if (claimed.length === 0) {
+    if (!(await claim(tx, actingAccountId, bookId, row, now))) {
       outcome = { status: 'lost' };
       return recurringId;
     }
@@ -439,7 +470,7 @@ export async function postOccurrence(
       tx,
       actingAccountId,
       bookId,
-      entryOf(row.template, date, { id: recurringId, occurrenceDate: date }),
+      entryOf(options.template ?? row.template, date, { id: recurringId, occurrenceDate: date }),
       now,
     );
     outcome = { status: 'posted', date };
@@ -450,6 +481,91 @@ export async function postOccurrence(
       ? { status: 'failed', problems: result.problems }
       : { status: 'none' };
   return outcome;
+}
+
+/**
+ * Skips the entry's next occurrence, which must be the one the person was shown (`date`): it is recorded as skipped and the entry moves on to the one after, in
+ * one transaction. Nothing is posted. `not_found` for an entry that is not theirs or has ended, `stale` when the next occurrence is another (handled already).
+ */
+export async function skipOccurrence(
+  database: Database,
+  accountId: string,
+  bookId: string,
+  recurringId: string,
+  date: string,
+  now: number = Date.now(),
+): Promise<'skipped' | 'not_found' | 'stale'> {
+  const s = schema(database);
+  let outcome: 'skipped' | 'not_found' | 'stale' = 'not_found';
+  await runWrite(database, async (tx) => {
+    const row = await one(tx, accountId, bookId, recurringId);
+    if (!row || row.endedAt !== null || row.nextDate === null) return recurringId;
+    if (row.nextDate !== date || !(await claim(tx, accountId, bookId, row, now))) {
+      outcome = 'stale';
+      return recurringId;
+    }
+    await dbAll(
+      tx,
+      sql`INSERT INTO ${s.recurringSkip} (recurring_id, occurrence_date, book_id)
+          SELECT ${recurringId}, ${date}, ${bookId} FROM ${s.recurring} r
+           WHERE r.id = ${recurringId} AND r.book_id = ${bookId} AND ${inBook(tx, sql`r.book_id`, accountId)}
+          ON CONFLICT (recurring_id, occurrence_date) DO NOTHING RETURNING recurring_id`,
+    );
+    outcome = 'skipped';
+    return recurringId;
+  });
+  return outcome;
+}
+
+export interface Upcoming {
+  readonly id: string;
+  readonly template: Template;
+  /** The occurrence: the entry's next day. */
+  readonly date: string;
+  /** Before today by the book's clock, today, or still to come within the look-ahead. */
+  readonly state: 'overdue' | 'due' | 'coming';
+}
+
+/** A day some days on, as UTC calendar arithmetic. */
+function plusDays(day: string, days: number): string {
+  const [y, m, d] = day.split('-').map(Number) as [number, number, number];
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
+
+/**
+ * The occurrences waiting to be confirmed (DESIGN.md §8.2): the next of each entry in mode `confirm`, **overdue** ones included (they stay until handled), and the
+ * ones due within `lookAheadDays` of today by the book's clock. One row for each entry: when it is handled the following occurrence is the next row.
+ */
+export async function listUpcoming(
+  database: Database,
+  accountId: string,
+  bookId: string,
+  timeZone: string,
+  now: Date = new Date(),
+  lookAheadDays = 7,
+): Promise<Upcoming[]> {
+  const today = todayIn(timeZone, now);
+  const horizon = plusDays(today, lookAheadDays);
+  const s = schema(database);
+  const rows = await dbAll<Raw>(
+    database,
+    sql`SELECT ${COLUMNS('r')} FROM ${s.recurring} r
+         WHERE r.book_id = ${bookId} AND ${inBook(database, sql`r.book_id`, accountId)}
+           AND r.mode = 'confirm' AND r.ended_at IS NULL AND r.next_date IS NOT NULL AND r.next_date <= ${horizon}
+         ORDER BY r.next_date, r.id`,
+  );
+  const out: Upcoming[] = [];
+  for (const raw of rows) {
+    const row = toRow(raw);
+    if (!row || row.nextDate === null) continue;
+    out.push({
+      id: row.id,
+      template: row.template,
+      date: row.nextDate,
+      state: row.nextDate < today ? 'overdue' : row.nextDate === today ? 'due' : 'coming',
+    });
+  }
+  return out;
 }
 
 export interface PostDueResult {

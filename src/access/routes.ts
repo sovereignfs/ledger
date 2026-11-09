@@ -100,6 +100,9 @@ export const ROUTES: RouteRule[] = [
   // Recurring entries (DESIGN.md §8): the person's own. Nothing in a request names whose.
   { route: '/api/recurring', methods: { GET: { kind: 'book' }, POST: { kind: 'book' } } },
   { route: '/api/recurring/[id]', methods: { PATCH: { kind: 'book' }, DELETE: { kind: 'book' } } },
+  { route: '/api/recurring/[id]/post', methods: { POST: { kind: 'book' } } },
+  { route: '/api/recurring/[id]/skip', methods: { POST: { kind: 'book' } } },
+  { route: '/api/upcoming', methods: { GET: { kind: 'book' } } },
   // The instance asks it before it sends anyone to the app, and a container's health check does: it says only whether the database answers.
   { route: '/api/health', methods: { GET: { kind: 'public' } } },
   // better-auth's own: it checks `Origin` and the session cookie itself, and rate-limits sign-in (src/auth/auth.ts). Absent, with a 404, when sign-in is off.

@@ -6,6 +6,8 @@ import { todayIn } from '@/src/dates';
 import { getDatabase } from '@/src/db/boot';
 import { loadEntryOptions } from '@/src/ledger/entries';
 import { listEntries } from '@/src/ledger/entry-list';
+import { UpcomingList } from '@/src/recurring/UpcomingList';
+import { listUpcoming } from '@/src/recurring/recurring';
 import { EntriesList } from '@/src/transactions/EntriesList';
 import { FilterBar } from '@/src/transactions/FilterBar';
 import {
@@ -51,9 +53,10 @@ export default async function Page({
       asked.append(name, each);
   const tidy = filterQuery(filter, before);
   if (asked.toString() !== tidy) redirect(tidy === '' ? '/transactions' : `/transactions?${tidy}`);
-  const [page, options] = await Promise.all([
+  const [page, options, upcoming] = await Promise.all([
     listEntries(database, accountId, book.id, filter, before),
     loadEntryOptions(database, accountId, book, todayIn(book.timeZone)),
+    listUpcoming(database, accountId, book.id, book.timeZone),
   ]);
   const rows = page.entries.map((entry) => describeEntry(entry, filter.account));
   const locale = book.locale ?? undefined;
@@ -64,6 +67,7 @@ export default async function Page({
   return (
     <PageContainer>
       <PageHeader title="Transactions" description="Every entry, findable." />
+      <UpcomingList items={upcoming} locale={locale} />
       <FilterBar filter={filter} options={options} />
       {rows.length === 0 && !filtered && !before ? (
         <EmptyState

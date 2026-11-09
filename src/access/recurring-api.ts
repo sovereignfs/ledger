@@ -1,4 +1,5 @@
 import type { Database } from '../db/client';
+import { findBook } from '../ledger/books';
 import {
   type Mode,
   type NewRecurring,
@@ -7,9 +8,13 @@ import {
   createRecurring,
   endRecurring,
   listRecurring,
+  listUpcoming,
+  postOccurrence,
   repeatEntry,
+  skipOccurrence,
   updateRecurring,
 } from '../recurring/recurring';
+import { withAmount } from '../recurring/present';
 import { UNITS } from '../recurring/rule';
 import { readCapped } from './body';
 import type { BookContext } from './route';
@@ -168,4 +173,67 @@ export async function remove(database: Database, { accountId, bookId, params }: 
   return (await endRecurring(database, accountId, bookId, idOf(params)))
     ? json({ ended: true })
     : notFound();
+}
+
+/** What waits to be confirmed: the next occurrence of each entry that asks first, overdue ones included. */
+export async function upcoming(database: Database, { accountId, bookId }: BookContext) {
+  const book = await findBook(database, accountId);
+  if (!book || book.id !== bookId) return notFound();
+  return json({ upcoming: await listUpcoming(database, accountId, bookId, book.timeZone) });
+}
+
+const STALE = 'That was handled already. The list is up to date now.';
+
+/**
+ * Posts an occurrence that waits to be confirmed, as it is or with a corrected amount: `{ date, amount? }`, where `date` is the occurrence the person was
+ * shown. It is posted by the person, through the one write path, and the entry moves on to the next.
+ */
+export async function post(
+  database: Database,
+  { request, accountId, bookId, params }: BookContext,
+) {
+  const read = await body(request);
+  if (read instanceof Response) return read;
+  const { date, amount } = read.value;
+  if (typeof date !== 'string') return bad('The day of the occurrence is a day.');
+  if (amount !== undefined && typeof amount !== 'number')
+    return bad('The amount is a whole number of the smallest unit.');
+  const id = idOf(params);
+  let template: Template | undefined;
+  if (amount !== undefined) {
+    const found = (await listRecurring(database, accountId, bookId)).find((row) => row.id === id);
+    if (!found) return notFound();
+    template = withAmount(found.template, amount);
+    if (!template)
+      return bad('That amount is not a change this entry can take. Post it as it is and edit it.');
+  }
+  const outcome = await postOccurrence(database, accountId, bookId, id, date, Date.now(), {
+    expect: date,
+    ...(template ? { template } : {}),
+  });
+  switch (outcome.status) {
+    case 'posted':
+    case 'passed':
+      return json({ posted: outcome.status === 'posted', date });
+    case 'failed':
+      return json({ problems: outcome.problems }, 400);
+    case 'stale':
+    case 'lost':
+      return json({ problems: [STALE] }, 409);
+    default:
+      return notFound();
+  }
+}
+
+/** Skips an occurrence that waits to be confirmed: `{ date }`. The entry moves on to the next. */
+export async function skip(
+  database: Database,
+  { request, accountId, bookId, params }: BookContext,
+) {
+  const read = await body(request);
+  if (read instanceof Response) return read;
+  if (typeof read.value.date !== 'string') return bad('The day of the occurrence is a day.');
+  const result = await skipOccurrence(database, accountId, bookId, idOf(params), read.value.date);
+  if (result === 'skipped') return json({ skipped: true });
+  return result === 'stale' ? json({ problems: [STALE] }, 409) : notFound();
 }

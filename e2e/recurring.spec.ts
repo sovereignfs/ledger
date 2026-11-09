@@ -95,3 +95,90 @@ test('says why an entry that repeats already cannot be made to repeat again', as
   const again = await repeat();
   await expect(again.getByRole('alert')).toBeVisible();
 });
+
+/** A bill that asks first, due long ago (so it is overdue whatever the clock) and with one occurrence only, made through the app's own routes. */
+async function bill(page: Page, tag: string, date: string) {
+  const origin = new URL(page.url()).origin;
+  const post = async (path: string, data: unknown) => {
+    const reply = await page.request.post(path, { data, headers: { origin } });
+    expect(reply.status(), path).toBe(201);
+    return ((await reply.json()) as { id: string }).id;
+  };
+  const account = await post('/api/accounts', {
+    type: 'bank',
+    name: `Bank ${tag}`,
+    currency: 'USD',
+    opening: { amount: 100_000, date: '2020-01-01' },
+  });
+  const category = await post('/api/categories', { name: `Bills ${tag}`, currency: 'USD' });
+  const subcategory = await post(`/api/categories/${category}/subcategories`, {
+    name: `Power ${tag}`,
+  });
+  await post('/api/recurring', {
+    template: {
+      type: 'expense',
+      payee: `Electric ${tag}`,
+      lines: [
+        { account, amount: -9_000, currency: 'USD' },
+        { subcategory, amount: 9_000, currency: 'USD' },
+      ],
+    },
+    unit: 'month',
+    every: 1,
+    anchor: date,
+    end: date,
+    mode: 'confirm',
+  });
+  return account;
+}
+
+test('posts a bill that asks first with the amount it came to, once, and it is gone from Upcoming', async ({
+  page,
+  browserName,
+}) => {
+  await signedIn(page);
+  await page.goto('/accounts');
+  const tag = `confirm ${browserName}`;
+  const account = await bill(page, tag, '2020-06-10');
+
+  await page.goto('/');
+  const upcoming = page.getByRole('region', { name: 'Upcoming' });
+  const row = upcoming.getByRole('listitem').filter({ hasText: `Electric ${tag}` });
+  await expect(row).toContainText('Overdue');
+  await expect(row).toContainText('2020-06-10');
+  await expect(row).toContainText('$90.00');
+
+  await page.goto('/transactions');
+  const there = page
+    .getByRole('region', { name: 'Upcoming' })
+    .getByRole('listitem')
+    .filter({ hasText: `Electric ${tag}` });
+  await there.getByLabel(`Amount for Electric ${tag}`).fill('112.50');
+  await there.getByRole('button', { name: `Post Electric ${tag}` }).click();
+  await expect(there).toHaveCount(0);
+
+  await page.goto(`/accounts/${account}`);
+  await expect(page.getByRole('button', { name: 'Edit the entry of 2020-06-10' })).toHaveCount(1);
+  await expect(page.getByRole('region', { name: 'Summary' })).toContainText('$887.50');
+});
+
+test('skips a bill that asks first: it is gone and nothing is posted', async ({
+  page,
+  browserName,
+}) => {
+  await signedIn(page);
+  await page.goto('/accounts');
+  const tag = `skip ${browserName}`;
+  const account = await bill(page, tag, '2020-07-10');
+  await page.goto('/transactions');
+  const row = page
+    .getByRole('region', { name: 'Upcoming' })
+    .getByRole('listitem')
+    .filter({ hasText: `Electric ${tag}` });
+  await expect(row).toBeVisible();
+  await row.getByRole('button', { name: `Skip Electric ${tag}` }).click();
+  await expect(row).toHaveCount(0);
+  await page.goto(`/accounts/${account}`);
+  await expect(page.getByRole('region', { name: 'Summary' })).toContainText('$1,000.00');
+  await expect(page.getByRole('button', { name: 'Edit the entry of 2020-07-10' })).toHaveCount(0);
+});

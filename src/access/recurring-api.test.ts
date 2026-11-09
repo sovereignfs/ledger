@@ -3,7 +3,7 @@ import { testTarget } from '../db/test-support';
 import { ensureBook } from '../ledger/books';
 import { seedAccount, seedSubcategory } from '../ledger/testing';
 import { createTransaction } from '../ledger/transactions';
-import { change, create, list, remove } from './recurring-api';
+import { change, create, list, post, remove, skip, upcoming } from './recurring-api';
 import { type BookHandler, bookRoute } from './route';
 import { type Person, type TwoAccounts, twoAccounts } from './two-accounts';
 
@@ -191,5 +191,101 @@ describe(`the recurring routes (${leg})`, () => {
     expect(
       (await call(remove, t.ada, '/api/recurring/nope', { method: 'DELETE' }, 'nope')).status,
     ).toBe(404);
+  });
+});
+
+describe(`confirming from the routes (${leg})`, () => {
+  const today = new Date().toISOString().slice(0, 10);
+  const waiting = async () =>
+    (
+      (await (await call(upcoming, t.ada, '/api/upcoming')).json()) as {
+        upcoming: { id: string; date: string; state: string }[];
+      }
+    ).upcoming;
+  const act = (
+    handler: typeof post,
+    person: Person | null,
+    id: string,
+    what: 'post' | 'skip',
+    data: unknown,
+    headers?: Record<string, string>,
+  ) =>
+    call(
+      handler,
+      person,
+      `/api/recurring/${id}/${what}`,
+      { method: 'POST', body: data, ...(headers ? { headers } : {}) },
+      id,
+    );
+
+  it('lists what waits for the caller alone, and posts it with a corrected amount once', async () => {
+    const id = await make({ anchor: today, mode: 'confirm', template: template(rent, 9_000) });
+    expect((await waiting()).find((row) => row.id === id)).toMatchObject({
+      date: today,
+      state: 'due',
+    });
+    expect(
+      ((await (await call(upcoming, t.grace, '/api/upcoming')).json()) as { upcoming: unknown[] })
+        .upcoming,
+    ).toEqual([]);
+    expect((await call(upcoming, null, '/api/upcoming')).status).toBe(401);
+
+    const reply = await act(post, t.ada, id, 'post', { date: today, amount: 11_250 });
+    expect(reply.status).toBe(200);
+    expect(await reply.json()).toEqual({ posted: true, date: today });
+    expect((await waiting()).find((row) => row.id === id)).toBeUndefined();
+    // From a window that was not refreshed: nothing more is posted, and it is said.
+    const again = await act(post, t.ada, id, 'post', { date: today });
+    expect(again.status).toBe(409);
+    expect(((await again.json()) as { problems: string[] }).problems[0]).toContain(
+      'handled already',
+    );
+  });
+
+  it('skips, and the occurrence is gone', async () => {
+    const id = await make({ anchor: today, mode: 'confirm' });
+    expect((await act(skip, t.ada, id, 'skip', { date: today })).status).toBe(200);
+    expect((await waiting()).find((row) => row.id === id)).toBeUndefined();
+    expect((await act(skip, t.ada, id, 'skip', { date: today })).status).toBe(409);
+  });
+
+  it('is not found for another person, and writes nothing', async () => {
+    const id = await make({ anchor: today, mode: 'confirm' });
+    for (const [handler, what, data] of [
+      [post, 'post', { date: today }],
+      [post, 'post', { date: today, amount: 5 }],
+      [skip, 'skip', { date: today }],
+    ] as const) {
+      const reply = await act(handler, t.grace, id, what, data);
+      expect(reply.status).toBe(404);
+      expect(await reply.text()).toBe('');
+    }
+    expect((await waiting()).find((row) => row.id === id)).toMatchObject({ date: today });
+  });
+
+  it('answers another address 403 and a mistake with sentences and a 400', async () => {
+    const id = await make({ anchor: today, mode: 'confirm' });
+    expect(
+      (await act(post, t.ada, id, 'post', { date: today }, { origin: 'https://evil.example' }))
+        .status,
+    ).toBe(403);
+    expect(
+      (await act(skip, t.ada, id, 'skip', { date: today }, { origin: 'https://evil.example' }))
+        .status,
+    ).toBe(403);
+    for (const data of [
+      {},
+      { date: 5 },
+      { date: today, amount: 'x' },
+      { date: today, amount: 0 },
+      { date: today, amount: 1.5 },
+      [],
+    ]) {
+      const reply = await act(post, t.ada, id, 'post', data);
+      expect(reply.status, JSON.stringify(data)).toBe(400);
+      expect(((await reply.json()) as { problems: string[] }).problems.length).toBeGreaterThan(0);
+    }
+    expect((await act(skip, t.ada, id, 'skip', {})).status).toBe(400);
+    expect((await waiting()).find((row) => row.id === id)).toMatchObject({ date: today });
   });
 });

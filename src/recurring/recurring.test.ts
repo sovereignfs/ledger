@@ -15,9 +15,11 @@ import {
   createRecurring,
   endRecurring,
   listRecurring,
+  listUpcoming,
   postDue,
   postOccurrence,
   repeatEntry,
+  skipOccurrence,
   updateRecurring,
 } from './recurring';
 
@@ -485,6 +487,130 @@ describe(`another person’s recurring entries (${leg})`, () => {
       status: 'none',
     });
     expect(JSON.stringify(await rowOf(id))).toBe(before);
+    expect(await posted(id)).toEqual([]);
+  });
+});
+
+describe(`confirming what is upcoming (${leg})`, () => {
+  const upcoming = (now: string) => listUpcoming(t.database, t.ada.id, adas, 'UTC', AT(now));
+
+  it('lists a bill that asks first on its day, overdue ones until handled, and ones just ahead, and never one that posts itself', async () => {
+    const due = await make({
+      anchor: '2028-03-10',
+      mode: 'confirm',
+      template: expenseOf(9_000, power),
+    });
+    const overdue = await make({
+      anchor: '2028-03-08',
+      mode: 'confirm',
+      template: expenseOf(4_000, power),
+    });
+    const ahead = await make({
+      anchor: '2028-03-15',
+      mode: 'confirm',
+      template: expenseOf(1_000, power),
+    });
+    await make({ anchor: '2028-03-30', mode: 'confirm', template: expenseOf(1_000, power) });
+    await make({ anchor: '2028-03-10', mode: 'auto', template: expenseOf(1_000, power) });
+    const rows = await upcoming('2028-03-10T12:00:00Z');
+    expect(rows.map((row) => [row.id, row.date, row.state])).toEqual([
+      [overdue, '2028-03-08', 'overdue'],
+      [due, '2028-03-10', 'due'],
+      [ahead, '2028-03-15', 'coming'],
+    ]);
+    // A job that posts what is due leaves them all alone.
+    await postDue(t.database, AT('2028-03-10T12:00:00Z'));
+    expect((await upcoming('2028-03-10T12:00:00Z')).length).toBe(3);
+    expect(await posted(due)).toEqual([]);
+  });
+
+  it('is listed by the book’s own day', async () => {
+    const id = await make({ anchor: '2028-04-02', mode: 'confirm' });
+    const at = AT('2028-04-01T12:00:00Z');
+    const state = async (zone: string) =>
+      (await listUpcoming(t.database, t.ada.id, adas, zone, at, 0)).find((row) => row.id === id)
+        ?.state;
+    expect(await state('UTC')).toBeUndefined();
+    expect(await state('Pacific/Kiritimati')).toBe('due');
+  });
+
+  it('posts a bill with a corrected amount, once, and it does not come up again; the next is scheduled', async () => {
+    const id = await make({
+      anchor: '2028-05-10',
+      mode: 'confirm',
+      template: expenseOf(9_000, power, { payee: 'Electric' }),
+    });
+    const corrected = { ...expenseOf(11_250, power, { payee: 'Electric' }) };
+    const now = Date.now();
+    expect(
+      await postOccurrence(t.database, t.ada.id, adas, id, '2028-05-10', now, {
+        expect: '2028-05-10',
+        template: corrected,
+      }),
+    ).toEqual({ status: 'posted', date: '2028-05-10' });
+    const [made] = await posted(id);
+    expect(made).toMatchObject({ date: '2028-05-10', by: t.ada.id });
+    expect(
+      (await getEntry(t.database, t.ada.id, adas, made?.id as string))?.lines.map((l) => l.amount),
+    ).toEqual([-11_250, 11_250]);
+    expect((await rowOf(id))?.nextDate).toBe('2028-06-10');
+    // The same click again, from a window that was not refreshed, posts nothing.
+    expect(
+      await postOccurrence(t.database, t.ada.id, adas, id, '2028-05-10', now, {
+        expect: '2028-05-10',
+      }),
+    ).toEqual({ status: 'stale' });
+    expect((await posted(id)).length).toBe(1);
+    expect((await upcoming('2028-05-10T12:00:00Z')).find((row) => row.id === id)).toBeUndefined();
+    // The stored template is unchanged: next month asks 9,000 again.
+    expect((await rowOf(id))?.template.lines[1]?.amount).toBe(9_000);
+  });
+
+  it('skips an occurrence: it is gone, nothing is posted, and the next is scheduled; a second skip of it is stale', async () => {
+    const id = await make({ anchor: '2028-07-10', mode: 'confirm' });
+    expect(await skipOccurrence(t.database, t.ada.id, adas, id, '2028-07-11')).toBe('stale');
+    expect(await skipOccurrence(t.database, t.ada.id, adas, id, '2028-07-10')).toBe('skipped');
+    expect(await skipOccurrence(t.database, t.ada.id, adas, id, '2028-07-10')).toBe('stale');
+    expect(await posted(id)).toEqual([]);
+    expect((await rowOf(id))?.nextDate).toBe('2028-08-10');
+    const skips = await dbAll<{ d: string }>(
+      t.database,
+      sql`SELECT occurrence_date AS d FROM ${tableNamed(t.database, 'recurring_skip')} WHERE recurring_id = ${id}`,
+    );
+    expect(skips).toEqual([{ d: '2028-07-10' }]);
+  });
+
+  it('ends an entry with its last occurrence, whether posted or skipped', async () => {
+    const id = await make({ anchor: '2028-09-10', end: '2028-09-10', mode: 'confirm' });
+    expect(await skipOccurrence(t.database, t.ada.id, adas, id, '2028-09-10')).toBe('skipped');
+    expect(await rowOf(id)).toMatchObject({ nextDate: null });
+    expect((await rowOf(id))?.endedAt).not.toBeNull();
+    expect(await skipOccurrence(t.database, t.ada.id, adas, id, '2028-09-10')).toBe('not_found');
+  });
+
+  it('is the person’s alone: another person lists, posts and skips nothing of it', async () => {
+    const id = await make({ anchor: '2028-10-10', mode: 'confirm' });
+    expect(
+      await listUpcoming(t.database, t.grace.id, graces, 'UTC', AT('2028-10-10T00:00:00Z')),
+    ).toEqual([]);
+    expect(
+      await listUpcoming(t.database, t.grace.id, adas, 'UTC', AT('2028-10-10T00:00:00Z')),
+    ).toEqual([]);
+    expect(await skipOccurrence(t.database, t.grace.id, adas, id, '2028-10-10')).toBe('not_found');
+    expect(await skipOccurrence(t.database, t.grace.id, graces, id, '2028-10-10')).toBe(
+      'not_found',
+    );
+    expect(
+      await postOccurrence(t.database, t.grace.id, adas, id, '2028-10-10', Date.now(), {
+        expect: '2028-10-10',
+      }),
+    ).toEqual({ status: 'none' });
+    expect(
+      await postOccurrence(t.database, t.grace.id, graces, id, '2028-10-10', Date.now(), {
+        expect: '2028-10-10',
+      }),
+    ).toEqual({ status: 'none' });
+    expect((await rowOf(id))?.nextDate).toBe('2028-10-10');
     expect(await posted(id)).toEqual([]);
   });
 });

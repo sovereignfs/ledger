@@ -8,6 +8,7 @@ import { listIncomeSources } from '../budget/income-sources';
 import { loadIncome, type IncomeFigures } from '../budget/income';
 import { loadBudget, type BudgetFigures, type BudgetLine } from '../budget/screen';
 import type { ConvertedTotal } from '../money/convert';
+import { listUpcoming, type Upcoming } from '../recurring/recurring';
 
 /**
  * What Overview shows (DESIGN.md §14.3): this month's income received, spent, and saved (what was planned and what actually was), net worth, the budget rows
@@ -138,6 +139,8 @@ export interface OverviewPage {
   readonly close: readonly CloseRow[];
   readonly recent: readonly ListedEntry[];
   readonly checklist: readonly ChecklistItem[];
+  /** Bills that ask first, waiting to be confirmed, overdue ones included. */
+  readonly upcoming: readonly Upcoming[];
   readonly hasAccounts: boolean;
 }
 
@@ -149,13 +152,14 @@ export async function loadOverviewPage(
   now: Date = new Date(),
 ): Promise<OverviewPage> {
   const month = monthOf(todayIn(book.timeZone, now));
-  const [income, budget, worth, recent, accounts, sources] = await Promise.all([
+  const [income, budget, worth, recent, accounts, sources, upcoming] = await Promise.all([
     loadIncome(database, accountId, book, month, now),
     loadBudget(database, accountId, book, month, now),
     loadOverview(database, accountId, book, now),
     listEntries(database, accountId, book.id, {}, undefined, 8),
     listAccounts(database, accountId, book.id),
     listIncomeSources(database, accountId, book.id),
+    listUpcoming(database, accountId, book.id, book.timeZone, now),
   ]);
   return {
     month,
@@ -164,6 +168,7 @@ export async function loadOverviewPage(
     close: closestRows(budget),
     recent: recent.entries,
     checklist: checklist({ accounts, sources }),
+    upcoming,
     hasAccounts: accounts.length > 0,
   };
 }

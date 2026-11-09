@@ -2,7 +2,7 @@
 
 ## Status
 
-⏳ In progress: 2 of 5 tasks are done.
+⏳ In progress: 3 of 5 tasks are done.
 
 ## Overview
 
@@ -58,7 +58,7 @@ second person, the one-posting key) and 4 browser tests. Each key test was seen 
 permission on ending); removing the `next_date` condition from the claim alone changes nothing visible, because the already-posted check and the unique index
 back it up, and is kept as the claim that keeps `next_date` from moving twice. Not copied from Tusk. Left out: upcoming and confirm (6.3), the budget (6.4), loans (6.5).
 
-#### 📋 6.3 — Upcoming, and confirming
+#### ✅ 6.3 — Upcoming, and confirming
 
 **Goal:** variable bills checked before they are posted. **Design:** §8.2. **Depends on:** 6.2.
 
@@ -67,6 +67,20 @@ back it up, and is kept as the claim that keeps `next_date` from moving twice. N
 
 **Accepts when:** an electricity bill due today shows as upcoming, is posted with a corrected amount, and does not appear again; a skipped one is
 gone and the next is scheduled.
+
+**Done as:** `listUpcoming` (`src/recurring/recurring.ts`) is the next occurrence of each un-ended entry in mode `confirm` that is due by the book's today plus
+seven days, marked _overdue_, _due_ or _coming_; one row for each entry, so handling it brings the following occurrence up as the next row, and an overdue
+one stays until it is handled. `postOccurrence` took two options: `template` (the person's corrected version, in place of the stored one) and `expect` (the
+occurrence the person was shown), and answers `stale` when the entry's next is another, so a second click, or a second window, posts nothing and says
+so with a 409. `skipOccurrence` records the day in `recurring_skip` and moves the entry on, in one transaction; both share one `claim` statement with the
+job. A corrected amount (`withAmount`, pure) replaces both lines of a plain two-line entry with the signs they had; a split or a two-currency entry is
+posted as it is and edited afterwards, and a request to correct one is a 400 in a sentence. The stored template is never changed by a correction, so next
+month asks the set amount again. Routes: `GET /api/upcoming`, `POST /api/recurring/[id]/post` (`{ date, amount? }`) and `/skip` (`{ date }`), another
+person's a 404 with nothing in it. **Screens:** an _Upcoming_ panel (`UpcomingList`: _Post_, an amount to correct, _Skip_) on Overview and above the
+transactions list, shown only when something waits. Not done here: **the bell's count of overdue ones (§13.4) is 10.1's**, since the bell is not built.
+Tests: 14 more (10 on all three databases, 4 pure) (the list by state and by the book's day, one posting from a stale click, a skip and its record, the last occurrence
+ending the entry, second person for every call) and 4 in the browser. Each key test was seen to fail against the code it guards (the stale check, the skip's
+record, the mode filter of the list, the signs of a corrected amount).
 
 #### 📋 6.4 — Bills in the budget
 

@@ -5,6 +5,7 @@ import { formatMoney } from '../money/text';
 import { describeEntry } from '../transactions/present';
 import type { OverviewPage } from './overview';
 import styles from './Overview.module.css';
+import { UpcomingList } from '../recurring/UpcomingList';
 import { SetupChecklist } from './SetupChecklist';
 
 /**
@@ -35,6 +36,7 @@ export function OverviewScreen({ page, locale }: { page: OverviewPage; locale?: 
         />
       ) : (
         <>
+          <UpcomingList items={page.upcoming} locale={locale} />
           <section className={styles.section} aria-label="This month">
             <h2>This month</h2>
             <div className={styles.cards}>
