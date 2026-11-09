@@ -1,20 +1,30 @@
 import type { Metadata } from 'next';
 import { requireBook } from '@/src/access/page';
-import { EmptyState, PageContainer, PageHeader } from '@sovereignfs/ui';
+import { AccountsScreen, ArchivedScreen } from '@/src/accounts/AccountsScreen';
+import { loadOverview } from '@/src/accounts/overview';
+import { getDatabase } from '@/src/db/boot';
+import { listAccounts } from '@/src/ledger/accounts';
 
 export const metadata: Metadata = { title: 'Accounts' };
 
-/** A place the shell has, with nothing in it yet: task 4.1 builds it. */
-export default async function Page() {
-  await requireBook();
-  return (
-    <PageContainer>
-      <PageHeader title="Accounts" description="What you have, what you owe, what you are worth." />
-      <EmptyState
-        icon="credit-card"
-        heading="No accounts yet"
-        description="This arrives with a later task of the roadmap."
+/** Accounts (DESIGN.md §14.3): what you have, what you owe, people, and the net worth; `?archived=1` is the accounts put away. */
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const { accountId, book } = await requireBook();
+  const database = await getDatabase();
+  const query = await searchParams;
+  const locale = book.locale ?? undefined;
+  if (query.archived === '1')
+    return (
+      <ArchivedScreen
+        accounts={await listAccounts(database, accountId, book.id, { archived: true })}
+        locale={locale}
       />
-    </PageContainer>
+    );
+  return (
+    <AccountsScreen overview={await loadOverview(database, accountId, book)} locale={locale} />
   );
 }

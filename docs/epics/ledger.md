@@ -2,7 +2,7 @@
 
 ## Status
 
-⏳ In progress: 1 of 9 tasks is done.
+⏳ In progress: 2 of 9 tasks are done.
 
 ## Overview
 
@@ -15,7 +15,7 @@ the plugin did not have: 4.2 is the centre, and its invariants are held by every
 
 ## Tasks
 
-#### 📋 4.1 — Money accounts
+#### ✅ 4.1 — Money accounts
 
 **Goal:** every kind of account, with its opening balance. **Design:** §6.1, §6.4. **Depends on:** 3.1, 3.2, 4.2.
 
@@ -25,6 +25,8 @@ with its entries, credit used and available, a loan's left and paid, a person's 
 
 **Accepts when:** a new account shows its opening balance; an account with entries cannot be deleted but can be archived and stays in past totals;
 the person's words never show a minus for money owed.
+
+**Done as:** `src/ledger/`: `account-types.ts` (the nine types with their sides, and pure checks that refuse in sentences: a name, a currency, a limit only on a card, loan terms only on a loan, an end that is not before the start, a rate as decimal text), `accounts.ts` (`createAccount` writes the account, adds its currency to `book_currency`, writes a loan's terms and the opening balance **as an `opening` entry through 4.2's one path, in the same database transaction** (`runWrite` and `insertTransaction` are exported for this), so an account never exists without the balance it was given; `updateAccount` changes the name, institution, a card's limit and a loan's lender, end, instalment and rate, never the currency or kind; `setArchived`; `deleteAccount`, whose own statement refuses while any entry but an opening has a line on the account, deleting the opening and the loan with it; `listAccounts`, `getAccount` with balance, loan terms and `deletable`; `entriesOf`). **`loan`** is a new table (migration `0005_loan`, in `BOOK_TABLES`, seeded by the deletion test). `present.ts`: **a balance is said in words, never with a minus for money owed** ("$420.00 used", "left to pay", "You owe $5.00", "overdrawn"), a card's used and available, a loan's left and paid. **Routes** `/api/accounts` (GET, POST) and `/api/accounts/[id]` (GET, PATCH with `archived`, DELETE, 409 with a sentence for an account that has been used), in `routes.ts`; what they do is in `src/access/accounts-api.ts`, with the body read by `account-input.ts` (types checked, unknown fields ignored, capped at 16 KiB) so that `accounts-api.test.ts` calls every one **as the second person**: a 404 with nothing in it, nothing changed, the same answer as for an account that never was. **Screens:** `/accounts` (net worth in the base currency at today's rates through 3.4, with "N amounts in XXX not included" and, with no base currency yet, one total for each currency; the accounts in what you have, what you owe and people; `?archived=1`), the Add account dialog (what is owed is typed as an amount, and the sign is made once, in the dialog), and `/accounts/[id]` (the summary, a card's limit, used and available, a loan's terms, the entries newest first, rename, archive or bring back, delete only while it is allowed). `todayIn(timeZone)` in `src/dates.ts` gives the book's own today. 8 browser tests across Chromium and WebKit: an account with its opening balance, a card read as "$420.00 used" with no minus, archive and bring back and delete, and a refusal shown in the dialog. Left out: a loan's interest subcategory is accepted by the API and checked to be the book's but the dialog does not offer it (5.1 gives it something to choose); an account's page is not paged beyond its latest 100 entries (the transactions list, 4.7); a person's opening direction is chosen in the dialog and is not changeable after, as an entry (4.3 edits it).
 
 #### ✅ 4.2 — Transactions and lines
 

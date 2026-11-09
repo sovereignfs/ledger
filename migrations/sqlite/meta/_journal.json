@@ -36,6 +36,13 @@
       "when": 1794186562595,
       "tag": "0004_transactions",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1794187221294,
+      "tag": "0005_loan",
+      "breakpoints": true
     }
   ]
 }

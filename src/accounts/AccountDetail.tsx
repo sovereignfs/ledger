@@ -1,0 +1,100 @@
+import Link from 'next/link';
+import { PageContainer, PageHeader } from '@sovereignfs/ui';
+import type { AccountRow, EntryOfAccount } from '../ledger/accounts';
+import { ACCOUNT_KINDS } from '../ledger/account-types';
+import { cardAvailable, cardUsed, loanProgress, sayBalance } from '../ledger/present';
+import { formatMoney } from '../money/text';
+import { AccountActions } from './AccountActions';
+import styles from './Accounts.module.css';
+import { ENTRY_TYPE_LABEL } from './words';
+
+/**
+ * An account's page (DESIGN.md §6.1, §6.9): what it holds, said in words and never with a minus for what is owed; a card's limit used and left; a loan's
+ * left to pay, paid and end; and the entries that touch it, newest first. An entry's amount is a movement and keeps its sign.
+ */
+export function AccountDetail({
+  account,
+  entries,
+  locale,
+}: {
+  account: AccountRow;
+  entries: readonly EntryOfAccount[];
+  locale?: string;
+}) {
+  const money = (value: number) => formatMoney(value, account.currency, locale);
+  const said = sayBalance(account.type, account.balance, account.currency, locale);
+  const facts: { label: string; value: string }[] = [{ label: 'Balance', value: said.text }];
+  if (account.type === 'credit_card' && account.creditLimit !== null) {
+    facts.push(
+      { label: 'Limit', value: money(account.creditLimit) },
+      { label: 'Used', value: money(cardUsed(account.balance)) },
+      { label: 'Available', value: money(cardAvailable(account.creditLimit, account.balance)) },
+    );
+  }
+  if (account.loan) {
+    const { left, paid } = loanProgress(account.loan.principal, account.balance);
+    facts.push(
+      { label: 'Left to pay', value: money(left) },
+      { label: 'Paid so far', value: money(paid) },
+      { label: 'Each instalment', value: money(account.loan.instalment) },
+      { label: 'Ends', value: account.loan.endDate },
+      { label: 'Lender', value: account.loan.lender },
+    );
+    if (account.loan.yearlyRate)
+      facts.push({ label: 'Yearly interest', value: `${account.loan.yearlyRate}%` });
+  }
+  return (
+    <PageContainer>
+      <PageHeader
+        title={account.name}
+        description={`${ACCOUNT_KINDS[account.type].label}${account.institution ? ` · ${account.institution}` : ''} · ${account.currency}${account.archivedAt ? ' · Archived' : ''}`}
+      />
+      <p className={styles.note}>
+        <Link href="/accounts">All accounts</Link>
+      </p>
+      <section className={styles.facts} aria-label="Summary">
+        {facts.map((fact) => (
+          <div key={fact.label} className={styles.fact}>
+            <span>{fact.label}</span>
+            <strong>{fact.value}</strong>
+          </div>
+        ))}
+      </section>
+      <AccountActions
+        id={account.id}
+        name={account.name}
+        institution={account.institution}
+        archived={account.archivedAt !== null}
+        deletable={account.deletable}
+      />
+      <section aria-label="Entries">
+        <h2>Entries</h2>
+        {entries.length === 0 ? (
+          <p className={styles.note}>Nothing has been entered in this account yet.</p>
+        ) : (
+          <table className={styles.entries}>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>What</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {entries.map((entry) => (
+                <tr key={`${entry.txnId}-${entry.amount}`}>
+                  <td>{entry.date}</td>
+                  <td>
+                    {ENTRY_TYPE_LABEL[entry.type] ?? entry.type}
+                    {entry.note ? ` · ${entry.note}` : ''}
+                  </td>
+                  <td>{formatMoney(entry.amount, entry.currency, locale)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+    </PageContainer>
+  );
+}

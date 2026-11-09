@@ -222,3 +222,19 @@ export const txnLine = sqliteTable(
     index('txn_line_income_source_idx').on(table.bookId, table.incomeSourceId),
   ],
 );
+
+/**
+ * What a loan account adds to a money account (DESIGN.md §6.1, §8.3): who lent, how much, from when to when, what is paid each time, and the yearly rate as a
+ * decimal string (never a float). `interest_subcategory_id` is where the interest of an instalment is spent. The currency is the account's.
+ */
+export const loan = sqliteTable('loan', {
+  accountId: id('account_id'),
+  bookId: ref('book_id').notNull(),
+  lender: text('lender').notNull(),
+  principal: money('principal').notNull(),
+  startDate: isoDate('start_date').notNull(),
+  endDate: isoDate('end_date').notNull(),
+  instalment: money('instalment').notNull(),
+  yearlyRate: decimal('yearly_rate'),
+  interestSubcategoryId: ref('interest_subcategory_id'),
+});

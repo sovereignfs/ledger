@@ -8,3 +8,20 @@ export function isCalendarDay(value: string): boolean {
     date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
   );
 }
+
+/**
+ * Today's date in an IANA time zone, as `YYYY-MM-DD`: what "today" is for a book is the day on its own clock (DESIGN.md §15.2), not the server's. A zone that is
+ * not one falls back to UTC rather than failing a page. `now` is given, so a test needs no clock.
+ */
+export function todayIn(timeZone: string, now: Date = new Date()): string {
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(now);
+  } catch {
+    return now.toISOString().slice(0, 10);
+  }
+}

@@ -190,8 +190,11 @@ const noteOf = (note: string | null | undefined): string | null => {
   return trimmed ? trimmed : null;
 };
 
-/** Runs `work` as one transaction and turns a refusal inside it into the answer, after it has been rolled back. */
-async function run(
+/**
+ * Runs `work` as one transaction and turns a refusal inside it into the answer, after it has been rolled back. `work` is for writes that are one thing with
+ * a transaction (an account and its opening balance, 4.1): it uses `insertTransaction` below on the handle it is given.
+ */
+export async function runWrite(
   database: Database,
   work: (tx: Database) => Promise<string>,
 ): Promise<WriteResult> {
@@ -201,6 +204,36 @@ async function run(
     if (error instanceof Refused) return error.result;
     throw error;
   }
+}
+
+/**
+ * Writes an entry and its lines **on a handle that is already in a transaction**, for a write that is one thing with something else (an account and its
+ * opening balance). Throws a refusal that `runWrite` turns into the answer; nothing here catches it, so the caller's transaction rolls back with it.
+ */
+export async function insertTransaction(
+  tx: Database,
+  accountId: string,
+  bookId: string,
+  input: TxnInput,
+  now: number,
+): Promise<string> {
+  const refused = checkInput(input);
+  if (refused) throw new Refused(refused);
+  const s = schema(tx);
+  const id = crypto.randomUUID();
+  const inserted = await dbAll<{ id: string }>(
+    tx,
+    sql`INSERT INTO ${s.txn} (id, book_id, type, date, note, status, original_amount, original_currency, created_by, created_at, updated_at)
+        SELECT ${id}, b.id, ${input.type}, ${input.date}, ${noteOf(input.note)}, ${input.status ?? defaultStatus(input.type)},
+               ${input.original?.amount ?? null}, ${input.original?.currency ?? null}, ${accountId}, ${now}, ${now}
+          FROM ${bookTable(tx)} b
+         WHERE b.id = ${bookId} AND ${inBook(tx, sql`b.id`, accountId)}
+        RETURNING id`,
+  );
+  if (inserted.length === 0) throw new Refused(NOT_FOUND);
+  await checkTargets(tx, accountId, bookId, input);
+  await writeLines(tx, accountId, bookId, id, input.lines);
+  return id;
 }
 
 /** Writes a new transaction in the account's book, with its lines, or says why not. `now` is given so that a test needs no clock. */
@@ -213,23 +246,12 @@ export async function createTransaction(
 ): Promise<WriteResult> {
   const refused = checkInput(input);
   if (refused) return refused;
-  return run(database, async (tx) => {
-    const s = schema(tx);
-    const id = crypto.randomUUID();
-    const inserted = await dbAll<{ id: string }>(
-      tx,
-      sql`INSERT INTO ${s.txn} (id, book_id, type, date, note, status, original_amount, original_currency, created_by, created_at, updated_at)
-          SELECT ${id}, b.id, ${input.type}, ${input.date}, ${noteOf(input.note)}, ${input.status ?? defaultStatus(input.type)},
-                 ${input.original?.amount ?? null}, ${input.original?.currency ?? null}, ${accountId}, ${now}, ${now}
-            FROM ${bookTable(tx)} b
-           WHERE b.id = ${bookId} AND ${inBook(tx, sql`b.id`, accountId)}
-          RETURNING id`,
-    );
-    if (inserted.length === 0) throw new Refused(NOT_FOUND);
-    await checkTargets(tx, accountId, bookId, input);
-    await writeLines(tx, accountId, bookId, id, input.lines);
-    return id;
-  });
+  return runWrite(database, (tx) => insertTransaction(tx, accountId, bookId, input, now));
+}
+
+/** What a refusal inside `runWrite` is made of, for a module that writes more than a transaction in one. */
+export function refusal(result: Extract<WriteResult, { ok: false }>): Error {
+  return new Refused(result);
 }
 
 /**
@@ -246,7 +268,7 @@ export async function updateTransaction(
 ): Promise<WriteResult> {
   const refused = checkInput(input);
   if (refused) return refused;
-  return run(database, async (tx) => {
+  return runWrite(database, async (tx) => {
     const s = schema(tx);
     const updated = await dbAll<{ id: string }>(
       tx,

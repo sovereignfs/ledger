@@ -37,6 +37,7 @@ export const ROUTES: RouteRule[] = [
   { route: '/transactions', page: { kind: 'book' } },
   { route: '/budget', page: { kind: 'book' } },
   { route: '/accounts', page: { kind: 'book' } },
+  { route: '/accounts/[id]', page: { kind: 'book' } },
   { route: '/reports', page: { kind: 'book' } },
 
   // APIs
@@ -44,6 +45,12 @@ export const ROUTES: RouteRule[] = [
   {
     route: '/api/account/delete',
     methods: { GET: { kind: 'book' }, POST: { kind: 'book' } },
+  },
+  // Money accounts (DESIGN.md §6.1): the person's own, in the person's own book. Nothing in a request names whose.
+  { route: '/api/accounts', methods: { GET: { kind: 'book' }, POST: { kind: 'book' } } },
+  {
+    route: '/api/accounts/[id]',
+    methods: { GET: { kind: 'book' }, PATCH: { kind: 'book' }, DELETE: { kind: 'book' } },
   },
   // The instance asks it before it sends anyone to the app, and a container's health check does: it says only whether the database answers.
   { route: '/api/health', methods: { GET: { kind: 'public' } } },

@@ -184,3 +184,16 @@ export const txnLine = app.table(
     index('txn_line_income_source_idx').on(table.bookId, table.incomeSourceId),
   ],
 );
+
+/** See `schema/sqlite/app.ts`. */
+export const loan = app.table('loan', {
+  accountId: id('account_id'),
+  bookId: ref('book_id').notNull(),
+  lender: text('lender').notNull(),
+  principal: money('principal').notNull(),
+  startDate: isoDate('start_date').notNull(),
+  endDate: isoDate('end_date').notNull(),
+  instalment: money('instalment').notNull(),
+  yearlyRate: decimal('yearly_rate'),
+  interestSubcategoryId: ref('interest_subcategory_id'),
+});

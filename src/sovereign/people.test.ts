@@ -8,6 +8,7 @@ import * as sqliteSchema from '../db/schema/sqlite';
 import { tableNamed } from '../db/tables';
 import { testTarget } from '../db/test-support';
 import { bookIdFor, ensureBook, memberTable } from '../ledger/books';
+import { createAccount } from '../ledger/accounts';
 import { addCurrency } from '../ledger/currencies';
 import { seedAccount, seedIncomeSource, seedSubcategory } from '../ledger/testing';
 import { createTransaction } from '../ledger/transactions';
@@ -112,6 +113,22 @@ describe(`deleting a person (${leg})`, () => {
       const food = await seedSubcategory(database, book);
       const pay = await seedIncomeSource(database, book);
       await addCurrency(database, who, book, 'EUR');
+      const loan = await createAccount(database, who, book, {
+        type: 'loan',
+        name: 'Loan',
+        currency: 'USD',
+        opening: { amount: -9000, date: '2026-01-01' },
+        loan: {
+          lender: 'Lender',
+          principal: 9000,
+          startDate: '2026-01-01',
+          endDate: '2027-01-01',
+          instalment: 900,
+          yearlyRate: '4.5',
+          interestSubcategoryId: null,
+        },
+      });
+      expect(loan.ok).toBe(true);
       const entries: [TxnInput['type'], TxnInput['lines']][] = [
         [
           'expense',
