@@ -355,6 +355,8 @@ export interface EntryOfAccount {
   /** The line on this account, signed: positive when its balance went up. */
   readonly amount: number;
   readonly currency: string;
+  /** How many subcategories or income sources the entry is spread over: more than one is a split. */
+  readonly parts: number;
 }
 
 /**
@@ -379,14 +381,17 @@ export async function entriesOf(
     status: string;
     amount: number | string;
     currency: string;
+    parts: number | string;
   }>(
     database,
     sql`SELECT t.id AS "txnId", t.date AS date, t.type AS type, t.note AS note, t.status AS status,
-               x.amount AS amount, x.currency AS currency
+               x.amount AS amount, x.currency AS currency,
+               (SELECT COUNT(*) FROM ${s.txnLine} y WHERE y.txn_id = t.id AND y.book_id = t.book_id
+                   AND (y.subcategory_id IS NOT NULL OR y.income_source_id IS NOT NULL)) AS parts
           FROM ${s.txnLine} x JOIN ${s.txn} t ON t.id = x.txn_id AND t.book_id = x.book_id
          WHERE x.account_id = ${moneyAccountId} AND x.book_id = ${bookId} AND ${inBook(database, sql`x.book_id`, accountId)}
          ORDER BY t.date DESC, t.created_at DESC, t.id DESC, x.position
          LIMIT ${limit} OFFSET ${offset}`,
   );
-  return rows.map((row) => ({ ...row, amount: Number(row.amount) }));
+  return rows.map((row) => ({ ...row, amount: Number(row.amount), parts: Number(row.parts) }));
 }

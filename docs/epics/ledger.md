@@ -2,7 +2,7 @@
 
 ## Status
 
-⏳ In progress: 3 of 9 tasks are done.
+⏳ In progress: 4 of 9 tasks are done.
 
 ## Overview
 
@@ -53,7 +53,7 @@ month; edit and delete from the same dialog. Remembers the last account.
 
 **Done as:** `src/entries/`. `EntryProvider` (client) holds the one form and is mounted in the signed-in layout, so **Add**, in the sidebar and in the phone's More drawer where the shell had drawn it disabled, opens it from any page, and an entry's **Edit** (on an account's page) opens the same form. `EntrySurface` is the one place that asks the width, a `Dialog` on a wide screen and a `Drawer` on a narrow one with the same content, and `no-fork.test.ts` lists it as rendering only. The form is an Expense or an Income: amount (`MoneyInput` in the chosen account's currency), account, subcategory or income source, date (the book's today), note. `compose.ts` (pure) turns it into the two lines (an expense: account down, subcategory up; an income: account up, income source down) and says what is missing in order; `editable` and `formOf` read an entry back, and an entry with parts, two accounts, an original amount or another kind is told so and offered Delete only until 4.4 and 4.6. Enter saves; **Save and add another** keeps the date and account and clears the rest; **a save closes the dialog at once, and a refusal opens it again with what was typed and the sentence** (Edit and Delete the same, Delete asking twice); the last account is remembered in `localStorage` and reopening is otherwise blank; `monthNote` says "This counts towards March 2020." for a date in another month. Server: `/api/entry-options` (the person's live accounts of a kind that holds money or credit, live categories with live subcategories, live income sources, today on the book's clock), `/api/transactions` (POST) and `/api/transactions/[id]` (GET, PATCH, DELETE), in `routes.ts`, with their handlers in `src/access/transactions-api.ts` and the body read by `txn-input.ts`, called as the second person: 404 with nothing in it for another person's entry, and nothing changes. `getEntry` and `loadEntryOptions` are in `src/ledger/entries.ts`. 8 browser tests across Chromium and WebKit: an expense logged with typing and Enter from the Budget and seen on the account, a blank reopen with the account remembered, a refusal (the subcategory archived while the dialog is open) that reopens with the note and amount kept, and a month note, an edit and a delete. Each key test was seen to fail against the code it guards (the income sign, a read with no permission, archived accounts offered). Left out: the payee (4.5), splits (4.4), transfers (4.6), "from a jar" (7.3), a negative expense for a refund (4.6), and selecting by keyboard in the selects in the browser test (it picks them and types the rest).
 
-#### 📋 4.4 — Splits
+#### ✅ 4.4 — Splits
 
 **Goal:** one payment across several subcategories or income sources. **Design:** §6.2, §14.4. **Depends on:** 4.3.
 
@@ -61,6 +61,8 @@ month; edit and delete from the same dialog. Remembers the last account.
 each part counts towards its own subcategory's spent.
 
 **Accepts when:** 84.20 split 61.00 and 23.20 lands in both subcategories; saving with a remainder is refused before submitting.
+
+**Done as:** the add dialog's form (`src/entries/compose.ts`) now has a **Split**: the whole amount, and parts that each name a subcategory (or an income source) and an amount. `remainder` is what is left of the amount; the dialog shows "$23.20 left to place", "$1.80 over" or "The parts add up." as parts are typed, and `missing` refuses **before anything is sent**, in a sentence ("The parts are 3.20 USD short: they must add up to the amount."), also asking for at least two parts and a target and an amount for each. `compose` makes the account's line for the whole and one line for each part, in the account's currency (an income's parts are negative), so the one write path's sum check holds them again on the server, which a test shows by refusing a short split. An entry with several parts is editable in the same dialog, which reads it back as a split (`editable` and `formOf`); a mixture of targets, a second account or an original amount still is not. The account's page marks such an entry "Split in 2" (`parts` in `EntryOfAccount`); the transactions list (4.7) will show "Split" with the parts. 84.20 as 61.00 and 23.20 lands in both subcategories: seen in the lines the entry reads back, and in the browser, where the account is down by 84.20. Each key test was seen to fail against the code it guards (the remainder ignored, an income's parts not negated). Left out: per-part spent figures, which are the budget's (5.4), and a part's own note.
 
 #### 📋 4.5 — Payees
 

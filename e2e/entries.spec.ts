@@ -144,3 +144,55 @@ test('says which month a date counts towards, and edits and deletes an entry fro
   await expect(page.getByRole('region', { name: 'Summary' })).toContainText('$1,000.00');
   await expect(page.getByRole('region', { name: 'Entries' })).not.toContainText('2020-03-15');
 });
+
+test('splits a payment: the remainder is shown, saving with one is refused, and it lands in both subcategories', async ({
+  page,
+  browserName,
+}) => {
+  await signedIn(page);
+  await page.goto('/accounts');
+  const f = await fixtures(page, `split ${browserName}`);
+  const second = await page.request.post(`/api/categories/${f.category}/subcategories`, {
+    data: { name: `Household ${browserName}` },
+    headers: { origin: f.origin },
+  });
+  expect(second.status()).toBe(201);
+  await page.reload();
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Add entry' });
+  await dialog.getByLabel('Account').selectOption({ label: `${f.name} · USD` });
+  await dialog.getByLabel(/^Amount(?! of part)/).fill('84.20');
+  await dialog.getByLabel('Subcategory').selectOption({ label: f.sub });
+  await dialog.getByRole('button', { name: 'Split' }).click();
+  await dialog.getByLabel('Amount of part 1').fill('61');
+  await dialog
+    .getByLabel('Subcategory of part 2')
+    .selectOption({ label: `Household ${browserName}` });
+  await expect(dialog.getByRole('status').filter({ hasText: 'left to place' })).toContainText(
+    '$84.20 left to place'.replace('84.20', '23.20'),
+  );
+
+  // With a remainder it is refused before it is sent, and says by how much.
+  await dialog.getByLabel('Amount of part 2').fill('20');
+  await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(dialog).toContainText('The parts are 3.20 USD short');
+  await expect(dialog).toBeVisible();
+
+  await dialog.getByLabel('Amount of part 2').fill('23.20');
+  await expect(dialog).toContainText('The parts add up.');
+  await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+
+  await page.goto(`/accounts/${f.account}`);
+  await expect(page.getByRole('region', { name: 'Summary' })).toContainText('$915.80');
+  await expect(page.getByRole('region', { name: 'Entries' })).toContainText('Expense · Split in 2');
+
+  // The same dialog opens it as a split.
+  await page
+    .getByRole('button', { name: /Edit the entry of/ })
+    .first()
+    .click();
+  const edit = page.getByRole('dialog', { name: 'Edit entry' });
+  await expect(edit.getByLabel('Amount of part 1')).toHaveValue(/^61(\.00)?$/);
+  await expect(edit.getByLabel('Amount of part 2')).toHaveValue(/^23\.20$/);
+});

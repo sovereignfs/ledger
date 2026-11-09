@@ -5,7 +5,17 @@ import { createContext, useCallback, useContext, useMemo, useState, type ReactNo
 import { Alert, Button, FormField, Input, Select, SegmentedControl } from '@sovereignfs/ui';
 import type { EntryOptions } from '../ledger/entries';
 import { MoneyInput } from '../ui/MoneyInput';
-import { type EntryForm, compose, editable, formOf, missing } from './compose';
+import {
+  type EntryForm,
+  type Part,
+  compose,
+  editable,
+  formOf,
+  missing,
+  remainder,
+} from './compose';
+import { formatMoney } from '../money/text';
+import { TargetSelect } from './TargetSelect';
 import { monthNote } from './month';
 import { EntrySurface } from './EntrySurface';
 import styles from './Entry.module.css';
@@ -53,6 +63,8 @@ const BLANK: EntryForm = {
   accountId: '',
   currency: 'USD',
   targetId: '',
+  split: false,
+  parts: [],
   date: '',
   note: '',
 };
@@ -160,7 +172,7 @@ export function EntryProvider({ children }: { children: ReactNode }) {
         remember(form.accountId);
         setStatus(editing ? 'Changed.' : 'Saved.');
         router.refresh();
-        if (another) set({ amount: null, targetId: '', note: '' });
+        if (another) set({ amount: null, targetId: '', split: false, parts: [], note: '' });
         return;
       }
       const data = (await reply.json().catch(() => ({}))) as { problems?: string[] };
@@ -194,6 +206,10 @@ export function EntryProvider({ children }: { children: ReactNode }) {
   }
 
   const targets = form.type === 'expense';
+  const what = targets ? 'Subcategory' : 'Income source';
+  const left = remainder(form);
+  const setPart = (at: number, change: Partial<Part>) =>
+    set({ parts: form.parts.map((part, each) => (each === at ? { ...part, ...change } : part)) });
   const note = monthNote(form.date, options?.today ?? '');
   const title = mode.kind === 'edit' ? 'Edit entry' : 'Add entry';
 
@@ -241,7 +257,7 @@ export function EntryProvider({ children }: { children: ReactNode }) {
           <SegmentedControl<EntryForm['type']>
             aria-label="Type"
             value={form.type}
-            onChange={(type) => set({ type, targetId: '' })}
+            onChange={(type) => set({ type, targetId: '', split: false, parts: [] })}
             options={[
               { label: 'Expense', value: 'expense' },
               { label: 'Income', value: 'income' },
@@ -276,36 +292,98 @@ export function EntryProvider({ children }: { children: ReactNode }) {
               </Select>
             )}
           </FormField>
-          <FormField label={targets ? 'Subcategory' : 'Income source'} required>
-            {(field) => (
-              <Select
-                {...field}
-                value={form.targetId}
-                onChange={(event) => set({ targetId: event.target.value })}
-              >
-                <option value="">
-                  {targets ? 'Choose a subcategory' : 'Choose an income source'}
-                </option>
-                {targets
-                  ? options?.categories
-                      .filter((category) => category.subcategories.length > 0)
-                      .map((category) => (
-                        <optgroup key={category.id} label={category.name}>
-                          {category.subcategories.map((sub) => (
-                            <option key={sub.id} value={sub.id}>
-                              {sub.name}
-                            </option>
-                          ))}
-                        </optgroup>
-                      ))
-                  : options?.incomeSources.map((source) => (
-                      <option key={source.id} value={source.id}>
-                        {source.name}
-                      </option>
-                    ))}
-              </Select>
-            )}
-          </FormField>
+          {!form.split ? (
+            <>
+              <FormField label={what} required>
+                {(field) => (
+                  <TargetSelect
+                    {...field}
+                    options={options}
+                    expense={targets}
+                    value={form.targetId}
+                    onChange={(targetId) => set({ targetId })}
+                  />
+                )}
+              </FormField>
+              <div className={styles.actions}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    set({
+                      split: true,
+                      parts: [
+                        { targetId: form.targetId, amount: form.amount },
+                        { targetId: '', amount: null },
+                      ],
+                    })
+                  }
+                >
+                  Split
+                </Button>
+              </div>
+            </>
+          ) : (
+            <fieldset className={styles.parts}>
+              <legend>Split</legend>
+              {form.parts.map((part, at) => (
+                <div key={at} className={styles.part}>
+                  <TargetSelect
+                    aria-label={`${what} of part ${at + 1}`}
+                    options={options}
+                    expense={targets}
+                    value={part.targetId}
+                    onChange={(targetId) => setPart(at, { targetId })}
+                  />
+                  <MoneyInput
+                    aria-label={`Amount of part ${at + 1}`}
+                    currency={form.currency}
+                    valueCents={part.amount}
+                    onValueChange={(amount) => setPart(at, { amount })}
+                  />
+                  {form.parts.length > 2 ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-label={`Remove part ${at + 1}`}
+                      onClick={() => set({ parts: form.parts.filter((_, each) => each !== at) })}
+                    >
+                      Remove
+                    </Button>
+                  ) : null}
+                </div>
+              ))}
+              <p role="status" className={styles.remainder}>
+                {left === 0
+                  ? 'The parts add up.'
+                  : left > 0
+                    ? `${formatMoney(left, form.currency)} left to place.`
+                    : `${formatMoney(-left, form.currency)} over.`}
+              </p>
+              <div className={styles.actions}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    set({
+                      parts: [...form.parts, { targetId: '', amount: left > 0 ? left : null }],
+                    })
+                  }
+                >
+                  Add a part
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    set({ split: false, targetId: form.parts[0]?.targetId ?? '', parts: [] })
+                  }
+                >
+                  Not split
+                </Button>
+              </div>
+            </fieldset>
+          )}
           <FormField label="Date" required hint={note || undefined}>
             {(field) => (
               <Input

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { checkShape } from '../ledger/validate';
-import { type EntryForm, compose, editable, formOf, missing } from './compose';
+import { type EntryForm, compose, editable, formOf, missing, remainder } from './compose';
 
 const form = (over: Partial<EntryForm> = {}): EntryForm => ({
   type: 'expense',
@@ -8,6 +8,8 @@ const form = (over: Partial<EntryForm> = {}): EntryForm => ({
   accountId: 'bank',
   currency: 'USD',
   targetId: 'food',
+  split: false,
+  parts: [],
   date: '2026-11-06',
   note: '',
   ...over,
@@ -83,40 +85,162 @@ describe('an entry read back', () => {
     });
   });
 
-  it('is not editable here when it has parts, two accounts, an original amount or is of another kind', () => {
+  it('is not editable here when it has two accounts, an original amount, a mixture of targets or is of another kind', () => {
+    const line = (over: object) => ({ amount: 1, currency: 'USD', ...over });
+    expect(editable(read('transfer', [line({ account: 'a' }), line({ account: 'b' })]))).toBe(
+      false,
+    );
+    expect(editable(read('opening', [line({ account: 'a' }), line({ equity: 'opening' })]))).toBe(
+      false,
+    );
+    expect(
+      editable(
+        read('expense', [line({ account: 'a' }), line({ subcategory: 's' })], {
+          amount: 5,
+          currency: 'EUR',
+        }),
+      ),
+    ).toBe(false);
+    // A loan instalment has a second account; an expense on an income source is not one.
+    expect(
+      editable(
+        read('expense', [
+          line({ account: 'a' }),
+          line({ account: 'loan' }),
+          line({ subcategory: 's' }),
+        ]),
+      ),
+    ).toBe(false);
+    expect(editable(read('expense', [line({ account: 'a' }), line({ incomeSource: 'i' })]))).toBe(
+      false,
+    );
+    expect(editable(read('expense', [line({ account: 'a' })]))).toBe(false);
+  });
+
+  it('is editable with parts, and becomes a split of the same parts', () => {
     const split = read('expense', [
-      { account: 'bank', amount: -100, currency: 'USD' },
-      { subcategory: 'a', amount: 60, currency: 'USD' },
-      { subcategory: 'b', amount: 40, currency: 'USD' },
+      { account: 'bank', amount: -8420, currency: 'USD' },
+      { subcategory: 'a', amount: 6100, currency: 'USD' },
+      { subcategory: 'b', amount: 2320, currency: 'USD' },
     ]);
-    expect(editable(split)).toBe(false);
+    expect(editable(split)).toBe(true);
+    expect(formOf({ ...split, date: '2026-11-06', note: null })).toMatchObject({
+      split: true,
+      amount: 8420,
+      targetId: '',
+      parts: [
+        { targetId: 'a', amount: 6100 },
+        { targetId: 'b', amount: 2320 },
+      ],
+    });
+  });
+});
+
+describe('a split', () => {
+  const parted = (
+    parts: { targetId: string; amount: number | null }[],
+    over: Partial<EntryForm> = {},
+  ) => form({ amount: 8420, split: true, targetId: '', parts, ...over });
+
+  it('is the account down by the whole and a line for each part, which adds up: 84.20 as 61.00 and 23.20', () => {
+    const entry = compose(
+      parted([
+        { targetId: 'a', amount: 6100 },
+        { targetId: 'b', amount: 2320 },
+      ]),
+    );
+    expect(entry.lines).toEqual([
+      { account: 'bank', amount: -8420, currency: 'USD' },
+      { subcategory: 'a', amount: 6100, currency: 'USD' },
+      { subcategory: 'b', amount: 2320, currency: 'USD' },
+    ]);
+    expect(checkShape(entry)).toEqual([]);
+    const income = compose(
+      parted(
+        [
+          { targetId: 'p', amount: 5000 },
+          { targetId: 'q', amount: 3420 },
+        ],
+        { type: 'income' },
+      ),
+    );
+    expect(income.lines.map((l) => l.amount)).toEqual([8420, -5000, -3420]);
+    expect(checkShape(income)).toEqual([]);
+  });
+
+  it('shows what is left, and is refused with a sentence while there is any, before it is sent', () => {
+    const short = parted([
+      { targetId: 'a', amount: 6100 },
+      { targetId: 'b', amount: 2000 },
+    ]);
+    expect(remainder(short)).toBe(320);
+    expect(missing(short)).toBe('The parts are 3.20 USD short: they must add up to the amount.');
+    const over = parted([
+      { targetId: 'a', amount: 6100 },
+      { targetId: 'b', amount: 2500 },
+    ]);
+    expect(remainder(over)).toBe(-180);
+    expect(missing(over)).toBe('The parts are 1.80 USD over: they must add up to the amount.');
     expect(
-      editable(
-        read('transfer', [
-          { account: 'a', amount: -1, currency: 'USD' },
-          { account: 'b', amount: 1, currency: 'USD' },
+      missing(
+        parted([
+          { targetId: 'a', amount: 6100 },
+          { targetId: 'b', amount: 2320 },
         ]),
       ),
-    ).toBe(false);
+    ).toBeUndefined();
+    // The currency's own decimals.
     expect(
-      editable(
-        read('opening', [
-          { account: 'a', amount: 1, currency: 'USD' },
-          { equity: 'opening', amount: -1, currency: 'USD' },
-        ]),
-      ),
-    ).toBe(false);
-    expect(
-      editable(
-        read(
-          'expense',
+      missing(
+        parted(
           [
-            { account: 'a', amount: -1, currency: 'USD' },
-            { subcategory: 's', amount: 1, currency: 'USD' },
+            { targetId: 'a', amount: 600 },
+            { targetId: 'b', amount: 300 },
           ],
-          { amount: 5, currency: 'EUR' },
+          { amount: 1000, currency: 'JPY' },
         ),
       ),
-    ).toBe(false);
+    ).toBe('The parts are 100 JPY short: they must add up to the amount.');
+  });
+
+  it('needs at least two parts, a target and an amount for each', () => {
+    expect(missing(parted([{ targetId: 'a', amount: 8420 }]))).toBe(
+      'A split has at least two parts.',
+    );
+    expect(
+      missing(
+        parted([
+          { targetId: 'a', amount: 8420 },
+          { targetId: '', amount: 0 },
+        ]),
+      ),
+    ).toBe('Choose the subcategory of each part.');
+    expect(
+      missing(
+        parted([
+          { targetId: 'a', amount: 8420 },
+          { targetId: 'b', amount: null },
+        ]),
+      ),
+    ).toBe('Enter the amount of each part.');
+    expect(
+      missing(
+        parted([
+          { targetId: 'a', amount: 8420 },
+          { targetId: 'b', amount: 0 },
+        ]),
+      ),
+    ).toBe('Enter the amount of each part.');
+    expect(
+      missing(
+        parted(
+          [
+            { targetId: 'a', amount: 1 },
+            { targetId: '', amount: 1 },
+          ],
+          { type: 'income' },
+        ),
+      ),
+    ).toBe('Choose the income source of each part.');
   });
 });

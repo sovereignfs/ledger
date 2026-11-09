@@ -241,6 +241,44 @@ describe(`the entry routes (${leg})`, () => {
     expect(await count()).toBe(before);
   });
 
+  it('take a split: 84.20 as 61.00 and 23.20 lands in both subcategories, and the account is down by the whole', async () => {
+    const other = await seedSubcategory(t.database, bookIdFor(t.ada.id));
+    const before = await balance();
+    const id = await make({
+      type: 'expense',
+      date: '2026-11-06',
+      lines: [
+        { account: bank, amount: -8420, currency: 'USD' },
+        { subcategory: food, amount: 6100, currency: 'USD' },
+        { subcategory: other, amount: 2320, currency: 'USD' },
+      ],
+    });
+    expect(await balance()).toBe(before - 8420);
+    const entry = (
+      (await (await call(read, t.ada, `/api/transactions/${id}`, {}, id)).json()) as {
+        entry: { lines: { subcategory?: string; amount: number }[] };
+      }
+    ).entry;
+    expect(entry.lines.filter((l) => l.subcategory).map((l) => [l.subcategory, l.amount])).toEqual([
+      [food, 6100],
+      [other, 2320],
+    ]);
+    // And one whose parts fall short is refused by the server too, with a sentence.
+    const short = await call(create, t.ada, '/api/transactions', {
+      method: 'POST',
+      body: {
+        type: 'expense',
+        date: '2026-11-06',
+        lines: [
+          { account: bank, amount: -8420, currency: 'USD' },
+          { subcategory: food, amount: 6100, currency: 'USD' },
+          { subcategory: other, amount: 2000, currency: 'USD' },
+        ],
+      },
+    });
+    expect(short.status).toBe(400);
+  });
+
   it('take an income, with its source', async () => {
     const reply = await call(create, t.ada, '/api/transactions', {
       method: 'POST',
