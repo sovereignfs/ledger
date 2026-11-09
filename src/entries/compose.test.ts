@@ -12,6 +12,7 @@ const form = (over: Partial<EntryForm> = {}): EntryForm => ({
   parts: [],
   date: '2026-11-06',
   note: '',
+  payee: '',
   ...over,
 });
 
@@ -26,6 +27,7 @@ describe('what the form means', () => {
         { subcategory: 'food', amount: 1250, currency: 'USD' },
       ],
       note: 'lunch',
+      payee: null,
     });
     expect(checkShape(entry)).toEqual([]);
   });
@@ -50,6 +52,25 @@ describe('what the form means', () => {
     expect(missing(form({ targetId: '' }))).toBe('Choose the subcategory.');
     expect(missing(form({ type: 'income', targetId: '' }))).toBe('Choose the income source.');
     expect(missing(form({ date: '' }))).toBe('Enter the date.');
+  });
+});
+
+describe('the payee', () => {
+  it('is sent by name, trimmed, and as nothing when it is empty, and comes back into the form', () => {
+    expect(compose(form({ payee: '  Corner Shop ' })).payee).toBe('Corner Shop');
+    expect(compose(form({ payee: '   ' })).payee).toBeNull();
+    expect(
+      formOf({
+        type: 'expense',
+        date: '2026-11-06',
+        note: null,
+        payee: { name: 'Corner Shop' },
+        lines: [
+          { account: 'bank', amount: -1, currency: 'USD' },
+          { subcategory: 'food', amount: 1, currency: 'USD' },
+        ],
+      }).payee,
+    ).toBe('Corner Shop');
   });
 });
 

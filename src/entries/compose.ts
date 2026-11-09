@@ -27,6 +27,8 @@ export interface EntryForm {
   readonly parts: readonly Part[];
   readonly date: string;
   readonly note: string;
+  /** Who was paid, as typed: a known payee's name or a new one, which is made when the entry is saved (DESIGN.md §6.5). Empty for none. */
+  readonly payee: string;
 }
 
 /** What is left of the amount when the parts are taken off it: more than nothing while they fall short, below nothing when they go over. */
@@ -80,6 +82,7 @@ export function compose(form: EntryForm): TxnInput {
     date: form.date,
     lines: [account, ...lines],
     note: form.note.trim() === '' ? null : form.note.trim(),
+    payee: form.payee.trim() === '' ? null : form.payee.trim(),
   };
 }
 
@@ -108,6 +111,7 @@ export function formOf(entry: {
   type: string;
   date: string;
   note: string | null;
+  payee?: { name: string } | null;
   lines: readonly LineInput[];
 }): EntryForm {
   const [account, ...targets] = entry.lines;
@@ -126,5 +130,6 @@ export function formOf(entry: {
     parts: split ? parts : [],
     date: entry.date,
     note: entry.note ?? '',
+    payee: entry.payee?.name ?? '',
   };
 }

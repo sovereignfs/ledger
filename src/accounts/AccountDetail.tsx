@@ -91,6 +91,7 @@ export function AccountDetail({
                   <td>
                     {ENTRY_TYPE_LABEL[entry.type] ?? entry.type}
                     {entry.parts > 1 ? ` · Split in ${entry.parts}` : ''}
+                    {entry.payee ? ` · ${entry.payee}` : ''}
                     {entry.note ? ` · ${entry.note}` : ''}
                   </td>
                   <td>{formatMoney(entry.amount, entry.currency, locale)}</td>

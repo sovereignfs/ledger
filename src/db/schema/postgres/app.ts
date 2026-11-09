@@ -197,3 +197,19 @@ export const loan = app.table('loan', {
   yearlyRate: decimal('yearly_rate'),
   interestSubcategoryId: ref('interest_subcategory_id'),
 });
+
+/** See `schema/sqlite/app.ts`. */
+export const payee = app.table(
+  'payee',
+  {
+    id: id('id'),
+    bookId: ref('book_id').notNull(),
+    name: text('name').notNull(),
+    nameKey: text('name_key').notNull(),
+    lastSubcategoryId: ref('last_subcategory_id'),
+    lastAccountId: ref('last_account_id'),
+    archivedAt: epochMs('archived_at'),
+    createdAt: epochMs('created_at').notNull(),
+  },
+  (table) => [uniqueIndex('payee_book_name_idx').on(table.bookId, table.nameKey)],
+);

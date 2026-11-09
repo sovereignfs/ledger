@@ -9,6 +9,7 @@
 export const BOOK_TABLES: readonly string[] = [
   'txn_line',
   'txn',
+  'payee',
   'loan',
   'subcategory',
   'category',

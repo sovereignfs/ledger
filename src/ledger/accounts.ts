@@ -351,6 +351,7 @@ export interface EntryOfAccount {
   readonly date: string;
   readonly type: string;
   readonly note: string | null;
+  readonly payee: string | null;
   readonly status: string;
   /** The line on this account, signed: positive when its balance went up. */
   readonly amount: number;
@@ -378,17 +379,19 @@ export async function entriesOf(
     date: string;
     type: string;
     note: string | null;
+    payee: string | null;
     status: string;
     amount: number | string;
     currency: string;
     parts: number | string;
   }>(
     database,
-    sql`SELECT t.id AS "txnId", t.date AS date, t.type AS type, t.note AS note, t.status AS status,
+    sql`SELECT t.id AS "txnId", t.date AS date, t.type AS type, t.note AS note, p.name AS payee, t.status AS status,
                x.amount AS amount, x.currency AS currency,
                (SELECT COUNT(*) FROM ${s.txnLine} y WHERE y.txn_id = t.id AND y.book_id = t.book_id
                    AND (y.subcategory_id IS NOT NULL OR y.income_source_id IS NOT NULL)) AS parts
           FROM ${s.txnLine} x JOIN ${s.txn} t ON t.id = x.txn_id AND t.book_id = x.book_id
+          LEFT JOIN ${s.payee} p ON p.id = t.payee_id AND p.book_id = t.book_id
          WHERE x.account_id = ${moneyAccountId} AND x.book_id = ${bookId} AND ${inBook(database, sql`x.book_id`, accountId)}
          ORDER BY t.date DESC, t.created_at DESC, t.id DESC, x.position
          LIMIT ${limit} OFFSET ${offset}`,

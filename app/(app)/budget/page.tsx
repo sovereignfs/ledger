@@ -13,6 +13,8 @@ export default async function Page() {
       <PageHeader title="Budget" description="Budgeted and spent, month by month." />
       <p>
         <Link href="/budget/categories">Categories</Link>
+        {' · '}
+        <Link href="/payees">Payees</Link>
       </p>
       <EmptyState
         icon="sliders-horizontal"

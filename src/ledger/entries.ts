@@ -18,6 +18,7 @@ export interface EntryRow {
   readonly type: TxnType;
   readonly date: string;
   readonly note: string | null;
+  readonly payee: { readonly id: string; readonly name: string } | null;
   readonly status: TxnStatus;
   readonly original: { amount: number; currency: string } | null;
   readonly lines: readonly LineInput[];
@@ -39,11 +40,15 @@ export async function getEntry(
     status: string;
     originalAmount: number | string | null;
     originalCurrency: string | null;
+    payeeId: string | null;
+    payeeName: string | null;
   }>(
     database,
     sql`SELECT t.id AS id, t.type AS type, t.date AS date, t.note AS note, t.status AS status,
-               t.original_amount AS "originalAmount", t.original_currency AS "originalCurrency"
+               t.original_amount AS "originalAmount", t.original_currency AS "originalCurrency",
+               p.id AS "payeeId", p.name AS "payeeName"
           FROM ${s.txn} t
+          LEFT JOIN ${s.payee} p ON p.id = t.payee_id AND p.book_id = t.book_id
          WHERE t.id = ${txnId} AND t.book_id = ${bookId} AND ${inBook(database, sql`t.book_id`, accountId)}`,
   );
   if (!head) return undefined;
@@ -67,6 +72,7 @@ export async function getEntry(
     type: head.type as TxnType,
     date: head.date,
     note: head.note,
+    payee: head.payeeId && head.payeeName ? { id: head.payeeId, name: head.payeeName } : null,
     status: head.status as TxnStatus,
     original:
       head.originalAmount === null || head.originalCurrency === null

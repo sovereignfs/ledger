@@ -154,7 +154,14 @@ describe(`deleting a person (${leg})`, () => {
       ];
       for (const [type, lines] of entries)
         expect(
-          (await createTransaction(database, who, book, { type, date: '2026-11-06', lines })).ok,
+          (
+            await createTransaction(database, who, book, {
+              type,
+              date: '2026-11-06',
+              payee: 'Shop',
+              lines,
+            })
+          ).ok,
         ).toBe(true);
     }
     const inBookCount = (who: string, name: string) =>

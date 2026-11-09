@@ -43,6 +43,13 @@
       "when": 1794187221294,
       "tag": "0005_loan",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1794194377745,
+      "tag": "0006_payee",
+      "breakpoints": true
     }
   ]
 }

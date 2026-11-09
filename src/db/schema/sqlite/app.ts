@@ -238,3 +238,23 @@ export const loan = sqliteTable('loan', {
   yearlyRate: decimal('yearly_rate'),
   interestSubcategoryId: ref('interest_subcategory_id'),
 });
+
+/**
+ * A payee (DESIGN.md §6.5): a name in the book, made the first time it is typed, that remembers the last subcategory and account used with it. `name_key` is
+ * the name lowercased, so that "Corner Shop" and "corner shop" are one payee and two requests that make it at once make one row (the unique index): it is
+ * how a payee is found, and is never shown.
+ */
+export const payee = sqliteTable(
+  'payee',
+  {
+    id: id('id'),
+    bookId: ref('book_id').notNull(),
+    name: text('name').notNull(),
+    nameKey: text('name_key').notNull(),
+    lastSubcategoryId: ref('last_subcategory_id'),
+    lastAccountId: ref('last_account_id'),
+    archivedAt: epochMs('archived_at'),
+    createdAt: epochMs('created_at').notNull(),
+  },
+  (table) => [uniqueIndex('payee_book_name_idx').on(table.bookId, table.nameKey)],
+);

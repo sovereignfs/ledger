@@ -2,6 +2,7 @@ import { isCalendarDay } from '../dates';
 import { isMinor, sumMinor } from '../money/amount';
 import { isSupportedCurrencyCode } from '../money/currencies';
 import { decimalText } from '../money/text';
+import { checkPayeeName } from './payee-write';
 
 /**
  * What a transaction may be (DESIGN.md §6.2, §6.3, §6.8), as **pure functions** over the input: no database, no clock. `checkShape` is what can be said of the
@@ -50,6 +51,10 @@ export interface TxnInput {
   /** In order: the first account line of an expense is the one that paid. */
   readonly lines: readonly LineInput[];
   readonly note?: string | null;
+  /**
+   * Who was paid, by name: the payee is made if the name is new (DESIGN.md §6.5). On a change, `undefined` keeps the payee the entry has and `null` removes it.
+   */
+  readonly payee?: string | null;
   /** Pending unless given; an opening and an adjustment are cleared (DESIGN.md §6.7). */
   readonly status?: TxnStatus;
   /** What was charged in another currency, for information only (§6.8); not on a transfer. */
@@ -92,6 +97,10 @@ export function checkShape(input: TxnInput): string[] {
     problems.push('The date is not a day.');
   if (input.note != null && (typeof input.note !== 'string' || input.note.length > MAX_NOTE))
     problems.push(`The note is longer than ${MAX_NOTE} characters.`);
+  if (input.payee != null) {
+    const problem = checkPayeeName(input.payee);
+    if (problem) problems.push(problem);
+  }
   if (input.status !== undefined && !(TXN_STATUSES as readonly string[]).includes(input.status))
     problems.push('The status is not pending or cleared.');
   if (!Array.isArray(input.lines) || input.lines.length < 2)

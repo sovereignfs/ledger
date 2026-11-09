@@ -50,6 +50,8 @@ export function parseTxnInput(body: unknown): Parsed<TxnInput> {
   }
   if (note != null && typeof note !== 'string')
     return { ok: false, problems: ['The note is text.'] };
+  if (body.payee != null && typeof body.payee !== 'string')
+    return { ok: false, problems: ['The payee is text.'] };
   if (
     status !== undefined &&
     (typeof status !== 'string' || !(TXN_STATUSES as readonly string[]).includes(status))
@@ -72,6 +74,7 @@ export function parseTxnInput(body: unknown): Parsed<TxnInput> {
       date,
       lines,
       note: (note as string | null | undefined) ?? null,
+      ...(body.payee === undefined ? {} : { payee: body.payee as string | null }),
       ...(status === undefined ? {} : { status: status as TxnInput['status'] }),
       original: originalAmount,
     },

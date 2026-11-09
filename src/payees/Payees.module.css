@@ -1,0 +1,93 @@
+/* The payees pages (DESIGN.md §6.5). Tokens only. */
+.manager {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-4);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-lg);
+  background-color: var(--sv-color-surface);
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-2);
+  padding: var(--sv-space-3) var(--sv-space-5);
+}
+
+.item + .item {
+  border-top: 1px solid var(--sv-color-border);
+}
+
+.line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sv-space-3);
+}
+
+.name {
+  display: flex;
+  flex-direction: column;
+  color: inherit;
+  font-weight: var(--sv-font-weight-medium);
+  overflow-wrap: anywhere;
+  text-decoration: none;
+}
+
+.count,
+.note {
+  color: var(--sv-color-text-muted);
+  font-size: var(--sv-font-size-sm);
+  font-weight: var(--sv-font-weight-regular);
+}
+
+.note {
+  margin: 0;
+}
+
+.controls,
+.inline,
+.merge {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sv-space-2);
+}
+
+.problem {
+  display: block;
+}
+
+.months {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.months th,
+.months td {
+  padding: var(--sv-space-3) var(--sv-space-2);
+  border-bottom: 1px solid var(--sv-color-border);
+  text-align: left;
+}
+
+.months th {
+  color: var(--sv-color-text-muted);
+  font-size: var(--sv-font-size-sm);
+  font-weight: var(--sv-font-weight-medium);
+}
+
+.months td:nth-child(n + 3),
+.months th:nth-child(n + 3) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}

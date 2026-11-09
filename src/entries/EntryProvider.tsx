@@ -15,6 +15,7 @@ import {
   remainder,
 } from './compose';
 import { formatMoney } from '../money/text';
+import { PayeeInput } from './PayeeInput';
 import { TargetSelect } from './TargetSelect';
 import { monthNote } from './month';
 import { EntrySurface } from './EntrySurface';
@@ -67,6 +68,7 @@ const BLANK: EntryForm = {
   parts: [],
   date: '',
   note: '',
+  payee: '',
 };
 
 type Mode = { kind: 'add' } | { kind: 'edit'; id: string };
@@ -172,7 +174,8 @@ export function EntryProvider({ children }: { children: ReactNode }) {
         remember(form.accountId);
         setStatus(editing ? 'Changed.' : 'Saved.');
         router.refresh();
-        if (another) set({ amount: null, targetId: '', split: false, parts: [], note: '' });
+        if (another)
+          set({ amount: null, targetId: '', split: false, parts: [], note: '', payee: '' });
         return;
       }
       const data = (await reply.json().catch(() => ({}))) as { problems?: string[] };
@@ -384,6 +387,33 @@ export function EntryProvider({ children }: { children: ReactNode }) {
               </div>
             </fieldset>
           )}
+          <FormField label="Payee" hint="Optional. A new name is remembered.">
+            {(field) => (
+              <PayeeInput
+                {...field}
+                value={form.payee}
+                onChange={(payee) => set({ payee })}
+                onPick={(picked) =>
+                  set({
+                    payee: picked.name,
+                    // What was last used with this payee is proposed, and changed freely.
+                    ...(!form.split && form.targetId === '' && picked.lastSubcategoryId && targets
+                      ? { targetId: picked.lastSubcategoryId }
+                      : {}),
+                    ...(picked.lastAccountId &&
+                    options?.accounts.some((each) => each.id === picked.lastAccountId)
+                      ? {
+                          accountId: picked.lastAccountId,
+                          currency:
+                            options.accounts.find((each) => each.id === picked.lastAccountId)
+                              ?.currency ?? form.currency,
+                        }
+                      : {}),
+                  })
+                }
+              />
+            )}
+          </FormField>
           <FormField label="Date" required hint={note || undefined}>
             {(field) => (
               <Input

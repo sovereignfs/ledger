@@ -37,6 +37,8 @@ export const ROUTES: RouteRule[] = [
   { route: '/transactions', page: { kind: 'book' } },
   { route: '/budget', page: { kind: 'book' } },
   { route: '/budget/categories', page: { kind: 'book' } },
+  { route: '/payees', page: { kind: 'book' } },
+  { route: '/payees/[id]', page: { kind: 'book' } },
   { route: '/accounts', page: { kind: 'book' } },
   { route: '/accounts/[id]', page: { kind: 'book' } },
   { route: '/reports', page: { kind: 'book' } },
@@ -71,6 +73,9 @@ export const ROUTES: RouteRule[] = [
     methods: { GET: { kind: 'book' }, PATCH: { kind: 'book' }, DELETE: { kind: 'book' } },
   },
   { route: '/api/entry-options', methods: { GET: { kind: 'book' } } },
+  // Payees (DESIGN.md §6.5): the person's own. Nothing in a request names whose.
+  { route: '/api/payees', methods: { GET: { kind: 'book' } } },
+  { route: '/api/payees/[id]', methods: { GET: { kind: 'book' }, PATCH: { kind: 'book' } } },
   // The instance asks it before it sends anyone to the app, and a container's health check does: it says only whether the database answers.
   { route: '/api/health', methods: { GET: { kind: 'public' } } },
   // better-auth's own: it checks `Origin` and the session cookie itself, and rate-limits sign-in (src/auth/auth.ts). Absent, with a 404, when sign-in is off.

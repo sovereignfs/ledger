@@ -2,7 +2,7 @@
 
 ## Status
 
-⏳ In progress: 4 of 9 tasks are done.
+⏳ In progress: 5 of 9 tasks are done.
 
 ## Overview
 
@@ -64,7 +64,7 @@ each part counts towards its own subcategory's spent.
 
 **Done as:** the add dialog's form (`src/entries/compose.ts`) now has a **Split**: the whole amount, and parts that each name a subcategory (or an income source) and an amount. `remainder` is what is left of the amount; the dialog shows "$23.20 left to place", "$1.80 over" or "The parts add up." as parts are typed, and `missing` refuses **before anything is sent**, in a sentence ("The parts are 3.20 USD short: they must add up to the amount."), also asking for at least two parts and a target and an amount for each. `compose` makes the account's line for the whole and one line for each part, in the account's currency (an income's parts are negative), so the one write path's sum check holds them again on the server, which a test shows by refusing a short split. An entry with several parts is editable in the same dialog, which reads it back as a split (`editable` and `formOf`); a mixture of targets, a second account or an original amount still is not. The account's page marks such an entry "Split in 2" (`parts` in `EntryOfAccount`); the transactions list (4.7) will show "Split" with the parts. 84.20 as 61.00 and 23.20 lands in both subcategories: seen in the lines the entry reads back, and in the browser, where the account is down by 84.20. Each key test was seen to fail against the code it guards (the remainder ignored, an income's parts not negated). Left out: per-part spent figures, which are the budget's (5.4), and a part's own note.
 
-#### 📋 4.5 — Payees
+#### ✅ 4.5 — Payees
 
 **Goal:** who was paid, remembered. **Design:** §6.5. **Depends on:** 4.3.
 
@@ -72,6 +72,8 @@ each part counts towards its own subcategory's spent.
 one transaction), archive; `/payees/<id>` with totals by month.
 
 **Accepts when:** typing a known payee proposes its last subcategory; merging two payees leaves every transaction on the survivor.
+
+**Done as:** `payee` (migration `0006_payee`, in `BOOK_TABLES`, seeded by the deletion test) with **one column more than `DESIGN.md` §18.3 had, `name_key`**: the name trimmed, its inner spaces made one and lowercased, unique with `book_id`, so that "Corner Shop" and "corner shop" are one payee and **two writes that make it at once make one row** (a test makes four at the same moment); §18.3 says so. `src/ledger/payee-write.ts` is what the one write path needs: `resolvePayee` finds the payee a name means or makes it (the insert carries the permission and the unique key, and an archived payee is brought back by typing its name) and `rememberPayee` keeps the last subcategory and account; `TxnInput.payee` is a name, and **on a change, not given keeps the entry's payee, a name changes it and `null` removes it**. The payee is made in the entry's own transaction, so an entry that is refused leaves none behind. `src/ledger/payees.ts`: `listPayees` (by name, or by part of a name in any case, where `%` and `_` are only themselves), `getPayee`, `renamePayee` (a name another payee has says to merge instead), `setPayeeArchived`, `mergePayees` (every entry moves to the survivor and the other goes, in one transaction; both must be the account's and different) and `payeeMonths` (spent and received by month and currency). Routes `/api/payees` (GET, with `?q=` for the autocomplete) and `/api/payees/[id]` (GET with its months; PATCH `name`, `archived` or `mergeInto`), in `routes.ts`, called as the second person: a 404 with nothing in it, nothing changes. The add dialog has a Payee field (`PayeeInput` on the design system's `SuggestionInput`, asking the server a moment after typing stops, whose own text is always a valid answer): **picking a known payee proposes the subcategory and account last used with it**, which stay changeable; a new name is made on save. `/payees` lists, renames, archives and merges (asking twice) and has `?archived=1`; `/payees/[id]` shows its totals by month; both are linked from the Budget; an account's page shows the payee on each entry. 4 browser tests across Chromium and WebKit. Each key test was seen to fail against the code it guards (a merge that leaves entries, names that are case-sensitive, a merge with no permission). Left out: merging from the payee's own page, and a payee's total in the base currency (a month is shown in each currency it was spent in, which needs no rates).
 
 #### 📋 4.6 — Transfers
 

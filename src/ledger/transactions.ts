@@ -5,6 +5,7 @@ import { dbAll, transaction } from '../db/exec';
 import * as postgresSchema from '../db/schema/postgres';
 import * as sqliteSchema from '../db/schema/sqlite';
 import { bookTable } from './books';
+import { rememberPayee, resolvePayee } from './payee-write';
 import {
   type AccountFacts,
   type LineInput,
@@ -201,6 +202,48 @@ async function writeLines(
   }
 }
 
+/**
+ * Sets the entry's payee from its name and remembers what was used with it: the payee is found, or made if the name is new, in the same transaction, so a
+ * refusal leaves no payee behind. `undefined` keeps what the entry has (`keep`), `null` or an empty name removes it.
+ */
+async function setPayee(
+  tx: Database,
+  accountId: string,
+  bookId: string,
+  txnId: string,
+  input: TxnInput,
+  now: number,
+  keep: boolean,
+): Promise<void> {
+  const s = schema(tx);
+  if (input.payee === undefined && keep) return;
+  const name = input.payee?.trim();
+  if (!name) {
+    await dbAll(
+      tx,
+      sql`UPDATE ${s.txn} SET payee_id = NULL WHERE id = ${txnId} AND book_id = ${bookId} RETURNING id`,
+    );
+    return;
+  }
+  const payeeId = await resolvePayee(tx, accountId, bookId, name, now);
+  if (payeeId === undefined) throw new Refused(NOT_FOUND);
+  await dbAll(
+    tx,
+    sql`UPDATE ${s.txn} SET payee_id = ${payeeId} WHERE id = ${txnId} AND book_id = ${bookId} RETURNING id`,
+  );
+  await rememberPayee(tx, bookId, payeeId, {
+    ...(input.lines.find((line) => line.subcategory !== undefined)?.subcategory
+      ? {
+          subcategoryId: input.lines.find((line) => line.subcategory !== undefined)
+            ?.subcategory as string,
+        }
+      : {}),
+    ...(input.lines.find((line) => line.account !== undefined)?.account
+      ? { accountId: input.lines.find((line) => line.account !== undefined)?.account as string }
+      : {}),
+  });
+}
+
 const noteOf = (note: string | null | undefined): string | null => {
   const trimmed = note?.trim();
   return trimmed ? trimmed : null;
@@ -249,6 +292,7 @@ export async function insertTransaction(
   if (inserted.length === 0) throw new Refused(NOT_FOUND);
   await checkTargets(tx, accountId, bookId, input);
   await writeLines(tx, accountId, bookId, id, input.lines);
+  await setPayee(tx, accountId, bookId, id, input, now, false);
   return id;
 }
 
@@ -308,6 +352,7 @@ export async function updateTransaction(
       sql`DELETE FROM ${s.txnLine} WHERE txn_id = ${txnId} AND book_id = ${bookId} RETURNING id`,
     );
     await writeLines(tx, accountId, bookId, txnId, input.lines);
+    await setPayee(tx, accountId, bookId, txnId, input, now, true);
     return txnId;
   });
 }
