@@ -12,8 +12,8 @@ test('shows a month’s income, spending against the budget and what was saved, 
   await signedIn(page);
   await page.goto('/accounts');
   const tag = `report ${browserName}`;
-  // A month of its own for each browser, since both run against one instance and a month's figures are the book's.
-  const month = browserName === 'webkit' ? '2020-07' : '2020-06';
+  // A month of its own for each browser, and one no other test writes to, since all of them run against one instance and a month's figures are the book's.
+  const month = browserName === 'webkit' ? '2018-04' : '2018-03';
   const origin = new URL(page.url()).origin;
   const post = async (path: string, data: unknown) => {
     const reply = await page.request.post(path, { data, headers: { origin } });
@@ -30,7 +30,7 @@ test('shows a month’s income, spending against the budget and what was saved, 
     type: 'bank',
     name: `Bank ${tag}`,
     currency: 'USD',
-    opening: { amount: 500_000, date: '2019-12-01' },
+    opening: { amount: 500_000, date: '2017-12-01' },
   });
   const source = await post('/api/income-sources', { name: `Pay ${tag}`, kind: 'secondary' });
   const category = await post('/api/categories', { name: `Home ${tag}`, currency: 'USD' });
@@ -79,8 +79,8 @@ test('shows a month’s income, spending against the budget and what was saved, 
   await expect(page).toHaveURL(/\/reports\?month=\d{4}-\d{2}$/);
 
   // The year: the same month inside it, by category.
-  await page.goto('/reports?year=2020');
-  await expect(page.getByRole('heading', { level: 1, name: 'Report for 2020' })).toBeVisible();
+  await page.goto('/reports?year=2018');
+  await expect(page.getByRole('heading', { level: 1, name: 'Report for 2018' })).toBeVisible();
   const year = page.getByRole('region', { name: 'Spent by category and month' });
   await expect(year.getByRole('row').filter({ hasText: `Groceries ${tag}` })).toContainText(
     '$200.00',

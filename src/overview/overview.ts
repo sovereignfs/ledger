@@ -12,7 +12,7 @@ import { loadJarsOverview, type JarsOverview } from '../jars/notes';
 import { loadInsights } from '../insights/load';
 import type { Insight } from '../insights/rules';
 import { loadReviewBanner } from '../reports/review';
-import { listUpcoming, type Upcoming } from '../recurring/recurring';
+import { listRecurring, listUpcoming, type Upcoming } from '../recurring/recurring';
 
 /**
  * What Overview shows (DESIGN.md §14.3): this month's income received, spent, and saved (what was planned and what actually was), net worth, the budget rows
@@ -84,18 +84,21 @@ export interface ChecklistItem {
   readonly id: 'accounts' | 'debts' | 'income' | 'bills' | 'jars' | 'people';
   readonly label: string;
   readonly done: boolean;
-  /** Where it is done, or `null` for what is not built yet (bills, jars). */
+  /** Where it is done, or `null` for what has no place yet (none now). */
   readonly href: string | null;
   readonly note?: string;
 }
 
 /**
  * The setup checklist (DESIGN.md §15.3): what the wizard does not ask, in any order: more accounts, cards and loans, secondary income, bills, jars, people.
- * Each is **done when the book has one**. Bills and jars are not built yet, so they have nowhere to go and are never done.
+ * Each is **done when the book has one**: a recurring entry that has not ended for the bills (which go to the Bills page), a jar for the jars (made on an account's page).
  */
 export function checklist(facts: {
   accounts: readonly { type: string }[];
   sources: readonly { kind: string; archivedAt: number | null }[];
+  /** How many recurring entries are going (not ended), and how many jars there are. */
+  recurring?: number;
+  jars?: number;
 }): ChecklistItem[] {
   const live = (type: string) => facts.accounts.filter((account) => account.type === type).length;
   return [
@@ -122,11 +125,16 @@ export function checklist(facts: {
     {
       id: 'bills',
       label: 'Add the bills you pay every month',
-      done: false,
-      href: null,
-      note: 'Coming soon',
+      done: (facts.recurring ?? 0) > 0,
+      href: '/budget/bills',
     },
-    { id: 'jars', label: 'Set money aside in a jar', done: false, href: null, note: 'Coming soon' },
+    {
+      id: 'jars',
+      label: 'Set money aside in a jar',
+      done: (facts.jars ?? 0) > 0,
+      // A jar is made on the page of the account it is in.
+      href: '/accounts',
+    },
     {
       id: 'people',
       label: 'Add someone you lend to or owe',
@@ -162,26 +170,43 @@ export async function loadOverviewPage(
   now: Date = new Date(),
 ): Promise<OverviewPage> {
   const month = monthOf(todayIn(book.timeZone, now));
-  const [income, budget, worth, recent, accounts, sources, upcoming, jars, reviewMonth, insights] =
-    await Promise.all([
-      loadIncome(database, accountId, book, month, now),
-      loadBudget(database, accountId, book, month, now),
-      loadOverview(database, accountId, book, now),
-      listEntries(database, accountId, book.id, {}, undefined, 8),
-      listAccounts(database, accountId, book.id),
-      listIncomeSources(database, accountId, book.id),
-      listUpcoming(database, accountId, book.id, book.timeZone, now),
-      loadJarsOverview(database, accountId, book, now),
-      loadReviewBanner(database, accountId, book, now),
-      loadInsights(database, accountId, book, now, { limit: 3 }),
-    ]);
+  const [
+    income,
+    budget,
+    worth,
+    recent,
+    accounts,
+    sources,
+    upcoming,
+    jars,
+    reviewMonth,
+    insights,
+    recurring,
+  ] = await Promise.all([
+    loadIncome(database, accountId, book, month, now),
+    loadBudget(database, accountId, book, month, now),
+    loadOverview(database, accountId, book, now),
+    listEntries(database, accountId, book.id, {}, undefined, 8),
+    listAccounts(database, accountId, book.id),
+    listIncomeSources(database, accountId, book.id),
+    listUpcoming(database, accountId, book.id, book.timeZone, now),
+    loadJarsOverview(database, accountId, book, now),
+    loadReviewBanner(database, accountId, book, now),
+    loadInsights(database, accountId, book, now, { limit: 3 }),
+    listRecurring(database, accountId, book.id),
+  ]);
   return {
     month,
     thisMonth: thisMonth(income, budget),
     worth,
     close: closestRows(budget),
     recent: recent.entries,
-    checklist: checklist({ accounts, sources }),
+    checklist: checklist({
+      accounts,
+      sources,
+      recurring: recurring.filter((each) => each.endedAt === null).length,
+      jars: jars.count,
+    }),
     upcoming,
     jars,
     reviewMonth,

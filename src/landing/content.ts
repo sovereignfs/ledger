@@ -24,6 +24,26 @@ export const landing = {
       body: 'A password, a passkey or an authenticator app, as you prefer.',
     },
     {
+      title: 'Every account, in any currency',
+      body: 'Bank accounts, cards, loans, savings and property, with your net worth at each month end, worked out from what you entered.',
+    },
+    {
+      title: 'A budget that keeps its history',
+      body: 'Budget by category, change it from any month on, and past months stay as they were.',
+    },
+    {
+      title: 'Bills that post themselves',
+      body: 'Rent, a loan with its interest split from the principal, or a bill you confirm each month.',
+    },
+    {
+      title: 'Jars',
+      body: 'Set money aside inside an account for a trip or a rainy day, and spend from it.',
+    },
+    {
+      title: 'Looking back',
+      body: 'A report for each month and each year, a month-end review, and a few things worth a look.',
+    },
+    {
       title: 'On a phone or a desktop',
       body: 'The same places at the same addresses at every width, in light or dark.',
     },

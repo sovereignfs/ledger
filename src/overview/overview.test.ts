@@ -136,8 +136,18 @@ describe('the setup checklist', () => {
     ]);
     expect(only(items, 'accounts')?.href).toBe('/accounts');
     expect(only(items, 'income')?.href).toBe('/budget/income');
-    expect(only(items, 'bills')).toMatchObject({ href: null, note: 'Coming soon' });
-    expect(only(items, 'jars')).toMatchObject({ href: null, note: 'Coming soon' });
+    expect(only(items, 'bills')?.href).toBe('/budget/bills');
+    expect(only(items, 'jars')?.href).toBe('/accounts');
+  });
+
+  it('ticks off bills once one is going (not one that ended), and jars once there is one', () => {
+    const base = { accounts: [{ type: 'bank' }], sources: [] };
+    expect(only(checklist({ ...base, recurring: 0, jars: 0 }), 'bills')?.done).toBe(false);
+    expect(only(checklist({ ...base, recurring: 2, jars: 0 }), 'bills')?.done).toBe(true);
+    expect(only(checklist({ ...base, recurring: 0, jars: 0 }), 'jars')?.done).toBe(false);
+    expect(only(checklist({ ...base, recurring: 0, jars: 1 }), 'jars')?.done).toBe(true);
+    // Without the facts, as before they were known: not done.
+    expect(only(checklist(base), 'bills')?.done).toBe(false);
   });
 
   it('ticks off what the book has: a second account, a card or a loan, a secondary source, a person', () => {

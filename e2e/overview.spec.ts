@@ -70,7 +70,9 @@ test('has a setup checklist that Add works from, that can be put away and brough
   const checklist = page.getByRole('region', { name: 'Setup checklist' });
   await expect(checklist).toBeVisible();
   await expect(checklist).toContainText('Add the bills you pay every month');
-  await expect(checklist).toContainText('Coming soon');
+  // Bills and jars are real: they say where to go until the book has one, and are ticked after, so the instance's own state decides which. Neither is "coming".
+  await expect(checklist).toContainText('Set money aside in a jar');
+  await expect(checklist).not.toContainText('Coming soon');
   await expect(
     checklist.getByRole('link', { name: 'Add someone you lend to or owe' }),
   ).toHaveAttribute('href', '/accounts');
