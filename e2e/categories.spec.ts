@@ -11,7 +11,8 @@ test('makes a category and subcategories, and reaches the page from the Budget',
 }) => {
   await signedIn(page);
   await page.goto('/budget');
-  await page.getByRole('link', { name: 'Categories' }).click();
+  // Exact: on an empty budget the page also offers "Make categories".
+  await page.getByRole('link', { name: 'Categories', exact: true }).click();
   await expect(page).toHaveURL(/\/budget\/categories$/);
   const name = `Home ${browserName}`;
   await page.getByLabel('New category').fill(name);

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { signOut as signOutOf } from './helpers';
+import { gotoSettled, signOut as signOutOf } from './helpers';
 import { PORTS } from './ports';
 
 /**
@@ -14,7 +14,7 @@ const SECOND = { sub: 'e2e-second', email: 'second@sovereign.test', name: 'Alan 
 
 /** Signs out from a page that has the menu: a person just signed in to a book not yet set up is on its setup, which has none. */
 async function signOut(page: Page) {
-  await page.goto('/accounts');
+  await gotoSettled(page, '/accounts');
   await signOutOf(page);
 }
 
@@ -71,7 +71,7 @@ test.describe('an instance that signs in through Sovereign only', () => {
     await nextPersonIs(page, FIRST);
     await page.goto('/sign-in');
     await throughSovereign(page);
-    await page.goto('/accounts');
+    await gotoSettled(page, '/accounts');
     await expect(page.getByRole('button', { name: 'User menu' })).toBeVisible();
     await page.getByRole('button', { name: 'User menu' }).click();
     await expect(page.getByText(FIRST.name)).toBeVisible();
@@ -82,7 +82,7 @@ test.describe('an instance that signs in through Sovereign only', () => {
     await signOut(page);
     await page.goto('/sign-in');
     await throughSovereign(page);
-    await page.goto('/accounts');
+    await gotoSettled(page, '/accounts');
     await expect(page.getByRole('button', { name: 'User menu' })).toBeVisible();
     await signOut(page);
   });
@@ -95,7 +95,7 @@ test.describe('an instance that signs in through Sovereign only', () => {
     await throughSovereign(page);
     await expect(page).toHaveURL(/\/sign-in/);
     await expect(page.getByText(/Sign-up is closed/)).toBeVisible();
-    await page.goto('/accounts');
+    await gotoSettled(page, '/accounts');
     await expect(page).toHaveURL(/\/sign-in/);
   });
 
@@ -111,7 +111,7 @@ test.describe('an instance that signs in through Sovereign only', () => {
     await nextPersonIs(page, FIRST);
     await page.goto('/sign-in');
     await throughSovereign(page);
-    await page.goto('/accounts');
+    await gotoSettled(page, '/accounts');
     await expect(page.getByRole('button', { name: 'User menu' })).toBeVisible();
 
     await page.goto('/account?section=security');
@@ -147,7 +147,7 @@ test.describe('an instance that signs in through Sovereign only', () => {
     await nextPersonIs(page, who);
     await page.goto('/sign-in');
     await throughSovereign(page);
-    await page.goto('/accounts');
+    await gotoSettled(page, '/accounts');
     await expect(page.getByRole('button', { name: 'User menu' })).toBeVisible();
   }
 
@@ -200,7 +200,7 @@ test.describe('an instance that signs in through Sovereign only', () => {
       ).status(),
     ).toBe(400);
     // They are still signed in.
-    await page.goto('/accounts');
+    await gotoSettled(page, '/accounts');
     await expect(page.getByRole('button', { name: 'User menu' })).toBeVisible();
 
     // The same good notice twice: the first ends the session, the second is a replay.
@@ -223,7 +223,7 @@ test.describe('an instance that signs in through Sovereign only', () => {
     await signInAs(page, FIRST);
     const reply = await sendDeletion(page, await noticeFrom(page, 'account-deleted', FIRST.sub));
     expect(reply.status()).toBe(200);
-    await page.goto('/accounts');
+    await gotoSettled(page, '/accounts');
     await expect(page).toHaveURL(/\/sign-in/);
 
     // Said again (a retry that was not needed), it is a notice about a person nobody here knows, and is answered 200.
@@ -241,7 +241,7 @@ test.describe('an instance that signs in through Sovereign only', () => {
     await nextPersonIs(page, FIRST);
     await page.goto('/sign-in');
     await throughSovereign(page);
-    await page.goto('/accounts');
+    await gotoSettled(page, '/accounts');
     await expect(page.getByRole('button', { name: 'User menu' })).toBeVisible();
 
     await page.goto('/account?section=data');
@@ -250,7 +250,7 @@ test.describe('an instance that signs in through Sovereign only', () => {
     await page.getByRole('button', { name: 'Delete my account for good' }).click();
     // It is sent to the front address when it is done, which for a cookie that is no one's any more is the sign-in page.
     await expect(page.getByRole('button', { name: 'Sign in with Sovereign' })).toBeVisible();
-    await page.goto('/accounts');
+    await gotoSettled(page, '/accounts');
     await expect(page).toHaveURL(/\/sign-in/);
 
     // The instance has no one in it now, so the next person to come is its first, and is let in (the same person: the tests that follow, and the other
@@ -260,7 +260,7 @@ test.describe('an instance that signs in through Sovereign only', () => {
       await nextPersonIs(page, FIRST);
       await page.goto('/sign-in');
       await throughSovereign(page);
-      await page.goto('/accounts');
+      await gotoSettled(page, '/accounts');
       await expect(page.getByRole('button', { name: 'User menu' })).toBeVisible({ timeout: 2_000 });
     }).toPass({ timeout: 30_000, intervals: [1_000] });
     await signOut(page);
@@ -286,7 +286,7 @@ async function signUpLocal(page: Page, name: string): Promise<{ email: string; n
     await page.waitForTimeout(10_500);
   }
   // A new book is sent to its setup, which has no menu: the accounts have it.
-  await page.goto('/accounts');
+  await gotoSettled(page, '/accounts');
   await expect(page.getByRole('button', { name: 'User menu' })).toBeVisible();
   return { email, name };
 }
@@ -306,7 +306,7 @@ test.describe('an instance that offers both ways', () => {
       name: 'Katherine Johnson',
     });
     await throughSovereign(page);
-    await page.goto('/accounts');
+    await gotoSettled(page, '/accounts');
     await expect(page.getByRole('button', { name: 'User menu' })).toBeVisible();
     await signOut(page);
 
@@ -358,11 +358,11 @@ test.describe('an instance that offers both ways', () => {
     await expect(page.getByText('Sovereign is linked.')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Unlink Sovereign' })).toBeEnabled();
 
-    await page.goto('/accounts');
+    await gotoSettled(page, '/accounts');
     await signOut(page);
     await page.goto('/sign-in');
     await throughSovereign(page);
-    await page.goto('/accounts');
+    await gotoSettled(page, '/accounts');
     // The account is the local one: its name, not the name Sovereign has for the person.
     await expect(page.getByRole('button', { name: 'User menu' })).toBeVisible();
     await page.getByRole('button', { name: 'User menu' }).click();
@@ -405,7 +405,7 @@ test.describe('an instance that offers both ways', () => {
     await expect(page.getByText('Sovereign is unlinked.')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Link Sovereign' })).toBeVisible();
 
-    await page.goto('/accounts');
+    await gotoSettled(page, '/accounts');
     await signOut(page);
     await nextPersonIs(page, who);
     await page.goto('/sign-in');

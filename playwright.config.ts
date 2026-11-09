@@ -74,6 +74,9 @@ export default defineConfig({
   // One at a time: the instance shares one database, and the tests are quick.
   workers: 1,
   retries: process.env.CI ? 1 : 0,
+  // Five seconds is Playwright's wait for something to show. A shared runner that is also running the other shard is slower than that at signing in (a password is hashed on purpose), and a longer wait
+  // costs nothing when the thing shows.
+  expect: { timeout: process.env.CI ? 20_000 : 5_000 },
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: { baseURL: `http://localhost:${PORT}`, trace: 'retain-on-failure' },
   projects: [

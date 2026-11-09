@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { EMAIL, PASSWORD, ensureAccount, signOut, trySignIn } from './helpers';
+import { EMAIL, PASSWORD, ensureAccount, signOut, signedIn, trySignIn } from './helpers';
 
 /**
  * Signing up, in, and out, in a browser (task 2.1). The instance is closed to sign-up, so the first account is the only one there will be, and it
@@ -15,8 +15,8 @@ test('the first account can be made, and a visitor is sent to sign in', async ({
 test('signing in with the right password shows who is signed in, and signing out ends it', async ({
   page,
 }) => {
-  await ensureAccount(page);
-  await trySignIn(page, EMAIL, PASSWORD);
+  // Signed in, and the book set up: a fresh account lands on the wizard, which has no user menu, and which of the tests has made one first depends on how they are split between runs.
+  await signedIn(page);
   await expect(page.getByRole('button', { name: 'User menu' })).toBeVisible();
 
   // Signed in, the sign-in page has nothing to ask.

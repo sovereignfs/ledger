@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { signedIn } from './helpers';
+import { gotoSettled, signedIn } from './helpers';
 
 /**
  * Recurring entries (task 6.2, DESIGN.md §8.2): "Repeat…" in an entry's dialog makes it repeat, and the Bills page shows it, switches whether it posts
@@ -291,7 +291,9 @@ test('pays a loan’s instalments: offered on the loan, each split into interest
     .filter({ hasText: `Lender ${tag}` });
   await expect(row).toContainText('$200.00');
   await row.getByRole('button', { name: `Post Lender ${tag}` }).click();
-  await page.goto(`/accounts/${loan}`);
+  // The page refreshes itself once it is posted, and the next instalment, which is due as well, takes its place in the list: leave when the first has gone, and not in the middle of that.
+  await expect(row).not.toContainText('2020-02-01');
+  await gotoSettled(page, `/accounts/${loan}`);
   await expect(page.getByRole('region', { name: 'Summary' })).toContainText('$9,850.96');
 
   // Leave nothing waiting for the other tests.

@@ -91,3 +91,13 @@ export async function signOut(page: Page) {
   await page.getByRole('menuitem', { name: 'Sign out' }).click();
   await expect(page.getByRole('button', { name: 'User menu' })).toHaveCount(0);
 }
+
+/**
+ * `page.goto`, tried again if another navigation (a redirect to the wizard after signing in, a refresh the page makes of itself after a save) interrupts it: the
+ * second try is made once that one is over. It is the address that was asked for that is loaded, never a retry of what the page was doing.
+ */
+export async function gotoSettled(page: Page, url: string) {
+  await expect(async () => {
+    await page.goto(url);
+  }).toPass({ timeout: 15_000 });
+}
