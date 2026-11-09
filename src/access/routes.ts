@@ -37,6 +37,7 @@ export const ROUTES: RouteRule[] = [
   { route: '/transactions', page: { kind: 'book' } },
   { route: '/budget', page: { kind: 'book' } },
   { route: '/budget/categories', page: { kind: 'book' } },
+  { route: '/budget/income', page: { kind: 'book' } },
   { route: '/payees', page: { kind: 'book' } },
   { route: '/payees/[id]', page: { kind: 'book' } },
   { route: '/accounts', page: { kind: 'book' } },
@@ -62,6 +63,13 @@ export const ROUTES: RouteRule[] = [
   { route: '/api/accounts/[id]/value', methods: { POST: { kind: 'book' } } },
   // Budgeted amounts with their history (DESIGN.md §7.3): the person's own. Nothing in a request names whose, or which month is "this" one.
   { route: '/api/budget', methods: { GET: { kind: 'book' }, POST: { kind: 'book' } } },
+  // Income sources and a month's income (DESIGN.md §7.4): the person's own. Nothing in a request names whose.
+  { route: '/api/income-sources', methods: { GET: { kind: 'book' }, POST: { kind: 'book' } } },
+  {
+    route: '/api/income-sources/[id]',
+    methods: { PATCH: { kind: 'book' }, DELETE: { kind: 'book' } },
+  },
+  { route: '/api/income', methods: { GET: { kind: 'book' } } },
   // Categories and subcategories (DESIGN.md §7.1): the person's own. Nothing in a request names whose.
   {
     route: '/api/categories',

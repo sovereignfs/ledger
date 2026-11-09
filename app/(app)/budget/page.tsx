@@ -14,6 +14,8 @@ export default async function Page() {
       <p>
         <Link href="/budget/categories">Categories</Link>
         {' · '}
+        <Link href="/budget/income">Income</Link>
+        {' · '}
         <Link href="/payees">Payees</Link>
       </p>
       <EmptyState
