@@ -117,6 +117,8 @@ export const ROUTES: RouteRule[] = [
   { route: '/api/import', methods: { POST: { kind: 'book' } } },
   // The month-end review (DESIGN.md §11.4): the person's own book's. Nothing in a request names whose.
   { route: '/api/reviews', methods: { GET: { kind: 'book' }, POST: { kind: 'book' } } },
+  // The service worker (DESIGN.md §14.6): the same text for everyone, with nothing of a person in it; a browser asks for it without a session, and it keeps no page.
+  { route: '/sw.js', methods: { GET: { kind: 'public' } } },
   // The instance asks it before it sends anyone to the app, and a container's health check does: it says only whether the database answers.
   { route: '/api/health', methods: { GET: { kind: 'public' } } },
   // better-auth's own: it checks `Origin` and the session cookie itself, and rate-limits sign-in (src/auth/auth.ts). Absent, with a 404, when sign-in is off.

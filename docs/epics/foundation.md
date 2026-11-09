@@ -2,7 +2,7 @@
 
 ## Status
 
-⏳ In progress: 10 of 11 tasks are done.
+✅ Done: 11 of 11 tasks.
 
 ## Overview
 
@@ -129,7 +129,7 @@ in `public/icons/`; not-found and error pages.
 
 **Done as:** `sovereign.manifest.json` (§13.3 of the design, port 3003, checked by `pnpm manifest:check` and held to the code by `src/sovereign-manifest.test.ts`), the Dockerfile (Debian, `USER node`, a required `ARG PORT`, migrations beside the server, the licences), `.dockerignore`, `deploy/` (sqld, a file, PostgreSQL, README and `.env.example`), `scripts/deploy-check.sh`, `src/deploy.test.ts` and `publish.yml` copied from Tusk and renamed, minus what Ledger has no use for (the operator tools, backup, GitHub). Built as an operator builds it (`sovereign-manifest docker-args`) and run through `scripts/deploy-check.sh` here: sqld, a file, PostgreSQL, the one `docker run`, an instance's way of hosting it (secrets as files, a PostgreSQL of its own, another port) and a wrong setting, all passing. CI gains the `image` job on both architectures and `manifest:check`. The sign-in page, `/sign-up` and the notices' addresses are not checked by the deploy script yet; marked TODO for 2.3 and 2.4, where the routes are built. The deploy README documents the rates fetch and keeps only the keys Ledger has.
 
-#### 📋 1.11 — The PWA
+#### ✅ 1.11 — The PWA
 
 **Goal:** installable, with a service worker that keeps the shell only. **Design:** §14.6. **Depends on:** 1.8.
 
@@ -137,3 +137,14 @@ in `public/icons/`; not-found and error pages.
 connection. No page with money on it is ever cached.
 
 **Accepts when:** the app installs in Chromium; a test of the worker's source shows it caches nothing outside the allow-list.
+
+**Done as:** **a smaller worker than Tusk's, written for Ledger, and not copied**: Tusk's `src/sw/source.ts` is built around an offline Desk (a kept shell page, a background sync, Web Push and a wake that reads the person's own keys from
+IndexedDB), none of which Ledger has, since every page of Ledger has money on it and is the server's. `src/sw/source.ts` is a string, served at **`/sw.js`** with the build's id as its version and **the build's own static files as its allow-list**
+(`app/sw.js/route.ts`, `no-cache`, `Service-Worker-Allowed: /`; a server that is not a build is sent a worker that keeps nothing and removes itself). **It keeps the build's files, the icons and the manifest, and nothing else**: every navigation is
+the network's and is never stored, an API request or a POST is left alone for the browser to make, and **with no network a page is answered with one the worker builds itself**, saying Ledger needs a connection, with no script and nothing of the
+person's (its own policy, `no-store`). A new version waits for the pages of the old one to close (no `skipWaiting`, no `clients.claim`) and removes the old caches and only ours. `app/manifest.ts` is the web manifest (standalone, opening at `/`, three
+icons including one the platform may cut to its own shape); `public/icons` has PNGs of 192, 512, the maskable 512 and an iPhone's 180, **drawn from the SVG by `scripts/make-icons.mjs` with the browser the tests use** and committed (the proxy already left
+`sw.js`, the manifest and the icons out of its matcher, and the policy already allowed `worker-src` and `manifest-src` from this origin). `RegisterWorker` registers it once the page has loaded. Tests: 13 on the worker's own text, evaluated with a cache and a network the test controls
+(only the build's files at install; no page, no API answer, no export kept after everything a person does; the page from the network every time; a POST left alone; an icon, the manifest and a new built file kept and served from the cache; a path that only looks like an icon not kept;
+the offline page holding nothing of a person; old caches removed and no others; no `skipWaiting`) and on the manifest (and that its icons are the sizes they say); and in Chromium **the browser's own installability check finds no error**, the cache after visiting five pages holds only
+allow-listed addresses, and offline `/accounts` is the page that says Ledger needs a connection. Each key test was seen to fail against the code it guards (a page kept, the API in the allow-list, old caches kept, `skipWaiting`).
