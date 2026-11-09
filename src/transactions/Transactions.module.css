@@ -1,0 +1,94 @@
+/* The transactions list (DESIGN.md §6.9). Tokens only. */
+.filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  align-items: end;
+  gap: var(--sv-space-3);
+  margin-bottom: var(--sv-space-5);
+}
+
+.filters label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-1);
+  font-size: var(--sv-font-size-sm);
+  color: var(--sv-color-text-muted);
+}
+
+.filters .buttons {
+  display: flex;
+  flex-direction: row;
+  gap: var(--sv-space-2);
+}
+
+.note {
+  margin: 0;
+  color: var(--sv-color-text-muted);
+  font-size: var(--sv-font-size-sm);
+}
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sv-space-2);
+  margin-bottom: var(--sv-space-3);
+  padding: var(--sv-space-3);
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-md);
+  background-color: var(--sv-color-surface-sunken);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  padding: var(--sv-space-3) var(--sv-space-2);
+  border-bottom: 1px solid var(--sv-color-border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.table th {
+  color: var(--sv-color-text-muted);
+  font-size: var(--sv-font-size-sm);
+  font-weight: var(--sv-font-weight-medium);
+}
+
+.table .money {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.title {
+  display: flex;
+  flex-direction: column;
+  overflow-wrap: anywhere;
+}
+
+.title span {
+  color: var(--sv-color-text-muted);
+  font-size: var(--sv-font-size-sm);
+}
+
+.pending {
+  color: var(--sv-color-text-muted);
+}
+
+.more {
+  margin-top: var(--sv-space-4);
+}
+
+.problem {
+  display: block;
+}
+
+@media (max-width: 640px) {
+  .hideNarrow {
+    display: none;
+  }
+}

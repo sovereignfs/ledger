@@ -7,7 +7,8 @@ import { bookIdFor, ensureBook } from '../ledger/books';
 import { seedAccount, seedIncomeSource, seedSubcategory } from '../ledger/testing';
 import { setArchived } from '../ledger/accounts';
 import { balanceOf } from '../ledger/balances';
-import { change, create, options, read, remove } from './transactions-api';
+import { createTransaction } from '../ledger/transactions';
+import { bulk, change, create, options, read, remove } from './transactions-api';
 import { type BookHandler, bookRoute } from './route';
 import { type Person, type TwoAccounts, twoAccounts } from './two-accounts';
 
@@ -348,5 +349,81 @@ describe(`the entry routes (${leg})`, () => {
       },
     });
     expect(reply.status).toBe(201);
+  });
+
+  it('do something to several at once, only to the caller’s own, and say how many were skipped', async () => {
+    const mine = [await make(expense(100)), await make(expense(200))];
+    const other = await seedSubcategory(t.database, bookIdFor(t.ada.id));
+    const hers = await createTransaction(t.database, t.grace.id, bookIdFor(t.grace.id), {
+      type: 'expense',
+      date: '2026-11-06',
+      lines: [
+        { account: gracesBank, amount: -7, currency: 'USD' },
+        { subcategory: gracesFood, amount: 7, currency: 'USD' },
+      ],
+    });
+    if (!hers.ok) throw new Error('not written');
+    const act = async (person: Person, body: unknown) =>
+      call(bulk, person, '/api/transactions/bulk', { method: 'POST', body });
+    const answer = async (reply: Response) =>
+      (await reply.json()) as { changed: number; skipped: number };
+    // Grace names Ada’s entries and her own: only her own is touched.
+    expect(
+      await answer(
+        await act(t.grace, { action: 'status', ids: [...mine, hers.id], status: 'cleared' }),
+      ),
+    ).toEqual({ changed: 1, skipped: 2 });
+    const statusOf = async (id: string, person: Person) =>
+      (
+        (await (await call(read, person, `/api/transactions/${id}`, {}, id)).json()) as {
+          entry: { status: string };
+        }
+      ).entry.status;
+    expect(await statusOf(mine[0] as string, t.ada)).toBe('pending');
+    expect(await statusOf(hers.id, t.grace)).toBe('cleared');
+    expect(
+      await answer(await act(t.ada, { action: 'status', ids: mine, status: 'cleared' })),
+    ).toEqual({ changed: 2, skipped: 0 });
+    expect(
+      await answer(
+        await act(t.ada, { action: 'recategorise', ids: [...mine, hers.id], subcategoryId: other }),
+      ),
+    ).toEqual({ changed: 2, skipped: 1 });
+    // Into a subcategory that is not hers.
+    expect(
+      await answer(
+        await act(t.grace, { action: 'recategorise', ids: [hers.id], subcategoryId: other }),
+      ),
+    ).toEqual({ changed: 0, skipped: 1 });
+    expect(await answer(await act(t.grace, { action: 'delete', ids: mine }))).toEqual({
+      changed: 0,
+      skipped: 2,
+    });
+    expect((await call(read, t.ada, `/api/transactions/${mine[0]}`, {}, mine[0])).status).toBe(200);
+    expect(await answer(await act(t.ada, { action: 'delete', ids: mine }))).toEqual({
+      changed: 2,
+      skipped: 0,
+    });
+    expect((await call(read, t.ada, `/api/transactions/${mine[0]}`, {}, mine[0])).status).toBe(404);
+    // Mistakes.
+    for (const body of [
+      {},
+      { action: 'status', ids: [], status: 'cleared' },
+      { action: 'status', ids: ['x'], status: 'done' },
+      { action: 'delete', ids: 'x' },
+      { action: 'delete', ids: [1] },
+      { action: 'recategorise', ids: ['x'] },
+      { action: 'delete', ids: Array.from({ length: 201 }, (_, i) => `id${i}`) },
+      [],
+    ])
+      expect((await act(t.ada, body)).status, JSON.stringify(body)).toBe(400);
+    expect(
+      (
+        await call(bulk, null, '/api/transactions/bulk', {
+          method: 'POST',
+          body: { action: 'delete', ids: ['x'] },
+        })
+      ).status,
+    ).toBe(401);
   });
 });

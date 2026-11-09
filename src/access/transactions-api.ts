@@ -1,4 +1,5 @@
 import type { Database } from '../db/client';
+import { bulkDelete, bulkRecategorise, bulkSetStatus } from '../ledger/bulk';
 import { getEntry, loadEntryOptions } from '../ledger/entries';
 import { createTransaction, deleteTransaction, updateTransaction } from '../ledger/transactions';
 import { todayIn } from '../dates';
@@ -65,4 +66,29 @@ export async function remove(database: Database, { accountId, bookId, params }: 
   return (await deleteTransaction(database, accountId, bookId, idOf(params)))
     ? json({ deleted: true })
     : notFound();
+}
+
+/**
+ * Something done to several entries at once (DESIGN.md §6.9): `{ action: 'status', ids, status }`, `{ action: 'recategorise', ids, subcategoryId }` or
+ * `{ action: 'delete', ids }`. The answer says how many were changed and how many skipped; an id that is not the account's is skipped, as one that is not there.
+ */
+export async function bulk(database: Database, { request, accountId, bookId }: BookContext) {
+  const read = await body(request);
+  if (read instanceof Response) return read;
+  const value = read.value;
+  if (typeof value !== 'object' || value === null || Array.isArray(value))
+    return json({ problems: ['The request is not an action.'] }, 400);
+  const { action, ids, status, subcategoryId } = value as Record<string, unknown>;
+  if (!Array.isArray(ids)) return json({ problems: ['The entries are a list.'] }, 400);
+  const result =
+    action === 'status' && (status === 'pending' || status === 'cleared')
+      ? await bulkSetStatus(database, accountId, bookId, ids, status)
+      : action === 'recategorise' && typeof subcategoryId === 'string'
+        ? await bulkRecategorise(database, accountId, bookId, ids, subcategoryId)
+        : action === 'delete'
+          ? await bulkDelete(database, accountId, bookId, ids)
+          : undefined;
+  if (!result)
+    return json({ problems: ['That is not something that can be done to 1 to 200 entries.'] }, 400);
+  return json(result);
 }

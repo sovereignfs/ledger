@@ -72,6 +72,7 @@ export const ROUTES: RouteRule[] = [
     route: '/api/transactions/[id]',
     methods: { GET: { kind: 'book' }, PATCH: { kind: 'book' }, DELETE: { kind: 'book' } },
   },
+  { route: '/api/transactions/bulk', methods: { POST: { kind: 'book' } } },
   { route: '/api/entry-options', methods: { GET: { kind: 'book' } } },
   // Payees (DESIGN.md §6.5): the person's own. Nothing in a request names whose.
   { route: '/api/payees', methods: { GET: { kind: 'book' } } },
