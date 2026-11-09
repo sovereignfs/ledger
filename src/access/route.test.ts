@@ -148,4 +148,33 @@ describe(`bookRoute (${leg})`, () => {
     expect(await reply.text()).toBe('');
     expect(await authorize(t.request(t.ada, '/api/x'), off)).toBeInstanceOf(Response);
   });
+
+  it('says no-store of every answer: a success, a refusal, a redirect whose headers cannot be changed, and keeps one that already says what it may be', async () => {
+    const control = (reply: Response) => reply.headers.get('cache-control');
+    const ok = bookRoute(async () => Response.json({ balance: 1 }), t.deps);
+    expect(control(await ok(t.request(t.ada, '/api/x')))).toBe('no-store');
+    expect(control(await ok(t.request(null, '/api/x')))).toBe('no-store');
+    expect(
+      control(
+        await ok(
+          t.request(t.ada, '/api/x', {
+            method: 'POST',
+            headers: { origin: 'https://evil.example.com' },
+          }),
+        ),
+      ),
+    ).toBe('no-store');
+    const moved = bookRoute(
+      async () => Response.redirect('https://ledger.test/elsewhere', 302),
+      t.deps,
+    );
+    const redirected = await moved(t.request(t.ada, '/api/x'));
+    expect(redirected.status).toBe(302);
+    expect(control(redirected)).toBe('no-store');
+    const own = bookRoute(
+      async () => new Response('x', { headers: { 'cache-control': 'private, max-age=0' } }),
+      t.deps,
+    );
+    expect(control(await own(t.request(t.ada, '/api/x')))).toBe('private, max-age=0');
+  });
 });

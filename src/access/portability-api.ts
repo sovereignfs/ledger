@@ -3,6 +3,7 @@ import type { Database } from '../db/client';
 import { findBook } from '../ledger/books';
 import { exportBook } from '../portability/format';
 import { importBook } from '../portability/import';
+import type { Limiter, Rule } from '../limits/rate';
 import type { Notifier } from '../notifications/server';
 import { readCapped } from './body';
 import type { BookContext } from './route';
@@ -13,6 +14,25 @@ import type { BookContext } from './route';
  */
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+
+/** What the two routes may be asked for by one person, since each reads or parses the whole of a book: an hour's worth is plenty for a person and no use for a loop. */
+export const EXPORT_RULE: Rule = { limit: 30, windowMs: 60 * 60 * 1000 };
+export const IMPORT_RULE: Rule = { limit: 10, windowMs: 60 * 60 * 1000 };
+
+/** What the routes are given beyond the request: where an activity line goes, and what counts how often a person asks. */
+export interface Extras {
+  readonly activity?: Notifier['activity'];
+  readonly limiter?: Limiter;
+}
+
+const tooOften = (retryAfterMs: number) =>
+  new Response(JSON.stringify({ problems: ['That was asked too often. Try again later.'] }), {
+    status: 429,
+    headers: {
+      'content-type': 'application/json',
+      'retry-after': String(Math.max(1, Math.ceil(retryAfterMs / 1000))),
+    },
+  });
 
 /** The most a file may be: a book of years is a few megabytes. */
 export const MAX_IMPORT_BYTES = 64 * 1024 * 1024;
@@ -31,8 +51,10 @@ export function fileNameFor(bookName: string, day: string): string {
 export async function download(
   database: Database,
   { accountId, bookId }: BookContext,
-  activity?: Notifier['activity'],
+  { activity, limiter }: Extras = {},
 ) {
+  const taken = await limiter?.take(`export:${accountId}`, EXPORT_RULE);
+  if (taken && !taken.ok) return tooOften(taken.retryAfterMs);
   const book = await findBook(database, accountId);
   if (!book || book.id !== bookId) return new Response(null, { status: 404 });
   const file = await exportBook(database, accountId, bookId);
@@ -57,8 +79,10 @@ export async function download(
 export async function upload(
   database: Database,
   { request, accountId, bookId }: BookContext,
-  activity?: Notifier['activity'],
+  { activity, limiter }: Extras = {},
 ) {
+  const taken = await limiter?.take(`import:${accountId}`, IMPORT_RULE);
+  if (taken && !taken.ok) return tooOften(taken.retryAfterMs);
   const text = await readCapped(request, MAX_IMPORT_BYTES);
   if (text === null) return json({ problems: ['That file is too large.'] }, 413);
   const result = await importBook(database, accountId, bookId, text);

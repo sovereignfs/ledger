@@ -50,8 +50,9 @@ export function NotificationsSection({ recap }: { recap: boolean }) {
         onChange={(next) => void set(next)}
       />
       <p className={styles.hint}>
-        A summary of last month, on the 1st. It is sent where this server can send it, and not at
-        all if no mail or notification service is set up.
+        A summary of last month, sent in the first days of the month: what came in, what was spent
+        and saved, and the categories furthest over budget, by name. It is sent where this server
+        can send it, and not at all if no mail or notification service is set up.
       </p>
     </div>
   );

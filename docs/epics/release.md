@@ -2,7 +2,7 @@
 
 ## Status
 
-⏳ In progress: 1 of 5 tasks is done.
+⏳ In progress: 3 of 5 tasks are done; the release (12.4) and hosting (12.5) are the owner's to do.
 
 ## Overview
 
@@ -39,7 +39,7 @@ makes the same book. 6 tests on all three databases (the invariants hold over th
 person's book is untouched, a book with accounts is refused, `clearBook` and a second seed make the same book) and 2 pure (what is local); and the built server was seeded and signed
 into, and every page answered 200 with the data. **Left out, and said:** _reviewed and unreviewed months_, which wait for the month-end review (8.5); the seed grows with the tasks after it.
 
-#### 📋 12.2 — Security review
+#### ✅ 12.2 — Security review
 
 **Goal:** phase 1 reviewed before it is released. **Design:** §19 Security. **Depends on:** 11.2, 8.6.
 
@@ -48,7 +48,14 @@ claims; each finding fixed or recorded.
 
 **Accepts when:** the review is written and every finding is fixed or has an owner's decision.
 
-#### 📋 12.3 — Documents
+**Done as:** [`docs/security-review-phase-1.md`](../security-review-phase-1.md), in Tusk's manner: access route by route, what is cached, where sign-in may send a person, sign-in itself, import as
+untrusted input, the notices, deletion, the logs, the notices Ledger sends and the jobs' claims, the policy, credentials and dependencies, each with the test that holds it. **Two findings, both
+fixed:** every read of a book's API was answered with **no `Cache-Control`** (now `no-store` on every answer of `bookRoute`, held for every address of the table of routes by `e2e/headers.spec.ts`, which
+failed first on the API's reads), and **export and import had no limit** (30 and 10 an hour for a person, `429` with `Retry-After`). It also added `validate.test.ts` (names that mean something to
+JavaScript are refused as table and column names) and changed the recap's text in Settings, which now says it names the categories. `pnpm audit --prod` finds nothing; two moderate in tools that do not ship are
+recorded. **What is left is listed in the document:** a review by someone else first of all.
+
+#### ✅ 12.3 — Documents
 
 **Goal:** a README a self-hoster can follow. **Depends on:** 1.10.
 
@@ -56,6 +63,12 @@ claims; each finding fixed or recorded.
 `RELEASING.md` and `scripts/release.sh` copied from Tusk.
 
 **Accepts when:** someone following the README alone runs the image on a file database and signs in.
+
+**Done as:** `README.md` (what it does, the one `docker run` on a file and signing in, every setting in a table with `.env.example` beside it, exchange rates, hosting on an instance with the core floor, what is the
+operator's backup and what is the person's export), `deploy/README.md` as it was (the three setups, start-up, your own PostgreSQL, keys, backups, updating, the checks), and **copied from Tusk with the names
+changed:** `RELEASING.md`, `scripts/release.sh`, `scripts/lib/release.sh` and `scripts/release/ledger.sh` (`check`, `prepare`, `propose`, `tag`, `verify`; the checks that a released migration is not edited and that a
+patch release has no migration), and `scripts/test-release.sh` (71 checks against throwaway repositories and a stand-in for `gh`, which pass). The changelog gained the `[Unreleased]` link the script
+moves, and CI runs the script's tests and `shellcheck` over the three directories when `scripts/` changes. **Not tried:** following the README from a machine with no checkout, which needs the published image.
 
 #### 📋 12.4 — Release 0.1.0
 

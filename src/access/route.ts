@@ -80,6 +80,27 @@ export async function authorize(
   return { accountId, bookId: await deps.bookOf(accountId) };
 }
 
+/**
+ * Marks an answer as one that no cache may keep (DESIGN.md §14.6): what a route of a book says is the person's, and a shared cache between the server and a browser would otherwise be
+ * free to hold it. An answer that already says what it may be kept as (a download says `no-store` itself) is left as it is.
+ */
+export function uncached(reply: Response): Response {
+  if (reply.headers.has('cache-control')) return reply;
+  try {
+    reply.headers.set('cache-control', 'no-store');
+    return reply;
+  } catch {
+    // Headers that cannot be changed (an answer from a fetch, a redirect): the same answer, with its own.
+    const headers = new Headers(reply.headers);
+    headers.set('cache-control', 'no-store');
+    return new Response(reply.body, {
+      status: reply.status,
+      statusText: reply.statusText,
+      headers,
+    });
+  }
+}
+
 /** Wraps a handler so that it runs only for a signed-in account, and is told which, and which book. */
 export function bookRoute(
   handler: BookHandler,
@@ -87,8 +108,10 @@ export function bookRoute(
 ): (request: Request, context?: RouteContext) => Promise<Response> {
   return async (request, context) => {
     const allowed = await authorize(request, deps);
-    if (allowed instanceof Response) return allowed;
+    if (allowed instanceof Response) return uncached(allowed);
     const params = (await context?.params) ?? {};
-    return handler({ request, accountId: allowed.accountId, bookId: allowed.bookId, params });
+    return uncached(
+      await handler({ request, accountId: allowed.accountId, bookId: allowed.bookId, params }),
+    );
   };
 }

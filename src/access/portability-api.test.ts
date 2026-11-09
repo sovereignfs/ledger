@@ -1,9 +1,18 @@
+import type { Notifier } from '../notifications/server';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { testTarget } from '../db/test-support';
 import { createAccount } from '../ledger/accounts';
 import { ensureBook } from '../ledger/books';
 import type { ExportFile } from '../portability/format';
-import { MAX_IMPORT_BYTES, download, fileNameFor, upload } from './portability-api';
+import { RateLimiter } from '../limits/rate';
+import {
+  EXPORT_RULE,
+  IMPORT_RULE,
+  MAX_IMPORT_BYTES,
+  download,
+  fileNameFor,
+  upload,
+} from './portability-api';
 import { type BookHandler, bookRoute } from './route';
 import { type Person, type TwoAccounts, twoAccounts } from './two-accounts';
 
@@ -107,10 +116,10 @@ describe(`the line on the activity page (${leg})`, () => {
     handler: typeof download | typeof upload,
     person: Person,
     path: string,
-    activity: Parameters<typeof download>[2],
+    activity: Notifier['activity'],
     init: { method?: string; body?: unknown } = {},
   ) =>
-    bookRoute((context) => handler(t.database, context, activity), t.deps)(
+    bookRoute((context) => handler(t.database, context, { activity }), t.deps)(
       t.request(person, path, init),
       { params: Promise.resolve({}) },
     );
@@ -135,5 +144,43 @@ describe(`the line on the activity page (${leg})`, () => {
       throw new Error('core is down');
     };
     expect((await via(download, t.ada, '/api/export', broken)).status).toBe(200);
+  });
+});
+
+describe(`how often a book is read or written (${leg})`, () => {
+  const through = (
+    handler: typeof download | typeof upload,
+    person: Person,
+    limiter: RateLimiter,
+    path: string,
+    init = {},
+  ) =>
+    bookRoute((context) => handler(t.database, context, { limiter }), t.deps)(
+      t.request(person, path, init),
+      {
+        params: Promise.resolve({}),
+      },
+    );
+
+  it('refuses the 31st export of an hour with a 429 and a wait, to the one who asked and no one else', async () => {
+    const limiter = new RateLimiter(t.database);
+    for (let i = 0; i < EXPORT_RULE.limit; i++)
+      expect((await through(download, t.ada, limiter, '/api/export')).status).toBe(200);
+    const refused = await through(download, t.ada, limiter, '/api/export');
+    expect(refused.status).toBe(429);
+    expect(Number(refused.headers.get('retry-after'))).toBeGreaterThan(0);
+    expect((await through(download, t.grace, limiter, '/api/export')).status).toBe(200);
+  });
+
+  it('refuses the 11th import of an hour before reading the file', async () => {
+    const limiter = new RateLimiter(t.database);
+    for (let i = 0; i < IMPORT_RULE.limit; i++)
+      await through(upload, t.ada, limiter, '/api/import', { method: 'POST', body: {} });
+    const refused = await through(upload, t.ada, limiter, '/api/import', {
+      method: 'POST',
+      body: {},
+    });
+    expect(refused.status).toBe(429);
+    expect(((await refused.json()) as { problems: string[] }).problems[0]).toContain('too often');
   });
 });
