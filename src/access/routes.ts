@@ -36,6 +36,7 @@ export const ROUTES: RouteRule[] = [
   // The places of the app (DESIGN.md §14.3), for someone signed in.
   { route: '/transactions', page: { kind: 'book' } },
   { route: '/budget', page: { kind: 'book' } },
+  { route: '/budget/categories', page: { kind: 'book' } },
   { route: '/accounts', page: { kind: 'book' } },
   { route: '/accounts/[id]', page: { kind: 'book' } },
   { route: '/reports', page: { kind: 'book' } },
@@ -51,6 +52,17 @@ export const ROUTES: RouteRule[] = [
   {
     route: '/api/accounts/[id]',
     methods: { GET: { kind: 'book' }, PATCH: { kind: 'book' }, DELETE: { kind: 'book' } },
+  },
+  // Categories and subcategories (DESIGN.md §7.1): the person's own. Nothing in a request names whose.
+  {
+    route: '/api/categories',
+    methods: { GET: { kind: 'book' }, POST: { kind: 'book' }, PUT: { kind: 'book' } },
+  },
+  { route: '/api/categories/[id]', methods: { PATCH: { kind: 'book' }, DELETE: { kind: 'book' } } },
+  { route: '/api/categories/[id]/subcategories', methods: { POST: { kind: 'book' } } },
+  {
+    route: '/api/subcategories/[id]',
+    methods: { PATCH: { kind: 'book' }, DELETE: { kind: 'book' } },
   },
   // The instance asks it before it sends anyone to the app, and a container's health check does: it says only whether the database answers.
   { route: '/api/health', methods: { GET: { kind: 'public' } } },

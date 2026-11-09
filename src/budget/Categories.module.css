@@ -1,0 +1,72 @@
+/* The categories page (DESIGN.md §7.1). Tokens only. */
+.manager {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-5);
+}
+
+.add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--sv-space-4);
+}
+
+.category {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-3);
+  padding: var(--sv-space-4) var(--sv-space-5);
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-lg);
+  background-color: var(--sv-color-surface);
+}
+
+.category h2 {
+  margin: 0;
+  font-size: var(--sv-font-size-lg);
+}
+
+.line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sv-space-3);
+}
+
+.label {
+  font-weight: var(--sv-font-weight-medium);
+  overflow-wrap: anywhere;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sv-space-1);
+}
+
+.subs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-2);
+  margin: 0;
+  padding: 0 0 0 var(--sv-space-5);
+  list-style: none;
+}
+
+.inline {
+  display: flex;
+  align-items: center;
+  gap: var(--sv-space-3);
+}
+
+.note {
+  margin: 0;
+  color: var(--sv-color-text-muted);
+  font-size: var(--sv-font-size-sm);
+}
+
+.problem {
+  display: block;
+}

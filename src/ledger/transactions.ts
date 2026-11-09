@@ -71,7 +71,7 @@ async function resolve(
   accountId: string,
   bookId: string,
   lines: readonly LineInput[],
-): Promise<AccountFacts | undefined> {
+): Promise<{ facts: AccountFacts; archivedSubcategories: string[] } | undefined> {
   const s = schema(tx);
   const wanted = targets(lines);
   const facts = new Map<string, { type: string; currency: string }>();
@@ -95,7 +95,19 @@ async function resolve(
   };
   if (!(await counted(sql`${s.subcategory}`, wanted.subcategories))) return undefined;
   if (!(await counted(sql`${s.incomeSource}`, wanted.incomeSources))) return undefined;
-  return facts;
+  // A subcategory is live only while its category is too (DESIGN.md §7.1).
+  const archivedSubcategories =
+    wanted.subcategories.length === 0
+      ? []
+      : (
+          await dbAll<{ id: string }>(
+            tx,
+            sql`SELECT u.id AS id FROM ${s.subcategory} u JOIN ${s.category} c ON c.id = u.category_id AND c.book_id = u.book_id
+                 WHERE u.book_id = ${bookId} AND u.id IN (${list(wanted.subcategories)})
+                   AND (u.archived_at IS NOT NULL OR c.archived_at IS NOT NULL)`,
+          )
+        ).map((row) => row.id);
+  return { facts, archivedSubcategories };
 }
 
 /** What can be said of the input alone, before anything is written: the first refusal is the answer. */
@@ -113,10 +125,14 @@ async function checkTargets(
   accountId: string,
   bookId: string,
   input: TxnInput,
+  /** Subcategories the entry already has, which stay allowed when archived: changing a note of an old entry is not a reason to refuse it. */
+  alreadyOn: ReadonlySet<string> = new Set(),
 ): Promise<void> {
-  const facts = await resolve(tx, accountId, bookId, input.lines);
-  if (facts === undefined) throw new Refused(NOT_FOUND);
-  const problems = checkAccounts(input, facts);
+  const found = await resolve(tx, accountId, bookId, input.lines);
+  if (found === undefined) throw new Refused(NOT_FOUND);
+  const problems = checkAccounts(input, found.facts);
+  if (found.archivedSubcategories.some((id) => !alreadyOn.has(id)))
+    problems.push('A subcategory is archived: choose one that is not.');
   if (problems.length > 0) throw new Refused({ ok: false, reason: 'invalid', problems });
 }
 
@@ -281,7 +297,12 @@ export async function updateTransaction(
           RETURNING id`,
     );
     if (updated.length === 0) throw new Refused(NOT_FOUND);
-    await checkTargets(tx, accountId, bookId, input);
+    const existing = await dbAll<{ id: string }>(
+      tx,
+      sql`SELECT l.subcategory_id AS id FROM ${s.txnLine} l
+           WHERE l.txn_id = ${txnId} AND l.book_id = ${bookId} AND l.subcategory_id IS NOT NULL`,
+    );
+    await checkTargets(tx, accountId, bookId, input, new Set(existing.map((row) => row.id)));
     await dbAll(
       tx,
       sql`DELETE FROM ${s.txnLine} WHERE txn_id = ${txnId} AND book_id = ${bookId} RETURNING id`,

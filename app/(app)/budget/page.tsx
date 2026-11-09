@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { requireBook } from '@/src/access/page';
 import { EmptyState, PageContainer, PageHeader } from '@sovereignfs/ui';
 
@@ -10,6 +11,9 @@ export default async function Page() {
   return (
     <PageContainer>
       <PageHeader title="Budget" description="Budgeted and spent, month by month." />
+      <p>
+        <Link href="/budget/categories">Categories</Link>
+      </p>
       <EmptyState
         icon="sliders-horizontal"
         heading="No budget yet"
