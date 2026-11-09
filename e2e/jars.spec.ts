@@ -81,3 +81,44 @@ test('shows a jar with its monthly contribution in the Saving group of the budge
     .getByRole('link', { name: new RegExp(`Car ${tag}`) });
   await expect(row).toContainText('$150.00 a month');
 });
+
+test('says on Overview that spending took an account below what its jars hold, and links to it', async ({
+  page,
+  browserName,
+}) => {
+  await signedIn(page);
+  await page.goto('/accounts');
+  const tag = `over ${browserName}`;
+  const origin = new URL(page.url()).origin;
+  const post = async (path: string, data: unknown) => {
+    const reply = await page.request.post(path, { data, headers: { origin } });
+    expect(reply.status(), path).toBe(201);
+    return ((await reply.json()) as { id: string }).id;
+  };
+  const account = await savings(page, tag, 10_000);
+  const jar = await post('/api/jars', { accountId: account, name: `Held ${tag}` });
+  await post(`/api/jars/${jar}/movements`, { direction: 'earmark', amount: 10_000 });
+  const category = await post('/api/categories', { name: `Spend ${tag}`, currency: 'USD' });
+  const subcategory = await post(`/api/categories/${category}/subcategories`, {
+    name: `Out ${tag}`,
+  });
+  await post('/api/transactions', {
+    type: 'expense',
+    date: '2020-06-01',
+    lines: [
+      { account, amount: -3_000, currency: 'USD' },
+      { subcategory, amount: 3_000, currency: 'USD' },
+    ],
+  });
+
+  await page.goto('/');
+  const note = page
+    .getByRole('region', { name: 'Jars' })
+    .getByRole('link', { name: new RegExp(`Savings ${tag} holds \\$30\\.00 less than its jars`) });
+  await expect(note).toBeVisible();
+  await note.click();
+  await expect(page).toHaveURL(new RegExp(`/accounts/${account}$`));
+  await expect(page.getByRole('region', { name: 'Summary' })).toContainText(
+    '$30.00 over-earmarked',
+  );
+});

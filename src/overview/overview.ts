@@ -8,6 +8,7 @@ import { listIncomeSources } from '../budget/income-sources';
 import { loadIncome, type IncomeFigures } from '../budget/income';
 import { loadBudget, type BudgetFigures, type BudgetLine } from '../budget/screen';
 import type { ConvertedTotal } from '../money/convert';
+import { loadJarsOverview, type JarsOverview } from '../jars/notes';
 import { listUpcoming, type Upcoming } from '../recurring/recurring';
 
 /**
@@ -141,6 +142,8 @@ export interface OverviewPage {
   readonly checklist: readonly ChecklistItem[];
   /** Bills that ask first, waiting to be confirmed, overdue ones included. */
   readonly upcoming: readonly Upcoming[];
+  /** What the jars hold, and what needs a person's attention in them. */
+  readonly jars: JarsOverview;
   readonly hasAccounts: boolean;
 }
 
@@ -152,7 +155,7 @@ export async function loadOverviewPage(
   now: Date = new Date(),
 ): Promise<OverviewPage> {
   const month = monthOf(todayIn(book.timeZone, now));
-  const [income, budget, worth, recent, accounts, sources, upcoming] = await Promise.all([
+  const [income, budget, worth, recent, accounts, sources, upcoming, jars] = await Promise.all([
     loadIncome(database, accountId, book, month, now),
     loadBudget(database, accountId, book, month, now),
     loadOverview(database, accountId, book, now),
@@ -160,6 +163,7 @@ export async function loadOverviewPage(
     listAccounts(database, accountId, book.id),
     listIncomeSources(database, accountId, book.id),
     listUpcoming(database, accountId, book.id, book.timeZone, now),
+    loadJarsOverview(database, accountId, book, now),
   ]);
   return {
     month,
@@ -169,6 +173,7 @@ export async function loadOverviewPage(
     recent: recent.entries,
     checklist: checklist({ accounts, sources }),
     upcoming,
+    jars,
     hasAccounts: accounts.length > 0,
   };
 }

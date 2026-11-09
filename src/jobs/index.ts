@@ -1,5 +1,6 @@
 import type { Config } from '../config';
 import { fetchRatesJob } from '../fx/job';
+import { contributeJarsJob } from '../jars/job';
 import { postRecurringJob } from '../recurring/job';
 import { JobRunner, realDeps, type JobDefinition, type RunnerDeps } from './runner';
 
@@ -22,6 +23,10 @@ export function jobsFor(config: Pick<Config, 'fx' | 'database'>): readonly JobDe
       : []),
     // Bills that post themselves (task 6.2): always on, since they are the book's own and need no other service.
     postRecurringJob({
+      database: async () => (await import('../db/boot')).getDatabase(config.database),
+    }),
+    // The jars' monthly contributions (task 7.2): the book's own, so always on as well.
+    contributeJarsJob({
       database: async () => (await import('../db/boot')).getDatabase(config.database),
     }),
   ];

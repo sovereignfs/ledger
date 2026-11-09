@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { EmptyState, PageContainer, PageHeader } from '@sovereignfs/ui';
 import { StatusToggle } from '../accounts/StatusToggle';
+import { notIncludedLines } from '../money/convert';
 import { formatMoney } from '../money/text';
 import { describeEntry } from '../transactions/present';
 import type { OverviewPage } from './overview';
@@ -87,6 +88,30 @@ export function OverviewScreen({ page, locale }: { page: OverviewPage; locale?: 
               </p>
             ))}
           </section>
+
+          {page.jars.count > 0 ? (
+            <section className={styles.section} aria-label="Jars">
+              <h2>Jars</h2>
+              <p>
+                {page.jars.total
+                  ? `${money(page.jars.total.amount, page.jars.total.currency)} set aside in ${page.jars.count} ${page.jars.count === 1 ? 'jar' : 'jars'}.`
+                  : `${page.jars.count} ${page.jars.count === 1 ? 'jar' : 'jars'}.`}{' '}
+                <Link href="/budget">Saving</Link>
+              </p>
+              {page.jars.total
+                ? notIncludedLines(page.jars.total).map((line) => (
+                    <p key={line} className={styles.note}>
+                      Jars: {line}
+                    </p>
+                  ))
+                : null}
+              {page.jars.notes.map((note) => (
+                <p key={note.text} className={styles.note}>
+                  <Link href={note.href}>{note.text}</Link>
+                </p>
+              ))}
+            </section>
+          ) : null}
 
           <section className={styles.section} aria-label="Closest to budget">
             <h2>Closest to their budget</h2>

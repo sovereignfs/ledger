@@ -333,9 +333,9 @@ describe('starting the jobs', () => {
     const database = {} as Parameters<typeof jobsFor>[0]['database'];
     expect(
       jobsFor({ fx: { enabled: true, url: undefined }, database }).map((job) => job.name),
-    ).toEqual(['fetch-rates', 'post-recurring']);
+    ).toEqual(['fetch-rates', 'post-recurring', 'contribute-jars']);
     expect(
       jobsFor({ fx: { enabled: false, url: undefined }, database }).map((job) => job.name),
-    ).toEqual(['post-recurring']);
+    ).toEqual(['post-recurring', 'contribute-jars']);
   });
 });

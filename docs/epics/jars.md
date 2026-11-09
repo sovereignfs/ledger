@@ -2,7 +2,7 @@
 
 ## Status
 
-⏳ In progress: 1 of 3 tasks is done.
+⏳ In progress: 2 of 3 tasks are done.
 
 ## Overview
 
@@ -44,7 +44,7 @@ three databases, 5 route tests (second person), 5 pure and 2 browser tests; each
 release check, archiving a jar that holds money, moving without room, an earmark that ignores the other jars). Left to 7.2 and 7.3: the monthly contribution
 job and the Overview note, and spending from a jar.
 
-#### 📋 7.2 — Monthly contributions
+#### ✅ 7.2 — Monthly contributions
 
 **Goal:** saving without thinking. **Design:** §10.2. **Depends on:** 7.1, 6.2.
 
@@ -52,6 +52,21 @@ job and the Overview note, and spending from a jar.
 note on Overview if it does not fit; an account over-earmarked by later spending says so and offers which jar to release (§22 of the design).
 
 **Accepts when:** a jar of 150 a month gains 150 on the 1st once; a contribution that does not fit is skipped and reported, not partly made.
+
+**Done as:** its own job, **`contribute-jars`** (`src/jars/job.ts`, hourly and at start, in `jobsFor`), and not a branch of `post-recurring`, since it shares nothing
+with it but the owner lookup. `contributeDue` (`src/jars/contributions.ts`) takes each live jar, works out **the book's own month** and, for a jar made before it,
+**the contribution in force for the month** from the budget history (§7.3), and writes it through 7.1's `insertMovement` (kind `contribution`, the month set) so the rule of 7.1
+decides whether it fits, in the statement. **Once a month** is `(jar_id, month)` unique: a job run twice or by three processes at once makes one movement (the test
+runs three at once on all three databases), a second writer losing to the key and finding the movement there. **Skipped, not partly made:** an earmark that does not fit
+is refused whole, and **a movement of nothing marks the month as skipped**, so it is not tried again every hour for the rest of the month and Overview can say so; the
+next month is tried afresh. A jar made this month starts next month. The month is reached on any day of it, not only the 1st: a server that was down on the 1st makes
+it as soon as it is up, dated that day. **Overview** has a _Jars_ section when there are jars (`src/jars/notes.ts`): what they hold in the base currency, with what
+was left out for want of a rate said, and two notes that link to the account, **a contribution skipped** ("…was not set aside, because there was not enough free in …")
+and **an account over-earmarked** ("… holds … less than its jars. Release some from a jar."), which is how the design's _ask which jar to release_ is answered
+(the design's open question, §22: the person is asked and nothing is released automatically). 11 tests on all three databases (the once, three at once, a skip and its marker,
+room again the next month, a new jar, the contribution in force and its history, an archived jar, Kiritimati's calendar) and 2 pure, and 1 browser test. Each key test was seen
+to fail against the code it guards (no marker on a skip, a jar made this month contributing, a later month's contribution used); two mutants are equivalent and say
+so: the archived-jar filter and the already-made check are each backed up by a second guard (the lock refuses an archived jar, the unique key refuses a second month).
 
 #### 📋 7.3 — Spending from a jar
 
