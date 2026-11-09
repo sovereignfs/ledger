@@ -2,7 +2,7 @@
 
 ## Status
 
-⏳ In progress: 2 of 4 tasks are done.
+⏳ In progress: 3 of 4 tasks are done.
 
 ## Overview
 
@@ -41,7 +41,7 @@ idea), `parse`, `format` in a locale with the currency's decimals, add and split
 
 **Done as:** `src/money/`: `currencies.ts` generated from ICU by `scripts/generate-currencies.ts` (160 ISO 4217 currencies, each with its own decimals, **fiat only**: BTC is not carried and the IMF's Special Drawing Right and the Sucre are left out); `amount.ts` (an amount is a safe integer or a `MoneyError`; exact sums that refuse a total too large to be exact; `divideRoundHalfEven` on bigints, tested at the halves in both directions; `splitMinor`, whose parts always add up, with a randomised property over 2,000 runs); `text.ts` (`formatMoney` and `parseAmount` go through decimal text and integers, never a float). `parseAmount` refuses more decimals than the currency has and refuses a grouping mark anywhere but where it groups, so `3,40` typed in English is not 340. `book_currency` (migration `0002`, and listed in `BOOK_TABLES` so that deleting a book deletes it) with `addCurrency` and `listCurrencies`, whose statements carry `inBook`: a code that is not a currency is refused, another person's book reads as one that is not there, and four at once add one row. `MoneyInput` and `CurrencyPicker` in `src/ui/`, with a guard test that only `MoneyInput` may use the design system's `CurrencyInput`. ¥1,500 reads ¥1,500, 1.005 BHD keeps its three, 100.00 split three ways is 33.34, 33.33 and 33.33, and a float is refused by `assertMinor` before it can reach a column (tested against the vocabulary table on each database). 365 unit tests on a file and sqld, 364 on PostgreSQL.
 
-#### 📋 3.3 — Exchange rates
+#### ✅ 3.3 — Exchange rates
 
 **Goal:** a rate for every currency in use, every day. **Design:** §9.2. **Depends on:** 1.6, 3.2.
 
@@ -51,6 +51,8 @@ Frankfurter for tests. `rateOn(currency, date)`: the latest row not after the da
 
 **Accepts when:** two runs on one day store one row per currency; a fresh instance makes no request; an uncovered code does not fail the request; a
 date before the first rate has no rate.
+
+**Done as:** `src/fx/`. `fx_rate` (migration `0003_fx_rate`, both dialects; `(currency, as_of)` is the key, no `book_id`, and it is listed as not a person's in `people.test.ts` so that deleting a person leaves it). `frankfurter.ts` makes the one request, `GET /v1/latest?base=USD`, and reads the answer as hostile input (a mirror may be behind `LEDGER_FX_URL`): the base must be USD, the date a real day not after tomorrow, a currency one of ours, a rate plain digits above zero; **a rate is kept as the JSON number's source text** (`JSON.parse`'s `context.source`), so a digit is never lost to a double, which a test with 18 decimals shows; no redirect is followed, the body is capped at 256 KiB, the time limit is ten seconds and it ends when the process stops; an error is a kind (`FxError status`) and never an address or a body. `rates.ts`: `currenciesInUse` (the distinct codes of `book_currency`, no USD), `storeRates` (one transaction, `ON CONFLICT DO NOTHING`, the first row of a day is kept), `fetchRates` (no code in use, no request; the transaction is after the request, not around it) and `rateOn(currency, date)` (the latest row not after the date, none before the first, USD always `1`, a bad code or date throws). `job.ts` is `fetch-rates`: at start and every three hours, with no claim, since it is idempotent by its key. `jobsFor(config)` in `src/jobs/index.ts` replaces the empty `jobs` list, and leaves the job out with `LEDGER_FX=off`; `LEDGER_FX` and `LEDGER_FX_URL` were declared in 1.4. A fake Frankfurter for tests is in `src/fx/testing/`. Changes from the task text and `DESIGN.md` §9.2, which says so: **the request carries no list of codes** (the answer is filtered to the currencies in use), since that is how "one request" and "codes Frankfurter does not list" both hold without a second request for its list, and not even the codes a person uses are sent; and the job is every three hours rather than daily, so that a new currency has a rate within hours. Left for 4.1: `money_account` does not exist yet; its currency reaches `book_currency` (and so the fetch) because §9.1 has an account's currency added there. Left for 3.4: conversion, and loading rates once per page.
 
 #### 📋 3.4 — Conversion
 

@@ -352,9 +352,13 @@ Money is integer minor units, always; a currency's amount is formatted with its 
 
 ### 9.2 Rates
 
-- A daily job fetches, from Frankfurter (no key), the rate against USD of every currency some book uses, and stores one row per currency and day:
-  `fx_rate (currency, as_of, rate)`. A currency Frankfurter does not cover is left out of the request, not allowed to fail it. A fresh instance makes
-  no request at all.
+- A job fetches, from Frankfurter (no key), the rate against USD of every currency some book uses, and stores one row per currency and day:
+  `fx_rate (currency, as_of, rate)`. The request is one `GET` for the latest rates against USD **with no list of codes in it**, and the answer is
+  filtered to the currencies in use: a currency Frankfurter does not cover is simply not in the answer and cannot fail the request, and not even the
+  codes a person uses leave the server. A fresh instance, or one that uses nothing but USD, makes no request at all. The job runs when the server
+  starts and every three hours after, which costs one small request and stores nothing new once the day's rows are there; a currency a person has just
+  started to use gets its first rate within hours, not a day.
+- `rate` is how many units of the currency one US dollar buys, kept as the text the source sent (never read through a float).
 - The rate between two currencies on a date is derived from their USD rates in force on that date: the latest row not after it. No row → no rate.
 - Rates are instance-wide, not a person's: the table has no `book_id`, and the only thing that reaches Frankfurter is a list of codes.
 - `LEDGER_FX_URL` overrides the source's address (for a mirror or a test); `LEDGER_FX=off` turns fetching off.

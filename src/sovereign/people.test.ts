@@ -23,8 +23,8 @@ const { leg } = testTarget();
 const GOES = ['rate_bucket', 'user', 'two_factor', 'passkey', 'session', 'account', 'verification'];
 /** The book's own tables, and every table that carries `book_id` (`BOOK_TABLES`): deleted with a book that has no one else in it. */
 const THE_BOOK = ['book', 'book_member', ...BOOK_TABLES];
-/** Tables that are about something else than a person. */
-const NOT_A_PERSON = ['rate_limit'];
+/** Tables that are about something else than a person: better-auth's own limits, and the instance's exchange rates (`fx_rate`, no `book_id`, nobody's). */
+const NOT_A_PERSON = ['rate_limit', 'fx_rate'];
 
 let t: TwoAccounts;
 let database: Database;

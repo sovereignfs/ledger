@@ -18,7 +18,7 @@ file or PostgreSQL), signing people in locally, through a Sovereign core, or bot
 
 **What is built:** the foundation (Milestone A: settings, the database on three forms, the job runner, the policy and headers, the shell, browser tests, the
 image and its setups) and the first people's part (Milestone B: local sign-in, the book and the permission, the landing page, deleting a person, Settings, and
-amounts and currencies). The ledger, the budget and everything after are not (`ROADMAP.md` has each). `DESIGN.md` is the design, `ROADMAP.md` the order.
+amounts and currencies), and the first of Milestone C (the exchange rates). The rest of the ledger, the budget and everything after are not (`ROADMAP.md` has each). `DESIGN.md` is the design, `ROADMAP.md` the order.
 
 ## Source of truth
 
@@ -148,7 +148,8 @@ A command a task adds is written here in that task's change, and `verify` means 
 | `app/`                         | Routes and layouts (App Router): the signed-in area `(app)/` with a placeholder for each place, `/api/health`, and the pages for a missing or failed route                                              |
 | `src/config/`                  | Settings: `env.ts` is the only place `process.env` is read, `index.ts` checks them, `current.ts` keeps them, `edge.ts` is what the proxy reads                                                          |
 | `src/db/`                      | The database layer (`DESIGN.md` §18): `config.ts` (which form), `client.ts`, `provision.ts`, `migrate.ts`, `boot.ts`, `exec.ts`, `schema/{sqlite,postgres}/` with the column vocabulary in `columns.ts` |
-| `src/jobs/`                    | Background work in the web process: `runner.ts`, `claim.ts` (a conditional update that says who won), `index.ts` (the list of jobs, which each task that has one adds to)                               |
+| `src/jobs/`                    | Background work in the web process: `runner.ts`, `claim.ts` (a conditional update that says who won), `index.ts` (`jobsFor`, the list of jobs, which each task that has one adds to)                    |
+| `src/fx/`                      | Exchange rates: `frankfurter.ts` (the one request, and the answer read as hostile input), `rates.ts` (`fetchRates`, `rateOn`), `job.ts` (`fetch-rates`), `testing/` (a fake Frankfurter)                |
 | `src/security/`, `proxy.ts`    | The nonce policy and the headers every response has; the proxy keeps the Edge discipline (no Node built-ins, no database)                                                                               |
 | `src/ui/`, `src/theme/`        | `AppShell` (header, sidebar of five places, the phone's footer), `nav.ts` (the one list of places), the CSS token check; `data-theme` is set before first paint                                         |
 | `src/crypto/`                  | The instance key and envelope encryption, copied from Tusk and used by nothing yet (no credential is kept)                                                                                              |

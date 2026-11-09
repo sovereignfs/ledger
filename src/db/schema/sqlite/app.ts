@@ -1,5 +1,5 @@
 import { index, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
-import { bool, counter, epochMs, id, ref } from './columns';
+import { bool, counter, decimal, epochMs, id, isoDate, ref } from './columns';
 
 /**
  * What the app holds, in the app store (DESIGN.md §18.3). An account is better-auth's, in the other store, so `account_id` is a reference by
@@ -75,4 +75,23 @@ export const bookCurrency = sqliteTable(
     createdAt: epochMs('created_at').notNull(),
   },
   (table) => [primaryKey({ columns: [table.bookId, table.code] })],
+);
+
+/**
+ * What a currency was worth in US dollars on a day (DESIGN.md §9.2): `rate` is how many units of `currency` one US dollar buys, as a decimal string, never a
+ * float, so that conversion is exact (§9.3). **Instance-wide and no book's**: it has no `book_id`, holds nothing of a person, and is not deleted with one. A row is
+ * the day the source says the rate is for (`as_of`, which is the last working day on a weekend), so two fetches on one day make one row. USD itself has no row: it
+ * is the pivot, and its rate is one by definition (`src/fx/`).
+ */
+export const fxRate = sqliteTable(
+  'fx_rate',
+  {
+    currency: text('currency').notNull(),
+    asOf: isoDate('as_of').notNull(),
+    rate: decimal('rate').notNull(),
+    /** Where the rate came from; `frankfurter` is the only source (a mirror is still Frankfurter's answer). */
+    source: text('source').notNull(),
+    fetchedAt: epochMs('fetched_at').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.currency, table.asOf] })],
 );

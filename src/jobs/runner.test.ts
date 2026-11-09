@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { jobs, startJobs } from './index';
+import { jobsFor, startJobs } from './index';
 import { JobRunner, kindOf, type JobContext, type RunnerDeps } from './runner';
 
 /** A world with no real time in it: timers fire when the test says so, and the clock is the test's. */
@@ -329,7 +329,11 @@ describe('starting the jobs', () => {
     await runner?.stop();
   });
 
-  it('has no job of its own yet: each task that has one adds it, and its test says what it is', () => {
-    expect(jobs.map((job) => job.name)).toEqual([]);
+  it('has the jobs of the tasks so far, and each task that adds one says so here: the rate fetch, unless LEDGER_FX=off', () => {
+    const database = {} as Parameters<typeof jobsFor>[0]['database'];
+    expect(
+      jobsFor({ fx: { enabled: true, url: undefined }, database }).map((job) => job.name),
+    ).toEqual(['fetch-rates']);
+    expect(jobsFor({ fx: { enabled: false, url: undefined }, database })).toEqual([]);
   });
 });

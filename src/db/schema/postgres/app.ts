@@ -1,6 +1,6 @@
 import { index, pgSchema, primaryKey, text } from 'drizzle-orm/pg-core';
 import { APP_STORE } from '../../config';
-import { bool, counter, epochMs, id, ref } from './columns';
+import { bool, counter, decimal, epochMs, id, isoDate, ref } from './columns';
 
 /** The app's schema; better-auth's is `ledger_auth` (DESIGN.md §18.1). */
 export const app = pgSchema(APP_STORE);
@@ -54,4 +54,17 @@ export const bookCurrency = app.table(
     createdAt: epochMs('created_at').notNull(),
   },
   (table) => [primaryKey({ columns: [table.bookId, table.code] })],
+);
+
+/** See `schema/sqlite/app.ts`. */
+export const fxRate = app.table(
+  'fx_rate',
+  {
+    currency: text('currency').notNull(),
+    asOf: isoDate('as_of').notNull(),
+    rate: decimal('rate').notNull(),
+    source: text('source').notNull(),
+    fetchedAt: epochMs('fetched_at').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.currency, table.asOf] })],
 );

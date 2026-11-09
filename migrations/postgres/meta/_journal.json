@@ -22,6 +22,13 @@
       "when": 1794177443680,
       "tag": "0002_book_currency",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794185155005,
+      "tag": "0003_fx_rate",
+      "breakpoints": true
     }
   ]
 }
