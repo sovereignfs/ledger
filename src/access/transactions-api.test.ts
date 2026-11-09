@@ -73,12 +73,14 @@ describe(`the entry routes (${leg})`, () => {
   it('offer the caller’s own accounts, subcategories and income sources, and today', async () => {
     const mine = (await (await call(options, t.ada, '/api/entry-options')).json()) as {
       today: string;
+      transferAccounts: { id: string }[];
       accounts: { id: string }[];
       categories: { subcategories: { id: string }[] }[];
       incomeSources: { id: string }[];
     };
     expect(mine.today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(mine.accounts.map((a) => a.id)).toEqual([bank]);
+    expect(mine.transferAccounts.map((a) => a.id)).toContain(bank);
     expect(mine.categories.flatMap((c) => c.subcategories.map((s) => s.id))).toEqual([food]);
     expect(mine.incomeSources.map((s) => s.id)).toEqual([pay]);
     const hers = (await (await call(options, t.grace, '/api/entry-options')).json()) as {
@@ -277,6 +279,60 @@ describe(`the entry routes (${leg})`, () => {
       },
     });
     expect(short.status).toBe(400);
+  });
+
+  it('take a transfer: paying a card from checking changes both balances and spends nothing; EUR to USD keeps both amounts', async () => {
+    const ada = bookIdFor(t.ada.id);
+    const card = await seedAccount(t.database, ada, 'USD', 'credit_card', 'Card');
+    const euro = await seedAccount(t.database, ada, 'EUR', 'bank', 'Euro');
+    const before = await balance();
+    const id = await make({
+      type: 'transfer',
+      date: '2026-11-06',
+      lines: [
+        { account: bank, amount: -25000, currency: 'USD' },
+        { account: card, amount: 25000, currency: 'USD' },
+      ],
+    });
+    expect(await balance()).toBe(before - 25000);
+    expect(await balanceOf(t.database, t.ada.id, ada, card)).toBe(25000);
+    const entry = (
+      (await (await call(read, t.ada, `/api/transactions/${id}`, {}, id)).json()) as {
+        entry: { type: string; lines: { subcategory?: string; incomeSource?: string }[] };
+      }
+    ).entry;
+    expect(entry.type).toBe('transfer');
+    expect(entry.lines.some((l) => l.subcategory || l.incomeSource)).toBe(false);
+    await make({
+      type: 'transfer',
+      date: '2026-11-06',
+      lines: [
+        { account: bank, amount: -10000, currency: 'USD' },
+        { account: euro, amount: 9000, currency: 'EUR' },
+      ],
+    });
+    expect(await balanceOf(t.database, t.ada.id, ada, euro)).toBe(9000);
+    expect(await balance()).toBe(before - 35000);
+    // Both amounts the same way, or an amount in the wrong currency for its account, is refused.
+    const wrong = async (lines: unknown) =>
+      (
+        await call(create, t.ada, '/api/transactions', {
+          method: 'POST',
+          body: { type: 'transfer', date: '2026-11-06', lines },
+        })
+      ).status;
+    expect(
+      await wrong([
+        { account: bank, amount: -100, currency: 'USD' },
+        { account: euro, amount: -90, currency: 'EUR' },
+      ]),
+    ).toBe(400);
+    expect(
+      await wrong([
+        { account: bank, amount: -100, currency: 'USD' },
+        { account: euro, amount: 90, currency: 'USD' },
+      ]),
+    ).toBe(400);
   });
 
   it('take an income, with its source', async () => {

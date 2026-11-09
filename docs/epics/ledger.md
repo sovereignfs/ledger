@@ -2,7 +2,7 @@
 
 ## Status
 
-⏳ In progress: 5 of 9 tasks are done.
+⏳ In progress: 6 of 9 tasks are done.
 
 ## Overview
 
@@ -75,7 +75,7 @@ one transaction), archive; `/payees/<id>` with totals by month.
 
 **Done as:** `payee` (migration `0006_payee`, in `BOOK_TABLES`, seeded by the deletion test) with **one column more than `DESIGN.md` §18.3 had, `name_key`**: the name trimmed, its inner spaces made one and lowercased, unique with `book_id`, so that "Corner Shop" and "corner shop" are one payee and **two writes that make it at once make one row** (a test makes four at the same moment); §18.3 says so. `src/ledger/payee-write.ts` is what the one write path needs: `resolvePayee` finds the payee a name means or makes it (the insert carries the permission and the unique key, and an archived payee is brought back by typing its name) and `rememberPayee` keeps the last subcategory and account; `TxnInput.payee` is a name, and **on a change, not given keeps the entry's payee, a name changes it and `null` removes it**. The payee is made in the entry's own transaction, so an entry that is refused leaves none behind. `src/ledger/payees.ts`: `listPayees` (by name, or by part of a name in any case, where `%` and `_` are only themselves), `getPayee`, `renamePayee` (a name another payee has says to merge instead), `setPayeeArchived`, `mergePayees` (every entry moves to the survivor and the other goes, in one transaction; both must be the account's and different) and `payeeMonths` (spent and received by month and currency). Routes `/api/payees` (GET, with `?q=` for the autocomplete) and `/api/payees/[id]` (GET with its months; PATCH `name`, `archived` or `mergeInto`), in `routes.ts`, called as the second person: a 404 with nothing in it, nothing changes. The add dialog has a Payee field (`PayeeInput` on the design system's `SuggestionInput`, asking the server a moment after typing stops, whose own text is always a valid answer): **picking a known payee proposes the subcategory and account last used with it**, which stay changeable; a new name is made on save. `/payees` lists, renames, archives and merges (asking twice) and has `?archived=1`; `/payees/[id]` shows its totals by month; both are linked from the Budget; an account's page shows the payee on each entry. 4 browser tests across Chromium and WebKit. Each key test was seen to fail against the code it guards (a merge that leaves entries, names that are case-sensitive, a merge with no permission). Left out: merging from the payee's own page, and a payee's total in the base currency (a month is shown in each currency it was spent in, which needs no rates).
 
-#### 📋 4.6 — Transfers
+#### ✅ 4.6 — Transfers
 
 **Goal:** money between accounts, in one or two currencies. **Design:** §6.2, §6.8. **Depends on:** 4.3.
 
@@ -84,6 +84,8 @@ to and receiving from a person; a refund as a negative expense.
 
 **Accepts when:** paying a card from checking changes both balances and no spending figure; a EUR→USD transfer keeps both amounts and shows their
 rate.
+
+**Done as:** the add dialog has a **Transfer** beside Expense and Income: From, To, the amount, and, **when the two accounts are in different currencies, a second amount for what arrived**, with the rate they imply ("1 USD = 0.9 EUR") shown as it is typed. `src/entries/rate.ts` works the rate in integers, as the ratio of what arrived to what left with each currency's own decimals, in millionths rounded half to even and written without trailing zeros; it is shown and never stored (`DESIGN.md` §6.8). `compose` makes the two lines (the one account down, the other up; both amounts when the currencies differ), `missing` says what is wanted before anything is sent (two different accounts, the amount, and the amount that arrived), and a transfer carries no payee. A transfer can be **between any two live accounts**, so `entry-options` offers `transferAccounts` (a card, a loan or a person's account included, which an expense is not on): paying a card from checking, lending to a person and being paid back are transfers, which touch no subcategory and so no spending figure, as the entry read back shows. **A refund is an expense the other way round**: a checkbox in the expense form puts the account up and the subcategory (or each part of a split) down; an entry like that opens as a refund. A transfer opens in the same dialog to change or delete. API test: a card paid from checking moves both balances, the entry has no subcategory or income line, a USD→EUR transfer keeps 100.00 and 90.00, and one with both amounts going the same way, or an amount in the wrong currency for its account, is refused. 6 browser tests across Chromium and WebKit (a card paid and read as "$170.00 used", a USD→EUR transfer that is refused without what arrived, shows the rate and reopens with both amounts, and a refund). Each key test was seen to fail against the code it guards (the refund's sign, both currencies given the sent amount, the rate ignoring decimals). Left out: a person's "owes you" and "you owe" as words on the transfer form (the account's page says it), and the note on the date counting towards another month does not apply differently to a transfer.
 
 #### 📋 4.7 — The transactions list
 

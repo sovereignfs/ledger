@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { checkShape } from '../ledger/validate';
-import { type EntryForm, compose, editable, formOf, missing, remainder } from './compose';
+import { type EntryForm, compose, differs, editable, formOf, missing, remainder } from './compose';
 
 const form = (over: Partial<EntryForm> = {}): EntryForm => ({
   type: 'expense',
   amount: 1250,
   accountId: 'bank',
   currency: 'USD',
+  toAccountId: '',
+  toCurrency: 'USD',
+  received: null,
+  refund: false,
   targetId: 'food',
   split: false,
   parts: [],
@@ -106,11 +110,16 @@ describe('an entry read back', () => {
     });
   });
 
-  it('is not editable here when it has two accounts, an original amount, a mixture of targets or is of another kind', () => {
+  it('is not editable here when it has an original amount, a transfer of other than two accounts, a mixture of targets or is of another kind', () => {
     const line = (over: object) => ({ amount: 1, currency: 'USD', ...over });
-    expect(editable(read('transfer', [line({ account: 'a' }), line({ account: 'b' })]))).toBe(
+    expect(editable(read('transfer', [line({ account: 'a' }), line({ subcategory: 's' })]))).toBe(
       false,
     );
+    expect(
+      editable(
+        read('transfer', [line({ account: 'a' }), line({ account: 'b' }), line({ account: 'c' })]),
+      ),
+    ).toBe(false);
     expect(editable(read('opening', [line({ account: 'a' }), line({ equity: 'opening' })]))).toBe(
       false,
     );
@@ -263,5 +272,136 @@ describe('a split', () => {
         ),
       ),
     ).toBe('Choose the income source of each part.');
+  });
+});
+
+describe('a transfer', () => {
+  const moved = (over: Partial<EntryForm> = {}) =>
+    form({
+      type: 'transfer',
+      accountId: 'checking',
+      toAccountId: 'card',
+      targetId: '',
+      amount: 25000,
+      ...over,
+    });
+
+  it('is the one account down and the other up by the same amount, which adds up, and carries no payee', () => {
+    const entry = compose(moved({ payee: 'ignored' }));
+    expect(entry).toEqual({
+      type: 'transfer',
+      date: '2026-11-06',
+      lines: [
+        { account: 'checking', amount: -25000, currency: 'USD' },
+        { account: 'card', amount: 25000, currency: 'USD' },
+      ],
+      note: null,
+      payee: null,
+    });
+    expect(checkShape(entry)).toEqual([]);
+  });
+
+  it('records both amounts when the currencies differ, and the rate is their ratio', () => {
+    const entry = compose(
+      moved({ toAccountId: 'euro', toCurrency: 'EUR', amount: 10000, received: 9000 }),
+    );
+    expect(entry.lines).toEqual([
+      { account: 'checking', amount: -10000, currency: 'USD' },
+      { account: 'euro', amount: 9000, currency: 'EUR' },
+    ]);
+    expect(checkShape(entry)).toEqual([]);
+    expect(differs(moved({ toCurrency: 'EUR' }))).toBe(true);
+    expect(differs(moved())).toBe(false);
+  });
+
+  it('says what is missing, and that a transfer is between two accounts', () => {
+    expect(missing(moved())).toBeUndefined();
+    expect(missing(moved({ accountId: '' }))).toBe('Choose the account the money comes from.');
+    expect(missing(moved({ toAccountId: '' }))).toBe('Choose the account the money goes to.');
+    expect(missing(moved({ toAccountId: 'checking' }))).toBe(
+      'A transfer is between two different accounts.',
+    );
+    expect(missing(moved({ amount: null }))).toBe('Enter the amount.');
+    expect(missing(moved({ toCurrency: 'EUR', received: null }))).toBe(
+      'Enter the amount that arrived.',
+    );
+    expect(missing(moved({ toCurrency: 'EUR', received: 0 }))).toBe(
+      'Enter the amount that arrived.',
+    );
+    // The same currency needs no second amount.
+    expect(missing(moved({ received: null }))).toBeUndefined();
+    expect(missing(moved({ date: '' }))).toBe('Enter the date.');
+  });
+
+  it('is read back as the form that made it, and edited here', () => {
+    const entry = {
+      type: 'transfer',
+      original: null,
+      date: '2026-11-06',
+      note: 'rent',
+      lines: [
+        { account: 'checking', amount: -10000, currency: 'USD' },
+        { account: 'euro', amount: 9000, currency: 'EUR' },
+      ],
+    };
+    expect(editable(entry)).toBe(true);
+    expect(formOf(entry)).toMatchObject({
+      type: 'transfer',
+      amount: 10000,
+      accountId: 'checking',
+      currency: 'USD',
+      toAccountId: 'euro',
+      toCurrency: 'EUR',
+      received: 9000,
+      note: 'rent',
+    });
+    expect(
+      editable({
+        ...entry,
+        lines: [entry.lines[0] as never, { subcategory: 's', amount: 1, currency: 'USD' }],
+      }),
+    ).toBe(false);
+  });
+});
+
+describe('a refund', () => {
+  it('is an expense the other way round: the account up and the subcategory down, which adds up', () => {
+    const entry = compose(form({ refund: true, amount: 1250 }));
+    expect(entry.lines).toEqual([
+      { account: 'bank', amount: 1250, currency: 'USD' },
+      { subcategory: 'food', amount: -1250, currency: 'USD' },
+    ]);
+    expect(checkShape(entry)).toEqual([]);
+    const split = compose(
+      form({
+        refund: true,
+        amount: 100,
+        split: true,
+        targetId: '',
+        parts: [
+          { targetId: 'a', amount: 60 },
+          { targetId: 'b', amount: 40 },
+        ],
+      }),
+    );
+    expect(split.lines.map((l) => l.amount)).toEqual([100, -60, -40]);
+    expect(checkShape(split)).toEqual([]);
+  });
+
+  it('is read back as a refund, and an income is never one', () => {
+    const back = formOf({
+      type: 'expense',
+      date: '2026-11-06',
+      note: null,
+      lines: [
+        { account: 'bank', amount: 1250, currency: 'USD' },
+        { subcategory: 'food', amount: -1250, currency: 'USD' },
+      ],
+    });
+    expect(back).toMatchObject({ refund: true, amount: 1250 });
+    expect(compose(back).lines.map((l) => l.amount)).toEqual([1250, -1250]);
+    expect(compose(form({ type: 'income', targetId: 'pay', refund: true })).lines[0]?.amount).toBe(
+      1250,
+    );
   });
 });

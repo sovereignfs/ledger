@@ -2,13 +2,22 @@
 
 import { useRouter } from 'next/navigation';
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
-import { Alert, Button, FormField, Input, Select, SegmentedControl } from '@sovereignfs/ui';
+import {
+  Alert,
+  Button,
+  Checkbox,
+  FormField,
+  Input,
+  Select,
+  SegmentedControl,
+} from '@sovereignfs/ui';
 import type { EntryOptions } from '../ledger/entries';
 import { MoneyInput } from '../ui/MoneyInput';
 import {
   type EntryForm,
   type Part,
   compose,
+  differs,
   editable,
   formOf,
   missing,
@@ -16,6 +25,7 @@ import {
 } from './compose';
 import { formatMoney } from '../money/text';
 import { PayeeInput } from './PayeeInput';
+import { sayRate } from './rate';
 import { TargetSelect } from './TargetSelect';
 import { monthNote } from './month';
 import { EntrySurface } from './EntrySurface';
@@ -63,6 +73,10 @@ const BLANK: EntryForm = {
   amount: null,
   accountId: '',
   currency: 'USD',
+  toAccountId: '',
+  toCurrency: 'USD',
+  received: null,
+  refund: false,
   targetId: '',
   split: false,
   parts: [],
@@ -149,7 +163,9 @@ export function EntryProvider({ children }: { children: ReactNode }) {
 
   const api = useMemo(() => ({ openAdd, openEdit }), [openAdd, openEdit]);
 
-  const account = options?.accounts.find((each) => each.id === form.accountId);
+  const account = (form.type === 'transfer' ? options?.transferAccounts : options?.accounts)?.find(
+    (each) => each.id === form.accountId,
+  );
   const set = (change: Partial<EntryForm>) => setForm((now) => ({ ...now, ...change }));
 
   /** Sends the form. A save that is not "add another" closes at once, and a refusal opens it again with what was typed. */
@@ -175,7 +191,16 @@ export function EntryProvider({ children }: { children: ReactNode }) {
         setStatus(editing ? 'Changed.' : 'Saved.');
         router.refresh();
         if (another)
-          set({ amount: null, targetId: '', split: false, parts: [], note: '', payee: '' });
+          set({
+            amount: null,
+            received: null,
+            targetId: '',
+            split: false,
+            parts: [],
+            refund: false,
+            note: '',
+            payee: '',
+          });
         return;
       }
       const data = (await reply.json().catch(() => ({}))) as { problems?: string[] };
@@ -260,160 +285,263 @@ export function EntryProvider({ children }: { children: ReactNode }) {
           <SegmentedControl<EntryForm['type']>
             aria-label="Type"
             value={form.type}
-            onChange={(type) => set({ type, targetId: '', split: false, parts: [] })}
+            onChange={(type) =>
+              set({ type, targetId: '', split: false, parts: [], refund: false, received: null })
+            }
             options={[
               { label: 'Expense', value: 'expense' },
               { label: 'Income', value: 'income' },
+              { label: 'Transfer', value: 'transfer' },
             ]}
           />
-          <FormField label="Amount" required>
-            {(field) => (
-              <MoneyInput
-                {...field}
-                currency={form.currency}
-                valueCents={form.amount}
-                onValueChange={(amount) => set({ amount })}
-              />
-            )}
-          </FormField>
-          <FormField label="Account" required>
-            {(field) => (
-              <Select
-                {...field}
-                value={form.accountId}
-                onChange={(event) => {
-                  const next = options?.accounts.find((each) => each.id === event.target.value);
-                  set({ accountId: event.target.value, currency: next?.currency ?? form.currency });
-                }}
-              >
-                {options?.accounts.length ? null : <option value="">No accounts yet</option>}
-                {options?.accounts.map((each) => (
-                  <option key={each.id} value={each.id}>
-                    {each.name} · {each.currency}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </FormField>
-          {!form.split ? (
+          {form.type === 'transfer' ? (
             <>
-              <FormField label={what} required>
+              <FormField label="From" required>
                 {(field) => (
-                  <TargetSelect
+                  <Select
                     {...field}
-                    options={options}
-                    expense={targets}
-                    value={form.targetId}
-                    onChange={(targetId) => set({ targetId })}
+                    value={form.accountId}
+                    onChange={(event) => {
+                      const next = options?.transferAccounts.find(
+                        (each) => each.id === event.target.value,
+                      );
+                      set({
+                        accountId: event.target.value,
+                        currency: next?.currency ?? form.currency,
+                      });
+                    }}
+                  >
+                    <option value="">Choose an account</option>
+                    {options?.transferAccounts.map((each) => (
+                      <option key={each.id} value={each.id}>
+                        {each.name} · {each.currency}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              </FormField>
+              <FormField label="To" required>
+                {(field) => (
+                  <Select
+                    {...field}
+                    value={form.toAccountId}
+                    onChange={(event) => {
+                      const next = options?.transferAccounts.find(
+                        (each) => each.id === event.target.value,
+                      );
+                      set({
+                        toAccountId: event.target.value,
+                        toCurrency: next?.currency ?? form.toCurrency,
+                      });
+                    }}
+                  >
+                    <option value="">Choose an account</option>
+                    {options?.transferAccounts
+                      .filter((each) => each.id !== form.accountId)
+                      .map((each) => (
+                        <option key={each.id} value={each.id}>
+                          {each.name} · {each.currency}
+                        </option>
+                      ))}
+                  </Select>
+                )}
+              </FormField>
+              <FormField
+                label={differs(form) ? `Amount sent (${form.currency})` : 'Amount'}
+                required
+              >
+                {(field) => (
+                  <MoneyInput
+                    {...field}
+                    currency={form.currency}
+                    valueCents={form.amount}
+                    onValueChange={(amount) => set({ amount })}
                   />
                 )}
               </FormField>
-              <div className={styles.actions}>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() =>
-                    set({
-                      split: true,
-                      parts: [
-                        { targetId: form.targetId, amount: form.amount },
-                        { targetId: '', amount: null },
-                      ],
-                    })
-                  }
+              {form.toAccountId !== '' && differs(form) ? (
+                <FormField
+                  label={`Amount received (${form.toCurrency})`}
+                  hint={sayRate(form.amount, form.currency, form.received, form.toCurrency)}
                 >
-                  Split
-                </Button>
-              </div>
+                  {(field) => (
+                    <MoneyInput
+                      {...field}
+                      currency={form.toCurrency}
+                      valueCents={form.received}
+                      onValueChange={(received) => set({ received })}
+                    />
+                  )}
+                </FormField>
+              ) : null}
             </>
           ) : (
-            <fieldset className={styles.parts}>
-              <legend>Split</legend>
-              {form.parts.map((part, at) => (
-                <div key={at} className={styles.part}>
-                  <TargetSelect
-                    aria-label={`${what} of part ${at + 1}`}
-                    options={options}
-                    expense={targets}
-                    value={part.targetId}
-                    onChange={(targetId) => setPart(at, { targetId })}
-                  />
+            <>
+              <FormField label="Amount" required>
+                {(field) => (
                   <MoneyInput
-                    aria-label={`Amount of part ${at + 1}`}
+                    {...field}
                     currency={form.currency}
-                    valueCents={part.amount}
-                    onValueChange={(amount) => setPart(at, { amount })}
+                    valueCents={form.amount}
+                    onValueChange={(amount) => set({ amount })}
                   />
-                  {form.parts.length > 2 ? (
+                )}
+              </FormField>
+              <FormField label="Account" required>
+                {(field) => (
+                  <Select
+                    {...field}
+                    value={form.accountId}
+                    onChange={(event) => {
+                      const next = options?.accounts.find((each) => each.id === event.target.value);
+                      set({
+                        accountId: event.target.value,
+                        currency: next?.currency ?? form.currency,
+                      });
+                    }}
+                  >
+                    {options?.accounts.length ? null : <option value="">No accounts yet</option>}
+                    {options?.accounts.map((each) => (
+                      <option key={each.id} value={each.id}>
+                        {each.name} · {each.currency}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              </FormField>
+              {targets ? (
+                <Checkbox
+                  label="This is money back (a refund)"
+                  checked={form.refund}
+                  onChange={(refund) => set({ refund })}
+                />
+              ) : null}
+              {!form.split ? (
+                <>
+                  <FormField label={what} required>
+                    {(field) => (
+                      <TargetSelect
+                        {...field}
+                        options={options}
+                        expense={targets}
+                        value={form.targetId}
+                        onChange={(targetId) => set({ targetId })}
+                      />
+                    )}
+                  </FormField>
+                  <div className={styles.actions}>
                     <Button
                       variant="ghost"
                       size="sm"
-                      aria-label={`Remove part ${at + 1}`}
-                      onClick={() => set({ parts: form.parts.filter((_, each) => each !== at) })}
+                      onClick={() =>
+                        set({
+                          split: true,
+                          parts: [
+                            { targetId: form.targetId, amount: form.amount },
+                            { targetId: '', amount: null },
+                          ],
+                        })
+                      }
                     >
-                      Remove
+                      Split
                     </Button>
-                  ) : null}
-                </div>
-              ))}
-              <p role="status" className={styles.remainder}>
-                {left === 0
-                  ? 'The parts add up.'
-                  : left > 0
-                    ? `${formatMoney(left, form.currency)} left to place.`
-                    : `${formatMoney(-left, form.currency)} over.`}
-              </p>
-              <div className={styles.actions}>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() =>
-                    set({
-                      parts: [...form.parts, { targetId: '', amount: left > 0 ? left : null }],
-                    })
-                  }
-                >
-                  Add a part
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() =>
-                    set({ split: false, targetId: form.parts[0]?.targetId ?? '', parts: [] })
-                  }
-                >
-                  Not split
-                </Button>
-              </div>
-            </fieldset>
+                  </div>
+                </>
+              ) : (
+                <fieldset className={styles.parts}>
+                  <legend>Split</legend>
+                  {form.parts.map((part, at) => (
+                    <div key={at} className={styles.part}>
+                      <TargetSelect
+                        aria-label={`${what} of part ${at + 1}`}
+                        options={options}
+                        expense={targets}
+                        value={part.targetId}
+                        onChange={(targetId) => setPart(at, { targetId })}
+                      />
+                      <MoneyInput
+                        aria-label={`Amount of part ${at + 1}`}
+                        currency={form.currency}
+                        valueCents={part.amount}
+                        onValueChange={(amount) => setPart(at, { amount })}
+                      />
+                      {form.parts.length > 2 ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          aria-label={`Remove part ${at + 1}`}
+                          onClick={() =>
+                            set({ parts: form.parts.filter((_, each) => each !== at) })
+                          }
+                        >
+                          Remove
+                        </Button>
+                      ) : null}
+                    </div>
+                  ))}
+                  <p role="status" className={styles.remainder}>
+                    {left === 0
+                      ? 'The parts add up.'
+                      : left > 0
+                        ? `${formatMoney(left, form.currency)} left to place.`
+                        : `${formatMoney(-left, form.currency)} over.`}
+                  </p>
+                  <div className={styles.actions}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() =>
+                        set({
+                          parts: [...form.parts, { targetId: '', amount: left > 0 ? left : null }],
+                        })
+                      }
+                    >
+                      Add a part
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() =>
+                        set({ split: false, targetId: form.parts[0]?.targetId ?? '', parts: [] })
+                      }
+                    >
+                      Not split
+                    </Button>
+                  </div>
+                </fieldset>
+              )}
+              <FormField label="Payee" hint="Optional. A new name is remembered.">
+                {(field) => (
+                  <PayeeInput
+                    {...field}
+                    value={form.payee}
+                    onChange={(payee) => set({ payee })}
+                    onPick={(picked) =>
+                      set({
+                        payee: picked.name,
+                        // What was last used with this payee is proposed, and changed freely.
+                        ...(!form.split &&
+                        form.targetId === '' &&
+                        picked.lastSubcategoryId &&
+                        targets
+                          ? { targetId: picked.lastSubcategoryId }
+                          : {}),
+                        ...(picked.lastAccountId &&
+                        options?.accounts.some((each) => each.id === picked.lastAccountId)
+                          ? {
+                              accountId: picked.lastAccountId,
+                              currency:
+                                options.accounts.find((each) => each.id === picked.lastAccountId)
+                                  ?.currency ?? form.currency,
+                            }
+                          : {}),
+                      })
+                    }
+                  />
+                )}
+              </FormField>
+            </>
           )}
-          <FormField label="Payee" hint="Optional. A new name is remembered.">
-            {(field) => (
-              <PayeeInput
-                {...field}
-                value={form.payee}
-                onChange={(payee) => set({ payee })}
-                onPick={(picked) =>
-                  set({
-                    payee: picked.name,
-                    // What was last used with this payee is proposed, and changed freely.
-                    ...(!form.split && form.targetId === '' && picked.lastSubcategoryId && targets
-                      ? { targetId: picked.lastSubcategoryId }
-                      : {}),
-                    ...(picked.lastAccountId &&
-                    options?.accounts.some((each) => each.id === picked.lastAccountId)
-                      ? {
-                          accountId: picked.lastAccountId,
-                          currency:
-                            options.accounts.find((each) => each.id === picked.lastAccountId)
-                              ?.currency ?? form.currency,
-                        }
-                      : {}),
-                  })
-                }
-              />
-            )}
-          </FormField>
           <FormField label="Date" required hint={note || undefined}>
             {(field) => (
               <Input

@@ -95,6 +95,13 @@ export interface EntryOptions {
   readonly baseCurrency: string | null;
   /** The accounts an expense or an income may be on: live, and of a kind that holds money or credit. */
   readonly accounts: readonly { id: string; name: string; type: string; currency: string }[];
+  /** The accounts a transfer may be between: every live account, a card, a loan or a person's included (DESIGN.md §6.2). */
+  readonly transferAccounts: readonly {
+    id: string;
+    name: string;
+    type: string;
+    currency: string;
+  }[];
   readonly categories: readonly {
     id: string;
     name: string;
@@ -126,6 +133,17 @@ export async function loadEntryOptions(
            )})
          ORDER BY a.position, a.created_at, a.id`,
   );
+  const transferAccounts = await dbAll<{
+    id: string;
+    name: string;
+    type: string;
+    currency: string;
+  }>(
+    database,
+    sql`SELECT a.id AS id, a.name AS name, a.type AS type, a.currency AS currency FROM ${s.moneyAccount} a
+         WHERE a.book_id = ${book.id} AND ${member('a')} AND a.archived_at IS NULL
+         ORDER BY a.position, a.created_at, a.id`,
+  );
   const categories = await dbAll<{ id: string; name: string; currency: string }>(
     database,
     sql`SELECT c.id AS id, c.name AS name, c.currency AS currency FROM ${s.category} c
@@ -148,6 +166,7 @@ export async function loadEntryOptions(
     today,
     baseCurrency: book.baseCurrency,
     accounts,
+    transferAccounts,
     categories: categories.map((category) => ({
       ...category,
       subcategories: subs

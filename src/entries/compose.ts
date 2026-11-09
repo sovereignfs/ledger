@@ -15,11 +15,19 @@ export interface Part {
 }
 
 export interface EntryForm {
-  readonly type: 'expense' | 'income';
-  /** The whole amount, in minor units of the account's currency, more than nothing; `null` while not typed. */
+  readonly type: 'expense' | 'income' | 'transfer';
+  /** The whole amount, in minor units of the account's currency, more than nothing; `null` while not typed. For a transfer, what left the account. */
   readonly amount: number | null;
+  /** The account that paid, or received, or (for a transfer) the one the money leaves. */
   readonly accountId: string;
   readonly currency: string;
+  /** A transfer's other account, the one the money goes to, and its currency. */
+  readonly toAccountId: string;
+  readonly toCurrency: string;
+  /** What arrived, in the other account's currency, when it is not the same currency as what left (DESIGN.md §6.8); ignored when it is. */
+  readonly received: number | null;
+  /** An expense that is money back: the account goes up and the subcategory down (a negative expense, DESIGN.md §6.2). */
+  readonly refund: boolean;
   /** For an entry that is not split: its one subcategory or income source. */
   readonly targetId: string;
   /** Whether the amount is split in parts, which then stand in place of `targetId`. */
@@ -31,6 +39,24 @@ export interface EntryForm {
   readonly payee: string;
 }
 
+/** A form with nothing in it, which the forms read back start from. */
+const BLANK_FORM: EntryForm = {
+  type: 'expense',
+  amount: null,
+  accountId: '',
+  currency: 'USD',
+  toAccountId: '',
+  toCurrency: 'USD',
+  received: null,
+  refund: false,
+  targetId: '',
+  split: false,
+  parts: [],
+  date: '',
+  note: '',
+  payee: '',
+};
+
 /** What is left of the amount when the parts are taken off it: more than nothing while they fall short, below nothing when they go over. */
 export function remainder(form: Pick<EntryForm, 'amount' | 'parts'>): number {
   const parts = form.parts.reduce((sum, part) => sum + (part.amount ?? 0), 0);
@@ -39,6 +65,16 @@ export function remainder(form: Pick<EntryForm, 'amount' | 'parts'>): number {
 
 /** The sentence that says what is missing from a form, or `undefined` when it can be sent. */
 export function missing(form: EntryForm): string | undefined {
+  if (form.type === 'transfer') {
+    if (form.accountId === '') return 'Choose the account the money comes from.';
+    if (form.toAccountId === '') return 'Choose the account the money goes to.';
+    if (form.toAccountId === form.accountId) return 'A transfer is between two different accounts.';
+    if (form.amount === null || form.amount <= 0) return 'Enter the amount.';
+    if (differs(form) && (form.received === null || form.received <= 0))
+      return 'Enter the amount that arrived.';
+    if (form.date === '') return 'Enter the date.';
+    return undefined;
+  }
   if (form.accountId === '') return 'Choose the account.';
   if (form.amount === null || form.amount <= 0) return 'Enter the amount.';
   const what = form.type === 'expense' ? 'subcategory' : 'income source';
@@ -62,26 +98,49 @@ export function missing(form: EntryForm): string | undefined {
   return undefined;
 }
 
-/** The entry the form means: the account's line, and one line for the target, or for each part, in the account's currency. */
+/** Whether a transfer is between two currencies, which then records both amounts (DESIGN.md §6.8). */
+export const differs = (form: Pick<EntryForm, 'currency' | 'toCurrency'>): boolean =>
+  form.currency !== form.toCurrency;
+
+/** The entry the form means: the account's line, and one line for the target, or for each part, in the account's currency; or a transfer's two. */
 export function compose(form: EntryForm): TxnInput {
   const amount = form.amount ?? 0;
+  const note = form.note.trim() === '' ? null : form.note.trim();
+  if (form.type === 'transfer') {
+    return {
+      type: 'transfer',
+      date: form.date,
+      lines: [
+        { account: form.accountId, amount: -amount, currency: form.currency },
+        {
+          account: form.toAccountId,
+          amount: differs(form) ? (form.received ?? 0) : amount,
+          currency: form.toCurrency,
+        },
+      ],
+      note,
+      payee: null,
+    };
+  }
   const expense = form.type === 'expense';
+  // Money out, unless an expense is a refund: then the account goes up and each subcategory down.
+  const sign = expense && !form.refund ? -1 : 1;
   const account: LineInput = {
     account: form.accountId,
-    amount: expense ? -amount : amount,
+    amount: sign * amount,
     currency: form.currency,
   };
   const parts = form.split ? form.parts : [{ targetId: form.targetId, amount }];
   const lines: LineInput[] = parts.map(({ targetId, amount: part }) =>
     expense
-      ? { subcategory: targetId, amount: part ?? 0, currency: form.currency }
+      ? { subcategory: targetId, amount: -sign * (part ?? 0), currency: form.currency }
       : { incomeSource: targetId, amount: -(part ?? 0), currency: form.currency },
   );
   return {
     type: form.type,
     date: form.date,
     lines: [account, ...lines],
-    note: form.note.trim() === '' ? null : form.note.trim(),
+    note,
     payee: form.payee.trim() === '' ? null : form.payee.trim(),
   };
 }
@@ -95,6 +154,12 @@ export function editable(entry: {
   original: unknown;
   lines: readonly LineInput[];
 }): boolean {
+  if (entry.type === 'transfer')
+    return (
+      entry.original === null &&
+      entry.lines.length === 2 &&
+      entry.lines.every((line) => line.account !== undefined)
+    );
   if (entry.type !== 'expense' && entry.type !== 'income') return false;
   if (entry.original !== null || entry.lines.length < 2) return false;
   const [first, ...rest] = entry.lines;
@@ -114,6 +179,22 @@ export function formOf(entry: {
   payee?: { name: string } | null;
   lines: readonly LineInput[];
 }): EntryForm {
+  if (entry.type === 'transfer') {
+    const from = entry.lines.find((line) => line.amount < 0) ?? entry.lines[0];
+    const to = entry.lines.find((line) => line !== from);
+    return {
+      ...BLANK_FORM,
+      type: 'transfer',
+      amount: Math.abs(from?.amount ?? 0),
+      accountId: from?.account ?? '',
+      currency: from?.currency ?? 'USD',
+      toAccountId: to?.account ?? '',
+      toCurrency: to?.currency ?? 'USD',
+      received: Math.abs(to?.amount ?? 0),
+      date: entry.date,
+      note: entry.note ?? '',
+    };
+  }
   const [account, ...targets] = entry.lines;
   const parts: Part[] = targets.map((line) => ({
     targetId: line.subcategory ?? line.incomeSource ?? '',
@@ -121,7 +202,9 @@ export function formOf(entry: {
   }));
   const split = parts.length > 1;
   return {
+    ...BLANK_FORM,
     type: entry.type === 'income' ? 'income' : 'expense',
+    refund: entry.type === 'expense' && (account?.amount ?? 0) > 0,
     amount: Math.abs(account?.amount ?? 0),
     accountId: account?.account ?? '',
     currency: account?.currency ?? 'USD',
