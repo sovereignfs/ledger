@@ -4,6 +4,8 @@ import { addMonths } from '../dates';
 import { formatMoney } from '../money/text';
 import type { MonthLine, MonthReport } from './month';
 import type { YearReport } from './year';
+import { NetWorthTable } from './NetWorthTable';
+import type { NetWorthPoint } from './net-worth';
 import styles from './Reports.module.css';
 
 /**
@@ -15,10 +17,13 @@ export function MonthList({
   lines,
   base,
   locale,
+  netWorth = null,
 }: {
   lines: readonly MonthLine[];
   base: string | null;
   locale?: string;
+  /** Net worth at each month end, when the book has a base currency (DESIGN.md §11.3). */
+  netWorth?: readonly NetWorthPoint[] | null;
 }) {
   const money = (amount: number | undefined) =>
     base && amount !== undefined ? formatMoney(amount, base, locale) : '—';
@@ -70,6 +75,7 @@ export function MonthList({
           </table>
         </div>
       )}
+      {netWorth && base ? <NetWorthTable points={netWorth} base={base} locale={locale} /> : null}
     </PageContainer>
   );
 }

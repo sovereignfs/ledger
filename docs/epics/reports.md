@@ -2,7 +2,7 @@
 
 ## Status
 
-⏳ In progress: 2 of 7 tasks are done.
+⏳ In progress: 3 of 7 tasks are done.
 
 ## Overview
 
@@ -61,7 +61,7 @@ on all three databases (6 tests: the 1,800, the conversion by month, the sums an
 seen to fail against the code it guards (the budget at the last month's amount, the projected figure taken from the actual one). The year runs twelve month reports, which is twelve times the
 month's reads and no more; a single pass over a year is for 8.3's net worth, which needs the lines themselves.
 
-#### 📋 8.3 — Net worth over time
+#### ✅ 8.3 — Net worth over time
 
 **Goal:** what the person was worth at each month end. **Design:** §11.3. **Depends on:** 8.1, 4.9.
 
@@ -70,6 +70,17 @@ lines (not a query per month); shown on Accounts and in Reports.
 
 **Accepts when:** month-end figures match a hand-worked seed including a revaluation and a currency move; a twenty-four-month range reads the lines
 once.
+
+**Done as:** `src/reports/net-worth.ts`. **`netWorthSeries` is pure and a single pass:** it is given each account's lines summed for each day (`Movement`), sorts them by day once, and
+runs the balances forward through the dates, converting each date's balances at **that date's rates** and keeping what is above nothing as **assets** and what is below as **liabilities**
+(negative), which add up to the net worth the Accounts screen shows and are converted account by account the same way (the series' last point is tested equal to `loadOverview`'s total).
+`loadNetWorthSeries` reads **the lines of the book once**, grouped by account and day with the account's currency, and the rates once for the range, and returns the month ends of the last N
+months (the current month's point is today); `netWorthAt(date)` is the same for one day, and the 24-month series is tested equal to `netWorthAt` on five of its days. A line dated on the day counts
+and one dated the day after does not. Nothing is stored: an opening, a new value and an adjustment are lines like the rest, and an account has nothing before its first line. An amount with no
+rate is left out and said (the table names the currencies). **Shown** as _Net worth by month end_ (a table of the last twelve) on **Accounts** and **Reports**; a chart of it is 8.4's, and the table stays beside it.
+The hand-worked book (a dollar account, 800 euros, an investment revalued, a loan, a euro that falls from 1.25 to 1 dollars) gives 3,500, 4,300 and 4,100 at the end of January, February and March. 3 tests on all three databases (the hand-worked months, the series against one day and the Accounts screen, another person and a book with no base currency) and 6 pure (the dates, the order of the lines, assets and liabilities, a day's own lines, nothing before a first line, a missing rate) and 1 browser test; each key test was seen to fail against the code
+it guards (every date at the last day's rates, liabilities counted the wrong way, a day's own lines left out). A test that Accounts still shows its one _Net worth_ region now asks for it by its exact name, since the new
+table's name begins the same.
 
 #### 📋 8.4 — Charts
 

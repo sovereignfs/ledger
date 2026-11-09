@@ -4,6 +4,8 @@ import { ACCOUNT_KINDS } from '../ledger/account-types';
 import { sayBalance } from '../ledger/present';
 import { notIncludedLines } from '../money/convert';
 import { formatMoney } from '../money/text';
+import { NetWorthTable } from '../reports/NetWorthTable';
+import type { NetWorthPoint } from '../reports/net-worth';
 import styles from './Accounts.module.css';
 import { NewAccountButton } from './NewAccountButton';
 import type { AccountRow } from '../ledger/accounts';
@@ -75,7 +77,16 @@ export function ArchivedScreen({
 }
 
 /** The Accounts screen (DESIGN.md §14.3): net worth, and the accounts in what you have, what you owe and people. */
-export function AccountsScreen({ overview, locale }: { overview: Overview; locale?: string }) {
+export function AccountsScreen({
+  overview,
+  locale,
+  history = null,
+}: {
+  overview: Overview;
+  locale?: string;
+  /** Net worth at each month end, when the book has a base currency (DESIGN.md §11.3). */
+  history?: readonly NetWorthPoint[] | null;
+}) {
   const { groups, netWorth: worth, baseCurrency, today, archived } = overview;
   const empty = groups.length === 0;
   return (
@@ -129,6 +140,9 @@ export function AccountsScreen({ overview, locale }: { overview: Overview; local
           </div>
         </>
       )}
+      {history && baseCurrency && !empty ? (
+        <NetWorthTable points={history} base={baseCurrency} locale={locale} />
+      ) : null}
       {archived > 0 ? (
         <p className={styles.note}>
           <Link href="/accounts?archived=1">

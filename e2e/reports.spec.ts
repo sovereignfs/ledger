@@ -87,3 +87,35 @@ test('shows a month’s income, spending against the budget and what was saved, 
   );
   await expect(page.getByRole('region', { name: 'Months' })).toContainText(month);
 });
+
+test('shows net worth at each month end on Accounts and in Reports', async ({
+  page,
+  browserName,
+}) => {
+  await signedIn(page);
+  await page.goto('/accounts');
+  const origin = new URL(page.url()).origin;
+  const setup = await page.request.post('/api/setup', {
+    data: { step: 'currency', currency: 'USD' },
+    headers: { origin },
+  });
+  expect(setup.status()).toBe(200);
+  const made = await page.request.post('/api/accounts', {
+    data: {
+      type: 'bank',
+      name: `Worth ${browserName}`,
+      currency: 'USD',
+      opening: { amount: 123_456, date: '2019-06-01' },
+    },
+    headers: { origin },
+  });
+  expect(made.status()).toBe(201);
+  for (const path of ['/accounts', '/reports']) {
+    await page.goto(path);
+    const table = page.getByRole('region', { name: 'Net worth by month end' });
+    await expect(table).toBeVisible();
+    // The latest month end is first, and holds at least what this account holds.
+    await expect(table.getByRole('row').nth(1)).toContainText('$');
+    await expect(table.getByRole('row')).toHaveCount(13);
+  }
+});

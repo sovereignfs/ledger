@@ -5,6 +5,7 @@ import { getDatabase } from '@/src/db/boot';
 import { MonthDetail, MonthList, YearDetail } from '@/src/reports/ReportsScreen';
 import { loadYearReport } from '@/src/reports/year';
 import { loadMonthList, loadMonthReport } from '@/src/reports/month';
+import { loadNetWorthSeries } from '@/src/reports/net-worth';
 
 export const metadata: Metadata = { title: 'Reports' };
 
@@ -35,6 +36,7 @@ export default async function Page({
   return (
     <MonthList
       lines={await loadMonthList(database, accountId, book)}
+      netWorth={await loadNetWorthSeries(database, accountId, book, 12)}
       base={book.baseCurrency}
       locale={locale}
     />

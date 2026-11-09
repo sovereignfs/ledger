@@ -4,6 +4,7 @@ import { AccountsScreen, ArchivedScreen } from '@/src/accounts/AccountsScreen';
 import { loadOverview } from '@/src/accounts/overview';
 import { getDatabase } from '@/src/db/boot';
 import { listAccounts } from '@/src/ledger/accounts';
+import { loadNetWorthSeries } from '@/src/reports/net-worth';
 
 export const metadata: Metadata = { title: 'Accounts' };
 
@@ -25,6 +26,10 @@ export default async function Page({
       />
     );
   return (
-    <AccountsScreen overview={await loadOverview(database, accountId, book)} locale={locale} />
+    <AccountsScreen
+      overview={await loadOverview(database, accountId, book)}
+      history={await loadNetWorthSeries(database, accountId, book, 12)}
+      locale={locale}
+    />
   );
 }

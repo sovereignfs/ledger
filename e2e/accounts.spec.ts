@@ -32,7 +32,7 @@ test('adds an account with an opening balance, and shows it in the list and on i
   await expect(
     have.getByRole('link', { name: new RegExp(`Everyday ${browserName}`) }),
   ).toContainText('$1,234.56');
-  await expect(page.getByRole('region', { name: 'Net worth' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Net worth', exact: true })).toBeVisible();
 });
 
 test('says what is owed in words, never with a minus', async ({ page, browserName }) => {
