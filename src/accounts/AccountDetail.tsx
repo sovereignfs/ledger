@@ -4,6 +4,7 @@ import type { AccountRow, EntryOfAccount } from '../ledger/accounts';
 import { ACCOUNT_KINDS } from '../ledger/account-types';
 import { cardAvailable, cardUsed, loanProgress, sayBalance } from '../ledger/present';
 import { formatMoney } from '../money/text';
+import { EditEntryButton } from '../entries/EditEntryButton';
 import { AccountActions } from './AccountActions';
 import styles from './Accounts.module.css';
 import { ENTRY_TYPE_LABEL } from './words';
@@ -78,6 +79,9 @@ export function AccountDetail({
                 <th>Date</th>
                 <th>What</th>
                 <th>Amount</th>
+                <th>
+                  <span className={styles.visuallyHidden}>Edit</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -89,6 +93,9 @@ export function AccountDetail({
                     {entry.note ? ` · ${entry.note}` : ''}
                   </td>
                   <td>{formatMoney(entry.amount, entry.currency, locale)}</td>
+                  <td>
+                    <EditEntryButton id={entry.txnId} label={`Edit the entry of ${entry.date}`} />
+                  </td>
                 </tr>
               ))}
             </tbody>

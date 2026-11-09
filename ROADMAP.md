@@ -2,7 +2,7 @@
 
 The order of work. **This file tracks progress; it does not define behaviour.** [`DESIGN.md`](DESIGN.md) says what Ledger does, and where it disagrees with this file, this file is stale and should be corrected. The detail of every task, with its technical notes and what makes it done, is in [`docs/epics/`](docs/epics/). How a task is run is in [`AGENTS.md`](AGENTS.md).
 
-State as of 2026-11-09: **Milestones A and B are done** (the foundation, 1.1 to 1.10; and sign-in, the book, the front address, deleting a person, Settings, and money and currencies: 2.1, 3.1, 2.2, 2.5, 2.6, 3.2). **Milestone C has begun** with the exchange rates and conversion (3.3, 3.4: epic 3 is done) the one write path for transactions (4.2) money accounts with their screens (4.1) and categories (5.1). The PWA (1.11) waits in Milestone G, and sign-in through core (2.3, 2.4) in Milestone G too. The developer assigns each task; the first row not done, with its dependencies met, is what the order recommends.
+State as of 2026-11-09: **Milestones A and B are done** (the foundation, 1.1 to 1.10; and sign-in, the book, the front address, deleting a person, Settings, and money and currencies: 2.1, 3.1, 2.2, 2.5, 2.6, 3.2). **Milestone C has begun** with the exchange rates and conversion (3.3, 3.4: epic 3 is done) the one write path for transactions (4.2) money accounts with their screens (4.1) categories (5.1) and the add dialog (4.3). The PWA (1.11) waits in Milestone G, and sign-in through core (2.3, 2.4) in Milestone G too. The developer assigns each task; the first row not done, with its dependencies met, is what the order recommends.
 
 _Status key: ✅ Done · ⏳ In progress · 📋 Planned · 🚧 Waits on a decision · ➖ Superseded_
 
@@ -62,7 +62,7 @@ Money moves between accounts that balance. **Done when** a person can open accou
 | 19  | [4.2](docs/epics/ledger.md) | Transactions and lines       | P0       | 3.1, 3.2      | ✅     |
 | 20  | [4.1](docs/epics/ledger.md) | Money accounts               | P1       | 3.1, 3.2, 4.2 | ✅     |
 | 21  | [5.1](docs/epics/budget.md) | Categories and subcategories | P1       | 3.1, 3.2      | ✅     |
-| 22  | [4.3](docs/epics/ledger.md) | The add dialog               | P1       | 4.1, 5.1      | 📋     |
+| 22  | [4.3](docs/epics/ledger.md) | The add dialog               | P1       | 4.1, 5.1      | ✅     |
 | 23  | [4.4](docs/epics/ledger.md) | Splits                       | P1       | 4.3           | 📋     |
 | 24  | [4.5](docs/epics/ledger.md) | Payees                       | P1       | 4.3           | 📋     |
 | 25  | [4.6](docs/epics/ledger.md) | Transfers                    | P1       | 4.3           | 📋     |

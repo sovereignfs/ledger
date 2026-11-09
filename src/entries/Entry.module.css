@@ -1,0 +1,36 @@
+/* The add dialog (DESIGN.md §14.4). Tokens only. */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-4);
+  padding: var(--sv-space-5);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sv-space-3);
+}
+
+.problem {
+  display: block;
+}
+
+.status {
+  position: fixed;
+  right: var(--sv-space-4);
+  bottom: calc(var(--sv-shell-footer-height, 0px) + var(--sv-space-4));
+  z-index: 1;
+  max-width: 20rem;
+  color: var(--sv-color-text-muted);
+  font-size: var(--sv-font-size-sm);
+  pointer-events: none;
+}
+
+.status:empty {
+  display: none;
+}
+
+.add {
+  display: inline-flex;
+}

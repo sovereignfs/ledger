@@ -172,8 +172,17 @@
   font-weight: var(--sv-font-weight-medium);
 }
 
-.entries td:last-child,
-.entries th:last-child {
+.entries td:nth-child(3),
+.entries th:nth-child(3) {
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }

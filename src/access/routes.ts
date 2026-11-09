@@ -64,6 +64,13 @@ export const ROUTES: RouteRule[] = [
     route: '/api/subcategories/[id]',
     methods: { PATCH: { kind: 'book' }, DELETE: { kind: 'book' } },
   },
+  // Entries (DESIGN.md §6.2, §14.4): written, read and changed in the person's own book. Nothing in a request names whose.
+  { route: '/api/transactions', methods: { POST: { kind: 'book' } } },
+  {
+    route: '/api/transactions/[id]',
+    methods: { GET: { kind: 'book' }, PATCH: { kind: 'book' }, DELETE: { kind: 'book' } },
+  },
+  { route: '/api/entry-options', methods: { GET: { kind: 'book' } } },
   // The instance asks it before it sends anyone to the app, and a container's health check does: it says only whether the database answers.
   { route: '/api/health', methods: { GET: { kind: 'public' } } },
   // better-auth's own: it checks `Origin` and the session cookie itself, and rate-limits sign-in (src/auth/auth.ts). Absent, with a 404, when sign-in is off.

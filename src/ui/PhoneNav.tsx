@@ -4,17 +4,19 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { Button, Drawer, Icon, MobileFooter, NavList } from '@sovereignfs/ui';
+import { useEntryDialog } from '../entries/EntryProvider';
 import { PLACES, placeOf } from './nav';
 import styles from './AppShell.module.css';
 
 /**
  * The phone's footer (DESIGN.md §14.6): four of the five places, two on each side of the middle button, which opens the rest in a drawer (Reports, and
- * Add until its dialog exists). **The same places at the same addresses as the sidebar**: only what is drawn differs, and the shell's CSS decides
+ * Add). **The same places at the same addresses as the sidebar**: only what is drawn differs, and the shell's CSS decides
  * at which width (`AppShell.module.css`), so nothing here asks for the width.
  */
 export function PhoneNav() {
   const [more, setMore] = useState(false);
   const current = placeOf(usePathname())?.id;
+  const { openAdd } = useEntryDialog();
   const icon = (id: (typeof PLACES)[number]['id']) => {
     const place = PLACES.find((each) => each.id === id);
     if (!place) throw new Error(`no such place: ${id}`);
@@ -38,7 +40,13 @@ export function PhoneNav() {
       />
       <Drawer open={more} onClose={() => setMore(false)} aria-label="More places">
         <div className={styles.more}>
-          <Button variant="primary" disabled title="Adding arrives with the add dialog">
+          <Button
+            variant="primary"
+            onClick={() => {
+              setMore(false);
+              openAdd();
+            }}
+          >
             Add
           </Button>
           {reports ? (

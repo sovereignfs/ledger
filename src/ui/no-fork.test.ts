@@ -14,6 +14,8 @@ const ROOT = path.resolve(__dirname, '..', '..');
 const RENDERING_ONLY: Record<string, string> = {
   'src/theme/script.ts': 'the colour scheme the device prefers, not a width',
   'src/account/PreferencesSection.tsx': 'the colour scheme the device prefers, not a width',
+  'src/entries/EntrySurface.tsx':
+    'a Dialog on a wide screen and a Drawer on a narrow one, with the same content',
 };
 /** What a file that draws by width must not also do. */
 const NOT_BY_WIDTH = /\b(router\.(push|replace)|window\.location\.(assign|replace)|fetch\()/;

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { AccountMenu } from '@/src/auth/screens/AccountMenu';
+import { EntryProvider } from '@/src/entries/EntryProvider';
 import { requireSession } from '@/src/auth/session';
 import { site } from '@/src/site';
 import { AppShell } from '@/src/ui/AppShell';
@@ -18,12 +19,14 @@ export default async function AppLayout({
 }) {
   const session = await requireSession();
   return (
-    <AppShell
-      name={site.name}
-      account={<AccountMenu name={session.user.name} email={session.user.email} />}
-    >
-      {children}
-      {modal}
-    </AppShell>
+    <EntryProvider>
+      <AppShell
+        name={site.name}
+        account={<AccountMenu name={session.user.name} email={session.user.email} />}
+      >
+        {children}
+        {modal}
+      </AppShell>
+    </EntryProvider>
   );
 }

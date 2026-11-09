@@ -18,7 +18,7 @@ file or PostgreSQL), signing people in locally, through a Sovereign core, or bot
 
 **What is built:** the foundation (Milestone A: settings, the database on three forms, the job runner, the policy and headers, the shell, browser tests, the
 image and its setups) and the first people's part (Milestone B: local sign-in, the book and the permission, the landing page, deleting a person, Settings, and
-amounts and currencies), and the first of Milestone C (the exchange rates, conversion, and the one write path for transactions, money accounts and categories). The rest of the ledger, the budget and everything after are not (`ROADMAP.md` has each). `DESIGN.md` is the design, `ROADMAP.md` the order.
+amounts and currencies), and the first of Milestone C (the exchange rates, conversion, and the one write path for transactions, money accounts, categories and the add dialog). The rest of the ledger, the budget and everything after are not (`ROADMAP.md` has each). `DESIGN.md` is the design, `ROADMAP.md` the order.
 
 ## Source of truth
 
@@ -150,6 +150,7 @@ A command a task adds is written here in that task's change, and `verify` means 
 | `src/db/`                      | The database layer (`DESIGN.md` §18): `config.ts` (which form), `client.ts`, `provision.ts`, `migrate.ts`, `boot.ts`, `exec.ts`, `schema/{sqlite,postgres}/` with the column vocabulary in `columns.ts`  |
 | `src/jobs/`                    | Background work in the web process: `runner.ts`, `claim.ts` (a conditional update that says who won), `index.ts` (`jobsFor`, the list of jobs, which each task that has one adds to)                     |
 | `src/ledger/`                  | Books and currencies, and the one path transactions are written through: `validate.ts` (pure), `transactions.ts` (create, update, delete), `balances.ts`, `invariants.ts`, `testing.ts` (rows for tests) |
+| `src/entries/`                 | The add dialog: `EntryProvider` (the one form, mounted in the layout), `EntrySurface` (Dialog or Drawer), `compose.ts` (form to lines, pure), `month.ts`                                                 |
 | `src/budget/`                  | Categories and subcategories: `categories.ts` (the logic), the page's `CategoriesManager`                                                                                                                |
 | `src/accounts/`                | The Accounts screens: `overview.ts` (groups and net worth, pure), `AccountsScreen`, `AccountDetail`, the add dialog and the account's actions                                                            |
 | `src/fx/`                      | Exchange rates: `frankfurter.ts` (the one request, and the answer read as hostile input), `rates.ts` (`fetchRates`, `rateOn`), `job.ts` (`fetch-rates`), `testing/` (a fake Frankfurter)                 |
