@@ -118,7 +118,7 @@ describe(`the budget route (${leg})`, () => {
   it('answers a mistake with sentences and a 400', async () => {
     for (const body of [
       {},
-      { kind: 'jar', id: food, amount: 1, when: 'this' },
+      { kind: 'loan', id: food, amount: 1, when: 'this' },
       { kind: 'subcategory', id: food, amount: '1', when: 'this' },
       { kind: 'subcategory', id: food, amount: 1, when: 'last' },
       { kind: 'subcategory', id: 5, amount: 1, when: 'this' },
@@ -135,7 +135,7 @@ describe(`the budget route (${leg})`, () => {
     for (const path of [
       '/api/budget',
       '/api/budget?month=2026-13',
-      '/api/budget?kind=jar&id=x',
+      '/api/budget?kind=loan&id=x',
       '/api/budget?kind=subcategory',
     ])
       expect((await call(read, t.ada, path)).status, path).toBe(400);

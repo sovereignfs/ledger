@@ -13,6 +13,7 @@ import { createAccount } from '../ledger/accounts';
 import { addCurrency } from '../ledger/currencies';
 import { seedAccount, seedIncomeSource, seedSubcategory } from '../ledger/testing';
 import { createTransaction } from '../ledger/transactions';
+import { createJar, moveMoney } from '../jars/jars';
 import { createRecurring } from '../recurring/recurring';
 import type { TxnInput } from '../ledger/validate';
 import { BOOK_TABLES } from '../ledger/tables';
@@ -142,6 +143,31 @@ describe(`deleting a person (${leg})`, () => {
         },
       });
       expect(loan.ok).toBe(true);
+      // A jar in a savings account, with something earmarked in it.
+      const savings = await createAccount(database, who, book, {
+        type: 'savings',
+        name: 'Savings',
+        currency: 'USD',
+        opening: { amount: 10_000, date: '2026-01-01' },
+      });
+      if (!savings.ok) throw new Error('savings not made');
+      const jar = await createJar(
+        database,
+        who,
+        book,
+        { accountId: savings.id, name: 'Trip', monthly: 100 },
+        '2026-11',
+      );
+      if (!jar.ok) throw new Error('jar not made');
+      expect(
+        (
+          await moveMoney(database, who, book, jar.id, {
+            direction: 'earmark',
+            amount: 100,
+            date: '2026-11-02',
+          })
+        ).ok,
+      ).toBe(true);
       // A recurring entry, and an occurrence of it the person skipped.
       const repeating = await createRecurring(database, who, book, {
         template: {

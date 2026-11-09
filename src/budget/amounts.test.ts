@@ -119,7 +119,7 @@ describe(`the budget as it was (${leg})`, () => {
       [1.5, 'subcategory', 'this'],
       [Number.NaN, 'subcategory', 'this'],
       [2 ** 60, 'subcategory', 'this'],
-      [100, 'jar', 'this'],
+      [100, 'loan', 'this'],
       [100, 'subcategory', 'last'],
     ] as const)
       expect(

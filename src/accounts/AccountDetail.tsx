@@ -11,6 +11,8 @@ import { ValueButton } from './ValueButton';
 import type { ListedEntry } from '../ledger/entry-list';
 import { StatusToggle } from './StatusToggle';
 import { InstalmentsSection, type Payer } from './InstalmentsSection';
+import { JarsSection } from '../jars/JarsSection';
+import type { SavingRow } from '../jars/saving';
 import styles from './Accounts.module.css';
 import { ENTRY_TYPE_LABEL } from './words';
 
@@ -26,6 +28,8 @@ export function AccountDetail({
   locale,
   payers = [],
   instalments = null,
+  jars = null,
+  jarFigures = null,
 }: {
   account: AccountRow;
   entries: readonly EntryOfAccount[];
@@ -37,10 +41,24 @@ export function AccountDetail({
   payers?: readonly Payer[];
   /** A loan's instalments, when it has them. */
   instalments?: { nextDate: string | null; mode: 'auto' | 'confirm' } | null;
+  /** The jars in this account, or `null` for an account that holds none (DESIGN.md §10). */
+  jars?: readonly SavingRow[] | null;
+  /** What is in jars and what is free in this account. */
+  jarFigures?: { inJars: number; free: number; overEarmarked: boolean } | null;
 }) {
   const money = (value: number) => formatMoney(value, account.currency, locale);
   const said = sayBalance(account.type, account.balance, account.currency, locale);
   const facts: { label: string; value: string }[] = [{ label: 'Balance', value: said.text }];
+  if (jarFigures && jars && jars.length > 0)
+    facts.push(
+      { label: 'In jars', value: money(jarFigures.inJars) },
+      {
+        label: 'Free',
+        value: jarFigures.overEarmarked
+          ? `${money(-jarFigures.free)} over-earmarked`
+          : money(jarFigures.free),
+      },
+    );
   if (account.type === 'credit_card' && account.creditLimit !== null) {
     facts.push(
       { label: 'Limit', value: money(account.creditLimit) },
@@ -111,6 +129,14 @@ export function AccountDetail({
           locale={locale}
           payers={payers}
           existing={instalments}
+        />
+      ) : null}
+      {jars ? (
+        <JarsSection
+          accountId={account.id}
+          currency={account.currency}
+          jars={jars}
+          locale={locale}
         />
       ) : null}
       {values.length > 0 ? (

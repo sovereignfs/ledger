@@ -2,10 +2,12 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { requireBook } from '@/src/access/page';
 import { AccountDetail } from '@/src/accounts/AccountDetail';
-import { todayIn } from '@/src/dates';
+import { monthOf, todayIn } from '@/src/dates';
 import { getDatabase } from '@/src/db/boot';
 import { entriesOf, getAccount, listAccounts } from '@/src/ledger/accounts';
 import { listRecurring } from '@/src/recurring/recurring';
+import { JAR_ACCOUNT_TYPES, accountFigures, earmarkedByAccount } from '@/src/jars/jars';
+import { loadSaving } from '@/src/jars/saving';
 import { listEntries } from '@/src/ledger/entry-list';
 
 export const metadata: Metadata = { title: 'Account' };
@@ -51,6 +53,15 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const instalments =
     (loanTerms?.[1] ?? []).find((each) => each.loanAccountId === id && each.endedAt === null) ??
     null;
+  const canHoldJars = (JAR_ACCOUNT_TYPES as readonly string[]).includes(account.type);
+  const [saving, earmarked] = canHoldJars
+    ? await Promise.all([
+        loadSaving(database, accountId, book.id, monthOf(todayIn(book.timeZone))),
+        earmarkedByAccount(database, accountId, book.id),
+      ])
+    : [[], new Map<string, number>()];
+  const jars = saving.filter((jar) => jar.accountId === id);
+  const figures = canHoldJars ? accountFigures(account.balance, earmarked.get(id) ?? 0) : null;
   return (
     <AccountDetail
       account={account}
@@ -59,6 +70,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       today={todayIn(book.timeZone)}
       locale={book.locale ?? undefined}
       payers={payers}
+      jars={canHoldJars ? jars : null}
+      jarFigures={figures}
       instalments={instalments ? { nextDate: instalments.nextDate, mode: instalments.mode } : null}
     />
   );

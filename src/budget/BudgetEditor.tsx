@@ -14,11 +14,15 @@ export function BudgetEditor({
   id,
   name,
   currency,
+  kind = 'subcategory',
 }: {
   id: string;
   name: string;
   currency: string;
+  /** What is budgeted: a subcategory (the default) or a jar's monthly contribution (DESIGN.md §10.1). */
+  kind?: 'subcategory' | 'jar';
 }) {
+  const noun = kind === 'jar' ? 'contribution' : 'budget';
   const router = useRouter();
   const [amount, setAmount] = useState<number | null>(null);
   const [when, setWhen] = useState<'this' | 'next'>('this');
@@ -34,7 +38,7 @@ export function BudgetEditor({
       const reply = await fetch('/api/budget', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ kind: 'subcategory', id, amount: value, when }),
+        body: JSON.stringify({ kind, id, amount: value, when }),
       });
       if (reply.ok) {
         setDone(
@@ -58,7 +62,7 @@ export function BudgetEditor({
   return (
     <form
       className={styles.editor}
-      aria-label={`Budget for ${name}`}
+      aria-label={`${kind === 'jar' ? 'Contribution' : 'Budget'} for ${name}`}
       onSubmit={(event) => {
         event.preventDefault();
         if (amount === null) return setProblems(['Enter the amount to budget.']);
@@ -75,7 +79,7 @@ export function BudgetEditor({
         </Alert>
       ) : null}
       <MoneyInput
-        aria-label={`Budgeted amount for ${name}`}
+        aria-label={`${kind === 'jar' ? 'Monthly contribution' : 'Budgeted amount'} for ${name}`}
         currency={currency}
         valueCents={amount}
         onValueChange={setAmount}
@@ -90,10 +94,10 @@ export function BudgetEditor({
         <option value="next">From next month</option>
       </Select>
       <Button type="submit" size="sm" disabled={working}>
-        Set budget
+        Set {noun}
       </Button>
       <Button variant="secondary" size="sm" disabled={working} onClick={() => void send(0)}>
-        End budget
+        End {noun}
       </Button>
       {done ? (
         <span role="status" className={styles.note}>

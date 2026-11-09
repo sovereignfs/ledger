@@ -10,6 +10,8 @@ export const BOOK_TABLES: readonly string[] = [
   'txn_line',
   'txn',
   'payee',
+  'jar_movement',
+  'jar',
   'recurring_skip',
   'recurring',
   'budget_amount',

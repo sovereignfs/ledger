@@ -264,3 +264,51 @@ export const recurringSkip = app.table(
   },
   (table) => [primaryKey({ columns: [table.recurringId, table.occurrenceDate] })],
 );
+
+/**
+ * A saving jar (DESIGN.md §10.1): money set aside for a purpose **inside a real money account**, an earmark and not an account. It has a name, the account
+ * it is in, an optional `target`, and a monthly contribution (not here: a `budget_amount` row of kind `jar`, so it has history, §7.3). Its balance is the sum
+ * of its movements and is never stored.
+ */
+export const jar = app.table(
+  'jar',
+  {
+    id: id('id'),
+    bookId: ref('book_id').notNull(),
+    accountId: ref('account_id').notNull(),
+    name: text('name').notNull(),
+    target: money('target'),
+    position: counter('position').notNull(),
+    archivedAt: epochMs('archived_at'),
+    createdAt: epochMs('created_at').notNull(),
+  },
+  (table) => [
+    index('jar_book_idx').on(table.bookId),
+    index('jar_account_idx').on(table.bookId, table.accountId),
+  ],
+);
+
+/**
+ * A movement of a jar (DESIGN.md §10.2): **positive earmarks, negative releases**. `kind` is `contribution` (the monthly one, with `month`, unique with the jar so
+ * it is made once; a zero is a contribution that was skipped for want of free money), `manual`, or `spend` (an expense from the jar, pointing at its `txn_id`,
+ * which goes when the expense does).
+ */
+export const jarMovement = app.table(
+  'jar_movement',
+  {
+    id: id('id'),
+    bookId: ref('book_id').notNull(),
+    jarId: ref('jar_id').notNull(),
+    date: isoDate('date').notNull(),
+    amount: money('amount').notNull(),
+    txnId: ref('txn_id'),
+    kind: text('kind').notNull(),
+    month: month('month'),
+    createdAt: epochMs('created_at').notNull(),
+  },
+  (table) => [
+    index('jar_movement_jar_idx').on(table.bookId, table.jarId),
+    index('jar_movement_txn_idx').on(table.bookId, table.txnId),
+    uniqueIndex('jar_movement_month_idx').on(table.jarId, table.month),
+  ],
+);

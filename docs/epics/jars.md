@@ -2,7 +2,7 @@
 
 ## Status
 
-📋 Planned.
+⏳ In progress: 1 of 3 tasks is done.
 
 ## Overview
 
@@ -14,7 +14,7 @@ Money set aside inside a real account, contributed to each month, and spent from
 
 ## Tasks
 
-#### 📋 7.1 — Jars and movements
+#### ✅ 7.1 — Jars and movements
 
 **Goal:** earmarks with a balance. **Design:** §10.1, §10.2. **Depends on:** 4.1, 5.2.
 
@@ -23,6 +23,26 @@ release by hand; an account shows "in jars" and "free"; never past the account's
 Saving group of the budget screen; moving a jar to another account.
 
 **Accepts when:** an earmark that would exceed the account's free money is refused; two earmarks racing cannot together exceed it.
+
+**Done as:** two book tables, `jar` and `jar_movement` (migration `0009`, both dialects, both in `BOOK_TABLES` and seeded in `people.test.ts`), with a unique
+index on `(jar_id, month)` that 7.2 uses for its once-a-month contribution. `src/jars/jars.ts`: `createJar` (in a bank account, cash, savings or a deposit; a
+name not already a live jar's in it; a target more than nothing; a monthly contribution written to the budget history as a row of kind `jar` from the
+book's current month, so `TARGET_KINDS` gained `jar`), `updateJar`, `moveMoney` (earmark or release by hand), `setJarArchived` (only when empty),
+`moveJar` (to an account of the same currency that holds money, **when what the jar holds is free there**, which is a release from one and an earmark in
+the other) and `earmarkedByAccount` / `accountFigures` (what an account holds, what is in jars, what is free, and _over-earmarked_ once spending took it below).
+**The rule is in the statement:** `insertMovement` first updates the account's row, which in PostgreSQL waits for any other earmark in the account and in
+SQLite is a write that serializes, and then writes the movement from a `SELECT` whose condition is that the account's balance on the day less what its jars
+hold is at least the amount (an earmark) or that the jar holds at least the amount (a release); nothing is checked first and written after. The race test
+makes six earmarks of 30,000 at once in an account with 100,000 free and exactly three succeed, on all three databases. **A balance is derived, never
+written:** a jar's balance is the sum of its movements. Routes `GET/POST /api/jars`, `PATCH /api/jars/[id]` (name, target, archive, move) and
+`POST /api/jars/[id]/movements` (`{ direction, amount, date? }`), another person's a 404 with nothing in it. **Screens:** a _Jars_ section on a savings, bank, cash or
+deposit account's page (add a jar with a target, earmark, release, archive, and the monthly contribution through the budget editor, from this month or next),
+_In jars_ and _Free_ in the account's summary, and the **Saving group of the Budget** (each jar with its contribution in force for the month, balance and
+progress, linking to its account; contributions are not spending and are not in the totals). A bug the tests found: an `inBook` call whose alias was `m` inside a
+query that also aliased the movements `m` matched any member of any book; the movements are `v` there, and the aliases `inBook` uses are not reused. 12 data-layer tests on all
+three databases, 5 route tests (second person), 5 pure and 2 browser tests; each key test was seen to fail against the code it guards (the free check, the
+release check, archiving a jar that holds money, moving without room, an earmark that ignores the other jars). Left to 7.2 and 7.3: the monthly contribution
+job and the Overview note, and spending from a jar.
 
 #### 📋 7.2 — Monthly contributions
 

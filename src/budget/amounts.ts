@@ -13,13 +13,12 @@ import type { WriteResult } from '../ledger/transactions';
  * Budgeted amounts with their history (DESIGN.md §7.3). A change **writes a row from a month on and never rewrites a past one**: it is "from this month" or
  * "from next month", and the month is the book's own, given by the caller from the book's clock. Two changes for the same month keep the later; a budget that
  * ends writes a zero. Every statement carries the permission (`inBook`), and the target (a subcategory or an income source) must be the same book's in the
- * statement that writes the row, so another person's id reads as one that is not there. Jars take this table too (task 7.1); until they exist their kind is
- * not accepted.
+ * statement that writes the row, so another person's id reads as one that is not there. Jars take this table too (task 7.1): a jar's monthly contribution is a row of kind `jar`.
  */
 const schema = (database: Database) =>
   database.dialect === 'postgres' ? postgresSchema : sqliteSchema;
 
-export const TARGET_KINDS = ['subcategory', 'income'] as const;
+export const TARGET_KINDS = ['subcategory', 'income', 'jar'] as const;
 export type TargetKind = (typeof TARGET_KINDS)[number];
 
 export type When = 'this' | 'next';
@@ -93,7 +92,9 @@ export async function writeBudget(
   const target =
     input.kind === 'subcategory'
       ? sql`SELECT t.id AS id, t.book_id AS book_id FROM ${s.subcategory} t`
-      : sql`SELECT t.id AS id, t.book_id AS book_id FROM ${s.incomeSource} t`;
+      : input.kind === 'jar'
+        ? sql`SELECT t.id AS id, t.book_id AS book_id FROM ${s.jar} t`
+        : sql`SELECT t.id AS id, t.book_id AS book_id FROM ${s.incomeSource} t`;
   const written = await dbAll<{ id: string }>(
     database,
     sql`INSERT INTO ${s.budgetAmount} (book_id, target_kind, target_id, from_month, amount, created_at)

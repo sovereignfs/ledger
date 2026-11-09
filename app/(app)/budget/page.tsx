@@ -4,6 +4,7 @@ import { budgetHistory } from '@/src/budget/amounts';
 import { BudgetScreen, type Selected } from '@/src/budget/BudgetScreen';
 import { lastDayOf } from '@/src/budget/income';
 import { loadBudget } from '@/src/budget/screen';
+import { loadSaving } from '@/src/jars/saving';
 import { isMonth, monthOf, todayIn } from '@/src/dates';
 import { getDatabase } from '@/src/db/boot';
 import { listEntries } from '@/src/ledger/entry-list';
@@ -22,7 +23,10 @@ export default async function Page({
   const query = await searchParams;
   const asked = typeof query.month === 'string' ? query.month : undefined;
   const month = asked && isMonth(asked) ? asked : monthOf(todayIn(book.timeZone));
-  const figures = await loadBudget(database, accountId, book, month);
+  const [figures, saving] = await Promise.all([
+    loadBudget(database, accountId, book, month),
+    loadSaving(database, accountId, book.id, month),
+  ]);
   const rowId = typeof query.row === 'string' ? query.row : undefined;
   const line = rowId
     ? figures.groups.flatMap((group) => group.rows).find((each) => each.subcategory.id === rowId)
@@ -54,5 +58,12 @@ export default async function Page({
       }),
     };
   }
-  return <BudgetScreen figures={figures} selected={selected} locale={book.locale ?? undefined} />;
+  return (
+    <BudgetScreen
+      figures={figures}
+      saving={saving}
+      selected={selected}
+      locale={book.locale ?? undefined}
+    />
+  );
 }

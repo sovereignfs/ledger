@@ -1,0 +1,59 @@
+/* The jars of an account (DESIGN.md §10). Tokens only. */
+.jars {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-4);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-lg);
+  background-color: var(--sv-color-surface);
+}
+
+.jar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-2);
+  padding: var(--sv-space-3) var(--sv-space-5);
+}
+
+.jar + .jar {
+  border-top: 1px solid var(--sv-color-border);
+}
+
+.line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sv-space-3);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sv-space-2);
+}
+
+.add {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-3);
+  max-width: 28rem;
+}
+
+.note {
+  margin: 0;
+  color: var(--sv-color-text-muted);
+}
+
+.block {
+  display: block;
+}

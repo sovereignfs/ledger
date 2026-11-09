@@ -18,7 +18,7 @@ file or PostgreSQL), signing people in locally, through a Sovereign core, or bot
 
 **What is built:** the foundation (Milestone A: settings, the database on three forms, the job runner, the policy and headers, the shell, browser tests, the
 image and its setups) and the first people's part (Milestone B: local sign-in, the book and the permission, the landing page, deleting a person, Settings, and
-amounts and currencies), and the ledger (Milestone C: exchange rates and conversion, the one write path for transactions, money accounts, categories, the add dialog, splits, payees, transfers, the list, reconciling and revaluation). The budget (history, income, the screen), setup and Overview (Milestone D) are built too; recurring entries, jars, reports and everything after are not (`ROADMAP.md` has each). `DESIGN.md` is the design, `ROADMAP.md` the order.
+amounts and currencies), and the ledger (Milestone C: exchange rates and conversion, the one write path for transactions, money accounts, categories, the add dialog, splits, payees, transfers, the list, reconciling and revaluation). The budget (history, income, the screen), setup and Overview (Milestone D) are built too, and so are recurring entries (the rule, posting, upcoming, bills in the budget, loan instalments); jars are begun (`ROADMAP.md` has what is built); reports and everything after are not. `DESIGN.md` is the design, `ROADMAP.md` the order.
 
 ## Source of truth
 
@@ -151,6 +151,7 @@ A command a task adds is written here in that task's change, and `verify` means 
 | `src/jobs/`                    | Background work in the web process: `runner.ts`, `claim.ts` (a conditional update that says who won), `index.ts` (`jobsFor`, the list of jobs, which each task that has one adds to)                                                                                                                                                                                            |
 | `src/ledger/`                  | Books and currencies, and the one path transactions are written through: `validate.ts` (pure), `transactions.ts` (create, update, delete), `balances.ts`, `invariants.ts`, `testing.ts` (rows for tests)                                                                                                                                                                        |
 | `src/transactions/`            | The transactions list: `filter.ts` (the address, pure), `present.ts` (a row, pure), `FilterBar`, `EntriesList`                                                                                                                                                                                                                                                                  |
+| `src/jars/`                    | Saving jars, earmarks inside an account: `jars.ts` (make, earmark, release, archive, move; the rule in the statement), `saving.ts` (the Saving group, pure), `JarsSection`                                                                                                                                                                                                      |
 | `src/recurring/`               | Recurring entries: `rule.ts` (the repeat rule, the next occurrence and the monthly equivalent, pure), `recurring.ts` (make, change, end and post), `job.ts` (`post-recurring`), `bills.ts` (a subcategory budgeted by its bills), `loan.ts`, `loan-entry.ts` and `loan-split.ts` (a loan's instalments, split by days), `present.ts` (pure), `RecurringManager`, `UpcomingList` |
 | `src/overview/`                | Overview: `overview.ts` (this month, the closest rows and the checklist, pure, over the other screens' figures), `OverviewScreen`, `SetupChecklist`                                                                                                                                                                                                                             |
 | `src/setup/`                   | The setup wizard: `setup.ts` (each step, safe to repeat), `locale.ts` (pure), `SetupWizard`                                                                                                                                                                                                                                                                                     |
@@ -171,7 +172,7 @@ A command a task adds is written here in that task's change, and `verify` means 
 
 ## Not in place yet
 
-Each is a task in `ROADMAP.md`, not a thing to assume exists: the ledger, the budget, recurring entries, jars and reports; sign-in through a Sovereign
+Each is a task in `ROADMAP.md`, not a thing to assume exists: the rest of the jars (their monthly contributions, spending from a jar) and reports; sign-in through a Sovereign
 core (2.3, 2.4); the PWA (1.11). Add them in their own branches, and move the line out of this section as each lands.
 
 <!-- BEGIN:nextjs-agent-rules -->

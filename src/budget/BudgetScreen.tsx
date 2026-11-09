@@ -3,6 +3,7 @@ import { EmptyState, PageContainer, PageHeader, Progress } from '@sovereignfs/ui
 import { addMonths } from '../dates';
 import type { BudgetRow as HistoryRow } from './budget-for';
 import { notIncludedLines } from '../money/convert';
+import type { SavingRow } from '../jars/saving';
 import { formatMoney } from '../money/text';
 import type { Row } from '../transactions/present';
 import { BudgetEditor } from './BudgetEditor';
@@ -28,15 +29,18 @@ const percent = (spent: number, budgeted: number | null): number =>
  */
 export function BudgetScreen({
   figures,
+  saving = [],
   selected,
   locale,
 }: {
   figures: BudgetFigures;
+  /** The jars, with their contributions in force for the month (DESIGN.md §10.3): not spending, so not in the totals. */
+  saving?: readonly SavingRow[];
   selected: Selected | undefined;
   locale?: string;
 }) {
   const { month, base } = figures;
-  const empty = figures.groups.every((group) => group.rows.length === 0);
+  const empty = figures.groups.every((group) => group.rows.length === 0) && saving.length === 0;
   const money = (amount: number, currency: string) => formatMoney(amount, currency, locale);
   return (
     <PageContainer>
@@ -96,7 +100,42 @@ export function BudgetScreen({
           {figures.groups.map((group) => (
             <section key={group.id} className={styles.group} aria-label={group.title}>
               <h2>{group.title}</h2>
-              {group.rows.length === 0 ? (
+              {group.id === 'saving' && saving.length > 0 ? (
+                <ul className={styles.rows}>
+                  {saving.map((jar) => (
+                    <li key={jar.id}>
+                      <Link
+                        className={styles.row}
+                        href={`/accounts/${jar.accountId}`}
+                        aria-label={`${jar.name} jar in ${jar.accountName}`}
+                      >
+                        <span className={styles.name}>
+                          <strong>{jar.name}</strong>
+                          <span>
+                            {jar.accountName} · {jar.currency}
+                          </span>
+                        </span>
+                        <span className={styles.figures}>
+                          {money(jar.balance, jar.currency)}
+                          {jar.target !== null ? ` of ${money(jar.target, jar.currency)}` : ''}
+                          <br />
+                          {jar.monthly
+                            ? `${money(jar.monthly, jar.currency)} a month`
+                            : 'No monthly amount'}
+                        </span>
+                        {jar.progress !== null ? (
+                          <span className={styles.bar}>
+                            <Progress
+                              value={Math.round(jar.progress * 100)}
+                              label={`${jar.name}: ${money(jar.balance, jar.currency)} saved`}
+                            />
+                          </span>
+                        ) : null}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : group.rows.length === 0 ? (
                 <p className={styles.note}>
                   {group.id === 'saving'
                     ? 'Jars and their monthly contributions will be here.'
