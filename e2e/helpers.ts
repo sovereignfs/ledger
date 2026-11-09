@@ -15,8 +15,14 @@ export async function ensureAccount(page: Page) {
   await page.getByLabel('Email').fill(EMAIL);
   await page.getByLabel('Password').fill(PASSWORD);
   await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page.getByRole('button', { name: 'User menu' })).toBeVisible();
-  await signOut(page);
+  // A new account lands at the front address: Overview, or the wizard, which has no shell and so no menu to sign out from. The session is ended here, not
+  // through the menu, so that the book is left as the wizard would find it.
+  await expect(
+    page
+      .getByRole('button', { name: 'User menu' })
+      .or(page.getByRole('heading', { name: 'Set up your budget' })),
+  ).toBeVisible();
+  await page.context().clearCookies();
 }
 
 /**
@@ -45,9 +51,11 @@ export async function trySignIn(page: Page, email: string, password: string) {
   const submit = page.getByRole('button', { name: 'Sign in' });
   await submit.click();
   const limited = page.getByText(/Too many tries/);
+  // Signing in lands at the front address, which is Overview, or the wizard for a book that is not set up yet, which has no shell and so no user menu.
   const outcome = page
     .getByText(/do not match/)
-    .or(page.getByRole('button', { name: 'User menu' }));
+    .or(page.getByRole('button', { name: 'User menu' }))
+    .or(page.getByRole('heading', { name: 'Set up your budget' }));
   await expect(limited.or(outcome)).toBeVisible();
   if (await limited.isVisible()) {
     await page.waitForTimeout(10_500);
@@ -55,10 +63,26 @@ export async function trySignIn(page: Page, email: string, password: string) {
   }
 }
 
-/** Makes sure there is an account, and signs it in. */
-export async function signedIn(page: Page) {
+/**
+ * Makes sure there is an account, and signs it in. **The book is set up too** (`POST /api/setup` with `done`), as a person who has been through the wizard has,
+ * so that the front address shows Overview and not the wizard; `setup: false` is for the one test that goes through it (`00-setup.spec.ts`).
+ */
+export async function signedIn(page: Page, options: { setup?: boolean } = {}) {
   await ensureAccount(page);
   await trySignIn(page, EMAIL, PASSWORD);
+  // Signed in, whichever way it came about, which includes a second attempt after a wait for the rate limit: Overview, or the wizard of a book not set up.
+  await expect(
+    page
+      .getByRole('button', { name: 'User menu' })
+      .or(page.getByRole('heading', { name: 'Set up your budget' })),
+  ).toBeVisible();
+  if (options.setup === false) return;
+  const reply = await page.request.post('/api/setup', {
+    data: { step: 'done' },
+    headers: { origin: new URL(page.url()).origin },
+  });
+  expect(reply.status(), 'finishing setup').toBe(200);
+  await page.goto('/');
   await expect(page.getByRole('button', { name: 'User menu' })).toBeVisible();
 }
 

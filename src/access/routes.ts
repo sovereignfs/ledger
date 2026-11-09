@@ -26,6 +26,8 @@ export const ROUTES: RouteRule[] = [
   // rewriting to `/home`: the address stays `/`, and `/home` itself is sent back to it.
   { route: '/', page: { kind: 'public' } },
   { route: '/home', page: { kind: 'book' } },
+  // Setup (DESIGN.md §15.3): full-bleed, outside the shell, for someone signed in; the front address sends a book that is not set up here.
+  { route: '/setup', page: { kind: 'book' } },
   { route: '/sign-in', page: { kind: 'public' } },
   { route: '/sign-up', page: { kind: 'public' } },
   // Only with mail (DESIGN.md §13.1): without it they are 404, like the routes under /api/auth that send and use the links.
@@ -70,6 +72,8 @@ export const ROUTES: RouteRule[] = [
     methods: { PATCH: { kind: 'book' }, DELETE: { kind: 'book' } },
   },
   { route: '/api/income', methods: { GET: { kind: 'book' } } },
+  // The setup wizard (DESIGN.md §15.3): each step a write in the person's own book, safe to repeat.
+  { route: '/api/setup', methods: { GET: { kind: 'book' }, POST: { kind: 'book' } } },
   // Categories and subcategories (DESIGN.md §7.1): the person's own. Nothing in a request names whose.
   {
     route: '/api/categories',

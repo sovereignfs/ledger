@@ -2,7 +2,7 @@
 
 ## Status
 
-📋 Planned.
+⏳ In progress: 1 of 3 tasks is done.
 
 ## Overview
 
@@ -14,7 +14,7 @@ The first minute, the page a person returns to, and the book's settings.
 
 ## Tasks
 
-#### 📋 9.1 — The setup wizard
+#### ✅ 9.1 — The setup wizard
 
 **Goal:** from nothing to a usable budget in a minute. **Design:** §15.3. **Depends on:** 4.1, 5.3.
 
@@ -24,6 +24,8 @@ setup until done.
 
 **Accepts when:** a fresh account reaches Overview in four steps; refreshing mid-way loses nothing already entered; going back and forward makes no
 duplicate.
+
+**Done as:** **`/setup`**, full-bleed and outside the shell (`app/setup/page.tsx`), a wizard of four steps in a `StepStrip`. **What is done is read from the book** (`loadSetup` in `src/setup/setup.ts`): the next step is the first that is not (no base currency, no account, no primary income, then categories), so a refresh loses nothing, and **each step is safe to repeat**: `setupCurrency` sets the base currency and the browser's time zone (and can change it, re-pricing nothing) and adds the currency to the book's; `setupAccount` makes the first account in the base currency with its opening balance **unless the book has an account already, when it finds it** (a second tap or a trip back and forward makes no other); `setupIncome` finds or makes **the** primary source, renames it if the name changed and sets this month's budget again, which replaces this month's row and no other; `setupCategories` makes **only the categories chosen**, each a category with a subcategory of its name in the base currency with the amount as its budget from this month, **finding by name what is there** (so choosing it twice, or going back, makes none twice) and making nothing for what was not tapped; `finishSetup` sets `setup_done_at` once and keeps it. Every step goes through the paths the rest of the app uses (accounts, income sources, categories, budgets) and carries the permission. `src/setup/locale.ts` (pure) suggests the **currency from the browser's locale region** (`en-GB` pounds, `de-DE` euros, `si-LK` rupees, dollars where it cannot tell) and checks a time zone. `/api/setup` (GET the state; POST a step: `currency`, `account`, `income`, `categories`, `done`) is in `routes.ts` and called as the second person: the book is the session's, a request naming another is not obeyed, and another person's book is not touched. **`/` goes to `/setup` while the book is not set up** (`app/(app)/home/page.tsx`), `/setup` stays reachable afterwards, and **"Skip setup: I will do it myself"** finishes it for a person who has a book of their own already (as the tester of this app had). The e2e helpers set a book up as a person who has been through the wizard has, and `e2e/00-setup.spec.ts`, named to run first since the instance has the one account, walks the wizard from the front address: USD suggested, "Wizard bank" with $250.00, "Wizard pay" budgeted $3,000.00, Groceries with $400.00 and Fun with none, Overview, and no Housing; it then goes back and forward and reloads without a second account, and skips. Tested on all three databases: the four steps in order with the real account, categories and budgets behind them; three rounds of every step changing no count of accounts, sources, categories, subcategories, entries or budgets and each answering ok; a rename and a changed budget; a changed currency re-pricing nothing; refusals (no currency first, a currency, time zone, amount, name or kind that is not one, more than 20 categories) writing nothing; another person's book untouched. Each key test was seen to fail against the code it guards (a second account made, a category not found by name, finishing moving the time, the currency step without the permission, the region not upper-cased). Left out: the first account is a bank account, cash or savings (cards, loans and people come from Overview's checklist, 9.2), the suggested categories are the seven of the design and no other can be typed here (the Categories page makes any), and a second tap racing the first at once could make two accounts (a step is one person's one tap; the unique account name is not enforced).
 
 #### 📋 9.2 — Overview
 

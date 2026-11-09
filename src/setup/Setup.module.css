@@ -1,0 +1,121 @@
+/* The setup wizard (DESIGN.md §15.3): full-bleed, one step at a time. Tokens only. */
+.page {
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+  padding: var(--sv-space-6) var(--sv-space-4);
+  background-color: var(--sv-color-surface-sunken);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-5);
+  width: 100%;
+  max-width: 36rem;
+  height: fit-content;
+  padding: var(--sv-space-6);
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-lg);
+  background-color: var(--sv-color-surface);
+}
+
+.card h1 {
+  margin: 0;
+  font-size: var(--sv-font-size-2xl);
+  font-weight: var(--sv-font-weight-semibold);
+}
+
+.card h2 {
+  margin: 0;
+  font-size: var(--sv-font-size-lg);
+}
+
+.lede,
+.note {
+  margin: 0;
+  color: var(--sv-color-text-muted);
+}
+
+.note {
+  font-size: var(--sv-font-size-sm);
+}
+
+.strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sv-space-2);
+}
+
+.step {
+  padding: var(--sv-space-2) var(--sv-space-3);
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-md);
+  background-color: transparent;
+  color: var(--sv-color-text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.step[aria-current='step'] {
+  border-color: var(--sv-color-focus-ring);
+  background-color: var(--sv-color-surface-sunken);
+  color: var(--sv-color-text-primary);
+  font-weight: var(--sv-font-weight-medium);
+}
+
+.step:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.step:focus-visible {
+  outline: 2px solid var(--sv-color-focus-ring);
+  outline-offset: 2px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-4);
+}
+
+.two {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sv-space-4);
+}
+
+@media (max-width: 480px) {
+  .two {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.chips {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sv-space-3);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sv-space-3);
+}
+
+.problem {
+  display: block;
+}

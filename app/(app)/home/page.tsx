@@ -1,12 +1,14 @@
 import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
 import { requireBook } from '@/src/access/page';
 import { EmptyState, PageContainer, PageHeader } from '@sovereignfs/ui';
 
 export const metadata: Metadata = { title: 'Overview' };
 
-/** A place the shell has, with nothing in it yet: task 9.2 builds it. */
+/** The front address for someone signed in. A book that is not set up is taken to the wizard from here (DESIGN.md §15.3); Overview itself is task 9.2. */
 export default async function Page() {
-  await requireBook();
+  const { book } = await requireBook();
+  if (book.setupDoneAt === null) redirect('/setup');
   return (
     <PageContainer>
       <PageHeader title="Overview" description="Where things stand, at a glance." />
