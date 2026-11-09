@@ -2,7 +2,7 @@
 
 ## Status
 
-⏳ In progress: 5 of 6 tasks are done; 2.4 (core's notices) is next.
+✅ Done: 6 of 6 tasks.
 
 ## Overview
 
@@ -61,7 +61,7 @@ the browser tests, **each in a directory of its own** (the auth database is `led
 refused until linked, a different address refused to link, unlinking, the last way in kept, no keys no sign-in), the config tests for a core alone, both ways, a file's secret, a partial set and an address that would send the secret in the clear, and 22 in the browser (three runs in a row). Each key test was seen to fail
 against the code it guards (linking by email, PKCE off, the ID token not verified, the core-only default for sign-up); one test did not exist for the last, and was added.
 
-#### 📋 2.4 — Core's notices
+#### ✅ 2.4 — Core's notices
 
 **Goal:** back-channel logout and account deleted. **Design:** §13.2. **Depends on:** 2.3, 2.5.
 
@@ -71,6 +71,14 @@ answers `200` only once done. Copied: Tusk's `src/sovereign/http.ts`, `verifiers
 
 **Accepts when:** against `createFakeCore`, a logout notice ends every session of the person, an account-deleted notice leaves nothing of them, and a
 replayed `jti` is refused after a restart.
+
+**Done as:** `@sovereignfs/sdk` **2.1.0**, exact-pinned (it installs under pnpm's minimum age with nothing listed), and Tusk's `src/sovereign/{http,verifiers,server}.ts` with their tests, copied: **the SDK's `verifyLogoutToken` and `verifyAccountDeletedToken`**
+hold the rules of core's contract (type, signature against its keys, issuer, audience, age, event, `jti`, no `nonce`), and `verifiers.ts` is the one file that imports it, so everything else is tested with stand-ins and this against the SDK's own fake core. `http.ts` is the HTTP
+rules for the two routes `/api/sovereign/backchannel-logout` and `/api/sovereign/account-deleted`: **a POST of a bounded form**, a rate limit, **404 where sign-in through core is not set up**, no session and no `Origin` (the token is the credential; the two routes are `public` in `routes.ts` with that
+as the reason). A logout notice **ends every session of the person** (found by their `sub`, `identity.ts`) and answers 200 for one nobody here knows; an account-deleted notice runs **`deletePerson`** and **answers 200 only once it is done** (a person who never signed in, or is gone already, is done). **A replayed `jti` is refused, also after a restart**:
+the notice is counted against a limit of one in the shared database for as long as it could be replayed (`seenBy`, over the rate limiter's table, not a table of its own as the task said: it is the same thing with nothing new to delete, export or import, and `rate_bucket` is not a book's). Tests: the 61 of `src/sovereign` (the HTTP rules, the verifiers against the SDK's fake core, a
+replay refused and kept by another process, forgotten once it could not be replayed, `deletePerson`'s tests) and, in the browser, a logout at core signing the person out here wherever they are signed in, a wrong notice or one sent twice refused and ending nothing, the addresses answering only a POST, and a deletion at core leaving the instance open to its first person (30 in the file, three runs of the
+sign-in ones before it). Each key test was seen to fail against the code it guards (replays not remembered).
 
 #### ✅ 2.5 — Deleting a person
 

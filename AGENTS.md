@@ -167,6 +167,7 @@ A command a task adds is written here in that task's change, and `verify` means 
 | `e2e/`, `playwright.config.ts` | Browser tests: the built app in Chromium and WebKit, on the database form the environment names                                                                                                                                                                                                                                                                                 |
 | `migrations/`                  | The generated SQL, `sqlite/`, `postgres/` and `auth/` (better-auth's, per dialect), committed and reviewed. Never written by hand                                                                                                                                                                                                                                               |
 | `src/account/`                 | Settings: the sections (profile, security, preferences, the book, currencies, budget, notifications, data)                                                                                                                                                                                                                                                                      |
+| `src/sovereign/`               | A person's deletion (`people.ts`, `delete-account.ts`), and what Sovereign tells the app: `http.ts` (the two notices' HTTP rules), `verifiers.ts` (the SDK's, the one file that imports it), `identity.ts`, `server.ts`                                                                                                                                                         |
 | `src/sw/`, `src/pwa/`          | The service worker (a string, served at `/sw.js`: the build's files and icons only, never a page) and its registration; the manifest is `app/manifest.ts`                                                                                                                                                                                                                       |
 | `src/portability/`             | The book in one file: `format.ts` (`TABLES`, the one list of what is in it and what points at what, and the export), `validate.ts` (the file read whole, pure), `import.ts`                                                                                                                                                                                                     |
 | `src/reports/`                 | Reports: `month.ts` (a month's figures, pure over the screens' own, and the list of months), `ReportsScreen`                                                                                                                                                                                                                                                                    |
@@ -178,8 +179,8 @@ A command a task adds is written here in that task's change, and `verify` means 
 
 ## Not in place yet
 
-Each is a task in `ROADMAP.md`, not a thing to assume exists: the charts of the reports (8.4); core's notices (2.4), and what follows from
-sign-in through a core (the bell, 10.1, and the recap, 8.6). Add them in their own branches, and move the line out of this section as each lands.
+Each is a task in `ROADMAP.md`, not a thing to assume exists: the charts of the reports (8.4); what follows from sign-in through a core: the bell, email and activity
+(10.1), and the recap (8.6). Add them in their own branches, and move the line out of this section as each lands.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

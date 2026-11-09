@@ -121,6 +121,20 @@ export const ROUTES: RouteRule[] = [
   { route: '/sw.js', methods: { GET: { kind: 'public' } } },
   // The instance asks it before it sends anyone to the app, and a container's health check does: it says only whether the database answers.
   { route: '/api/health', methods: { GET: { kind: 'public' } } },
+  // What Sovereign tells the app when a person's session there ends, or they delete their account (DESIGN.md §13.2): a token signed by core, checked against its keys
+  // by the SDK; there is no session and no `Origin`. Absent, with a 404, where Sovereign sign-in is not set up.
+  {
+    route: '/api/sovereign/backchannel-logout',
+    methods: {
+      POST: { kind: 'public', because: 'a token signed by Sovereign, checked against its keys' },
+    },
+  },
+  {
+    route: '/api/sovereign/account-deleted',
+    methods: {
+      POST: { kind: 'public', because: 'a token signed by Sovereign, checked against its keys' },
+    },
+  },
   // better-auth's own: it checks `Origin` and the session cookie itself, and rate-limits sign-in (src/auth/auth.ts). Absent, with a 404, when sign-in is off.
   {
     route: '/api/auth/[...all]',
