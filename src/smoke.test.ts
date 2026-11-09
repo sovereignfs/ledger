@@ -17,7 +17,9 @@ describe('the package', () => {
   });
 
   it('runs on its own port, 3003', () => {
-    expect(pkg.scripts.dev).toContain('--port 3003');
+    // `pnpm dev` is scripts/dev.mjs, which starts next dev on that port.
+    expect(pkg.scripts.dev).toBe('node scripts/dev.mjs');
+    expect(readFileSync('scripts/dev.mjs', 'utf8')).toContain("const PORT = '3003'");
     expect(pkg.scripts.start).toContain('3003');
   });
 });

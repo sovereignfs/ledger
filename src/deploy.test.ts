@@ -64,7 +64,12 @@ describe('the setups', () => {
 
   it('run on the manifest’s port on a developer’s machine too, so the suite’s apps can run side by side', () => {
     const { scripts } = JSON.parse(read('package.json')) as { scripts: Record<string, string> };
-    expect(scripts.dev).toContain(`--port ${manifest.port}`);
+    // `pnpm dev` is scripts/dev.mjs, which starts next dev on the manifest's port and makes the address people use from it.
+    expect(scripts.dev).toBe('node scripts/dev.mjs');
+    const dev = read('scripts/dev.mjs');
+    expect(dev).toContain(`const PORT = '${manifest.port}'`);
+    expect(dev).toContain("'--port', PORT");
+    expect(dev).toContain('LEDGER_URL=http://localhost:${PORT}');
     expect(scripts.start).toContain(`PORT=\${PORT:-${manifest.port}}`);
     expect(read('.env.example')).toContain(`LEDGER_URL=http://localhost:${manifest.port}`);
   });
