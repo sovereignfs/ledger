@@ -55,6 +55,10 @@ export const ROUTES: RouteRule[] = [
     route: '/api/accounts/[id]',
     methods: { GET: { kind: 'book' }, PATCH: { kind: 'book' }, DELETE: { kind: 'book' } },
   },
+  {
+    route: '/api/accounts/[id]/reconcile',
+    methods: { GET: { kind: 'book' }, POST: { kind: 'book' } },
+  },
   // Categories and subcategories (DESIGN.md §7.1): the person's own. Nothing in a request names whose.
   {
     route: '/api/categories',

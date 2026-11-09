@@ -172,8 +172,8 @@
   font-weight: var(--sv-font-weight-medium);
 }
 
-.entries td:nth-child(3),
-.entries th:nth-child(3) {
+.entries td:nth-child(4),
+.entries th:nth-child(4) {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }

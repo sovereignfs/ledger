@@ -6,6 +6,8 @@ import { cardAvailable, cardUsed, loanProgress, sayBalance } from '../ledger/pre
 import { formatMoney } from '../money/text';
 import { EditEntryButton } from '../entries/EditEntryButton';
 import { AccountActions } from './AccountActions';
+import { ReconcileButton } from './ReconcileButton';
+import { StatusToggle } from './StatusToggle';
 import styles from './Accounts.module.css';
 import { ENTRY_TYPE_LABEL } from './words';
 
@@ -16,10 +18,12 @@ import { ENTRY_TYPE_LABEL } from './words';
 export function AccountDetail({
   account,
   entries,
+  today,
   locale,
 }: {
   account: AccountRow;
   entries: readonly EntryOfAccount[];
+  today: string;
   locale?: string;
 }) {
   const money = (value: number) => formatMoney(value, account.currency, locale);
@@ -68,6 +72,15 @@ export function AccountDetail({
         archived={account.archivedAt !== null}
         deletable={account.deletable}
       />
+      <div className={styles.actions}>
+        <ReconcileButton
+          id={account.id}
+          type={account.type}
+          currency={account.currency}
+          today={today}
+          locale={locale}
+        />
+      </div>
       <section aria-label="Entries">
         <h2>Entries</h2>
         {entries.length === 0 ? (
@@ -78,6 +91,7 @@ export function AccountDetail({
               <tr>
                 <th>Date</th>
                 <th>What</th>
+                <th>Status</th>
                 <th>Amount</th>
                 <th>
                   <span className={styles.visuallyHidden}>Edit</span>
@@ -93,6 +107,13 @@ export function AccountDetail({
                     {entry.parts > 1 ? ` · Split in ${entry.parts}` : ''}
                     {entry.payee ? ` · ${entry.payee}` : ''}
                     {entry.note ? ` · ${entry.note}` : ''}
+                  </td>
+                  <td>
+                    <StatusToggle
+                      id={entry.txnId}
+                      status={entry.status === 'cleared' ? 'cleared' : 'pending'}
+                      label={`The entry of ${entry.date}`}
+                    />
                   </td>
                   <td>{formatMoney(entry.amount, entry.currency, locale)}</td>
                   <td>

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { requireBook } from '@/src/access/page';
 import { AccountDetail } from '@/src/accounts/AccountDetail';
+import { todayIn } from '@/src/dates';
 import { getDatabase } from '@/src/db/boot';
 import { entriesOf, getAccount } from '@/src/ledger/accounts';
 
@@ -15,5 +16,12 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const account = await getAccount(database, accountId, book.id, id);
   if (!account) notFound();
   const entries = await entriesOf(database, accountId, book.id, id, { limit: 100 });
-  return <AccountDetail account={account} entries={entries} locale={book.locale ?? undefined} />;
+  return (
+    <AccountDetail
+      account={account}
+      entries={entries}
+      today={todayIn(book.timeZone)}
+      locale={book.locale ?? undefined}
+    />
+  );
 }

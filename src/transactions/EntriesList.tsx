@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Alert, Button, Checkbox, Select } from '@sovereignfs/ui';
+import { StatusToggle } from '../accounts/StatusToggle';
 import { EditEntryButton } from '../entries/EditEntryButton';
 import { formatMoney } from '../money/text';
 import styles from './Transactions.module.css';
@@ -173,7 +174,11 @@ export function EntriesList({
               <td>
                 <span className={styles.title}>
                   {row.title}
-                  <span>{row.status === 'pending' ? 'Pending' : 'Cleared'}</span>
+                  <StatusToggle
+                    id={row.id}
+                    status={row.status}
+                    label={`The entry of ${row.date}: ${row.title}`}
+                  />
                 </span>
               </td>
               <td

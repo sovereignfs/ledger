@@ -1,3 +1,4 @@
+import { isCalendarDay } from '../dates';
 import type { Database } from '../db/client';
 import {
   createAccount,
@@ -7,6 +8,7 @@ import {
   setArchived,
   updateAccount,
 } from '../ledger/accounts';
+import { reconcile, reconcileSummary } from '../ledger/reconcile';
 import { parseAccountPatch, parseNewAccount } from './account-input';
 import { readCapped } from './body';
 import type { BookContext } from './route';
@@ -81,4 +83,34 @@ export async function remove(database: Database, { accountId, bookId, params }: 
       409,
     );
   return json({ deleted: true });
+}
+
+/** What reconciling to a day would be compared with: `?date=YYYY-MM-DD`. Another person's account is a 404 with nothing in it. */
+export async function reconcileInfo(
+  database: Database,
+  { request, accountId, bookId, params }: BookContext,
+) {
+  const date = new URL(request.url).searchParams.get('date') ?? '';
+  if (!isCalendarDay(date))
+    return json({ problems: ['The statement needs the day it is of.'] }, 400);
+  const summary = await reconcileSummary(database, accountId, bookId, idOf(params), date);
+  return summary ? json({ summary }) : notFound();
+}
+
+/** Reconciles the account to its statement: `{ date, balance }`, the balance signed like a balance. The answer says what was recorded and how many were cleared. */
+export async function reconcileNow(
+  database: Database,
+  { request, accountId, bookId, params }: BookContext,
+) {
+  const read = await body(request);
+  if (read instanceof Response) return read;
+  const value = read.value;
+  if (typeof value !== 'object' || value === null || Array.isArray(value))
+    return json({ problems: ['The request is not a statement.'] }, 400);
+  const { date, balance } = value as Record<string, unknown>;
+  if (typeof date !== 'string' || typeof balance !== 'number')
+    return json({ problems: ['The statement needs a day and a balance.'] }, 400);
+  const result = await reconcile(database, accountId, bookId, idOf(params), { date, balance });
+  if (result.ok) return json({ adjustment: result.adjustment, cleared: result.cleared });
+  return result.reason === 'invalid' ? json({ problems: result.problems }, 400) : notFound();
 }

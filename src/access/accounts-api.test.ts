@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { testTarget } from '../db/test-support';
 import { bookIdFor, ensureBook } from '../ledger/books';
 import { createTransaction } from '../ledger/transactions';
-import { change, create, list, read, remove } from './accounts-api';
+import { change, create, list, read, reconcileInfo, reconcileNow, remove } from './accounts-api';
 import { type BookHandler, bookRoute } from './route';
 import { type Person, type TwoAccounts, twoAccounts } from './two-accounts';
 
@@ -203,5 +203,65 @@ describe(`the account routes (${leg})`, () => {
     expect(
       (await call(remove, t.ada, `/api/accounts/${fresh}`, { method: 'DELETE' }, fresh)).status,
     ).toBe(404);
+  });
+
+  it('reconcile an account to its statement for the owner, and are not another person’s to reconcile', async () => {
+    const id = await make(t.ada, {
+      name: 'Reconciled',
+      opening: { amount: 10000, date: '2026-10-01' },
+    });
+    const info = async (person: Person, date: string) =>
+      call(reconcileInfo, person, `/api/accounts/${id}/reconcile?date=${date}`, {}, id);
+    const summary = (await (await info(t.ada, '2026-10-31')).json()) as {
+      summary: { balance: number; pending: number; currency: string };
+    };
+    expect(summary.summary).toEqual({ currency: 'USD', balance: 10000, pending: 0 });
+    // Another person asks, and is answered as for an account that never was.
+    const stranger = await info(t.grace, '2026-10-31');
+    expect(stranger.status).toBe(404);
+    expect(await stranger.text()).toBe('');
+    expect((await info(t.ada, 'soon')).status).toBe(400);
+    expect((await info(null as unknown as Person, '2026-10-31')).status).toBe(401);
+    const post = (person: Person | null, body: unknown, headers?: Record<string, string>) =>
+      call(
+        reconcileNow,
+        person,
+        `/api/accounts/${id}/reconcile`,
+        { method: 'POST', body, headers },
+        id,
+      );
+    const refused = await post(t.grace, { date: '2026-10-31', balance: 1 });
+    expect(refused.status).toBe(404);
+    expect(await refused.text()).toBe('');
+    expect((await post(null, { date: '2026-10-31', balance: 1 })).status).toBe(401);
+    expect(
+      (await post(t.ada, { date: '2026-10-31', balance: 1 }, { origin: 'https://evil.example' }))
+        .status,
+    ).toBe(403);
+    for (const body of [
+      {},
+      { date: '2026-10-31' },
+      { date: 5, balance: 1 },
+      { date: '2026-10-31', balance: '1' },
+      { date: '2026-10-31', balance: 1.5 },
+      { date: '2026-02-30', balance: 1 },
+      [],
+    ])
+      expect((await post(t.ada, body)).status, JSON.stringify(body)).toBe(400);
+    const unchanged = (await (await call(read, t.ada, `/api/accounts/${id}`, {}, id)).json()) as {
+      account: { balance: number };
+    };
+    expect(unchanged.account.balance).toBe(10000);
+    const done = await post(t.ada, { date: '2026-10-31', balance: 10120 });
+    expect(done.status).toBe(200);
+    expect(await done.json()).toEqual({ adjustment: 120, cleared: 0 });
+    const after = (await (await call(read, t.ada, `/api/accounts/${id}`, {}, id)).json()) as {
+      account: { balance: number };
+    };
+    expect(after.account.balance).toBe(10120);
+    expect(await (await post(t.ada, { date: '2026-10-31', balance: 10120 })).json()).toEqual({
+      adjustment: 0,
+      cleared: 0,
+    });
   });
 });

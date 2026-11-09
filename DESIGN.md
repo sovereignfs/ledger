@@ -240,9 +240,10 @@ currency: spent is converted to the category's currency at the transaction's dat
 ### 6.4 Opening balances and reconciling
 
 - **Opening balance:** making an account asks what is in it and on which date; that is an `opening` transaction. A person can edit it later.
-- **Reconcile:** the person enters the statement's balance and date. Ledger shows the difference from the balance of cleared entries up to that
-  date; confirming records an `adjustment` for it (if not zero) and marks every pending entry up to the date cleared. An adjustment is never a hidden
-  edit of another entry.
+- **Reconcile:** the person enters the statement's balance and date. Ledger shows the difference from the balance of **every entry up to that date**,
+  since confirming marks them all cleared: it records an `adjustment` for the difference (if not zero) and marks every pending entry up to the date
+  cleared. (Against the cleared entries alone, a pending entry the statement already shows would be corrected twice.) An adjustment is never a hidden
+  edit of another entry, and reconciling again to the same figure records nothing.
 
 ### 6.5 Payees
 
