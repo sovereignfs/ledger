@@ -8,6 +8,8 @@ Each release's section is also its GitHub release notes: the release workflow re
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-09
+
 ### Added
 
 - The development seed covers every feature: besides a year of ordinary data it now makes the states a screen has besides "everything is fine" (insights, reviewed months, archived and merged things, overdue and skipped bills, jars of every kind, yen and dinars, a person you owe, other scripts and markup in names), and `docs/seed.md` says where to look for each.
@@ -56,4 +58,5 @@ Each release's section is also its GitHub release notes: the release workflow re
 - Recurring entries: make an entry repeat from its dialog (Repeat…) and a Bills page shows what repeats, its next day and whether it posts itself or asks first, to switch or end. A job posts what is due each hour in the book's own time zone, catches up days a server was down, and never posts one occurrence twice, even run twice or from two processes.
 - The repeat rule for recurring entries: every so many days, weeks, months or years from a start day, optionally until an end, with the 31st falling on the last day of a shorter month and a leap day on the 28th in other years, and what a bill comes to in a month for the budget.
 
-[Unreleased]: https://github.com/sovereignfs/ledger/compare/v0.0.0...HEAD
+[Unreleased]: https://github.com/sovereignfs/ledger/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/sovereignfs/ledger/releases/tag/v0.1.0
