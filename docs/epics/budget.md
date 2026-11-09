@@ -18,8 +18,8 @@ Categories and subcategories as labels on expenses, income sources, and budgeted
 
 **Goal:** what expenses are labelled with. **Design:** §7.1. **Depends on:** 3.1, 3.2.
 
-**Technical:** `category` (with its currency), `subcategory` (`budget_source` `manual` or `bills`); create, rename, reorder, archive; delete only
-without lines; an expense line's subcategory must be live and the book's.
+**Technical:** `category` (with its currency), `subcategory` (`budget_source` `manual` or `bills`), **both tables made in 4.2**: this task adds their
+logic and screens and no migration. Create, rename, reorder, archive; delete only without lines; an expense line's subcategory must be live and the book's.
 
 **Accepts when:** a subcategory with expenses cannot be deleted but can be archived and still shows in past months.
 

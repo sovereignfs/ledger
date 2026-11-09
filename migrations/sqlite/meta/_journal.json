@@ -29,6 +29,13 @@
       "when": 1794185154315,
       "tag": "0003_fx_rate",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1794186562595,
+      "tag": "0004_transactions",
+      "breakpoints": true
     }
   ]
 }

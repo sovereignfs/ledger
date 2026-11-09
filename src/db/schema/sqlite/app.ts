@@ -1,5 +1,5 @@
-import { index, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
-import { bool, counter, decimal, epochMs, id, isoDate, ref } from './columns';
+import { index, primaryKey, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { bool, counter, decimal, epochMs, id, isoDate, money, ref } from './columns';
 
 /**
  * What the app holds, in the app store (DESIGN.md §18.3). An account is better-auth's, in the other store, so `account_id` is a reference by
@@ -94,4 +94,131 @@ export const fxRate = sqliteTable(
     fetchedAt: epochMs('fetched_at').notNull(),
   },
   (table) => [primaryKey({ columns: [table.currency, table.asOf] })],
+);
+
+/**
+ * A money account (DESIGN.md §6.1): a place money is held or owed, in **one currency, chosen when it is made and never changed**. `type` is one of the nine
+ * (`bank`, `cash`, `savings`, `deposit`, `investment`, `property`, `credit_card`, `loan`, `person`). **Its balance is not a column:** it is the sum of its lines
+ * (`src/ledger/balances.ts`). Made in task 4.2 because every line points at one; what a person can do with an account (make, edit, archive) is task 4.1.
+ */
+export const moneyAccount = sqliteTable(
+  'money_account',
+  {
+    id: id('id'),
+    bookId: ref('book_id').notNull(),
+    type: text('type').notNull(),
+    name: text('name').notNull(),
+    institution: text('institution'),
+    currency: text('currency').notNull(),
+    /** What a credit card may be used up to, in minor units of its currency (DESIGN.md §6.1). */
+    creditLimit: money('credit_limit'),
+    position: counter('position').notNull().default(0),
+    archivedAt: epochMs('archived_at'),
+    createdAt: epochMs('created_at').notNull(),
+    updatedAt: epochMs('updated_at').notNull(),
+  },
+  (table) => [index('money_account_book_idx').on(table.bookId, table.position)],
+);
+
+/** A category (DESIGN.md §7.1), which groups subcategories and has the currency its budget is kept in. Made in task 4.2 for the lines that point at its subcategories; its screens are 5.1. */
+export const category = sqliteTable(
+  'category',
+  {
+    id: id('id'),
+    bookId: ref('book_id').notNull(),
+    name: text('name').notNull(),
+    currency: text('currency').notNull(),
+    position: counter('position').notNull().default(0),
+    archivedAt: epochMs('archived_at'),
+    createdAt: epochMs('created_at').notNull(),
+  },
+  (table) => [index('category_book_idx').on(table.bookId, table.position)],
+);
+
+/** A subcategory: what an expense is spent on, and what a budget is set for (DESIGN.md §7.1). `budget_source` is `manual` or `bills` (task 6.4). */
+export const subcategory = sqliteTable(
+  'subcategory',
+  {
+    id: id('id'),
+    bookId: ref('book_id').notNull(),
+    categoryId: ref('category_id').notNull(),
+    name: text('name').notNull(),
+    budgetSource: text('budget_source').notNull().default('manual'),
+    position: counter('position').notNull().default(0),
+    archivedAt: epochMs('archived_at'),
+    createdAt: epochMs('created_at').notNull(),
+  },
+  (table) => [index('subcategory_category_idx').on(table.bookId, table.categoryId, table.position)],
+);
+
+/** Where income comes from (DESIGN.md §7.4): `primary` or `secondary`, in one currency. The lines of an income transaction point at one. */
+export const incomeSource = sqliteTable(
+  'income_source',
+  {
+    id: id('id'),
+    bookId: ref('book_id').notNull(),
+    name: text('name').notNull(),
+    kind: text('kind').notNull(),
+    currency: text('currency').notNull(),
+    archivedAt: epochMs('archived_at'),
+    createdAt: epochMs('created_at').notNull(),
+  },
+  (table) => [index('income_source_book_idx').on(table.bookId)],
+);
+
+/**
+ * A transaction (DESIGN.md §6.2): a date with no time zone, a type, a status and the lines that say what moved. **Its lines add up to zero in its currency**,
+ * except a transfer between two currencies, which records both amounts; that is held by the one write path (`src/ledger/transactions.ts`) and checked by
+ * `src/ledger/invariants.ts`. `recurring_id` with `occurrence_date` is unique: a recurring entry posts an occurrence once (task 6.2). `payee_id` is task 4.5's.
+ */
+export const txn = sqliteTable(
+  'txn',
+  {
+    id: id('id'),
+    bookId: ref('book_id').notNull(),
+    type: text('type').notNull(),
+    date: isoDate('date').notNull(),
+    payeeId: ref('payee_id'),
+    note: text('note'),
+    status: text('status').notNull(),
+    recurringId: ref('recurring_id'),
+    occurrenceDate: isoDate('occurrence_date'),
+    /** What was charged in another currency, for information only (DESIGN.md §6.8). */
+    originalAmount: money('original_amount'),
+    originalCurrency: text('original_currency'),
+    createdBy: ref('created_by').notNull(),
+    createdAt: epochMs('created_at').notNull(),
+    updatedAt: epochMs('updated_at').notNull(),
+  },
+  (table) => [
+    index('txn_book_date_idx').on(table.bookId, table.date),
+    index('txn_book_status_idx').on(table.bookId, table.status),
+    uniqueIndex('txn_recurring_occurrence_idx').on(table.recurringId, table.occurrenceDate),
+  ],
+);
+
+/**
+ * A line of a transaction (DESIGN.md §6.3): **exactly one** of a money account, a subcategory, an income source or equity (`opening`, `adjustment`,
+ * `revaluation`), with a signed amount in minor units of `currency`. A line on an account is positive when the account's balance goes up.
+ */
+export const txnLine = sqliteTable(
+  'txn_line',
+  {
+    id: id('id'),
+    bookId: ref('book_id').notNull(),
+    txnId: ref('txn_id').notNull(),
+    accountId: ref('account_id'),
+    subcategoryId: ref('subcategory_id'),
+    incomeSourceId: ref('income_source_id'),
+    equity: text('equity'),
+    amount: money('amount').notNull(),
+    currency: text('currency').notNull(),
+    position: counter('position').notNull(),
+  },
+  (table) => [
+    index('txn_line_txn_idx').on(table.bookId, table.txnId),
+    index('txn_line_account_idx').on(table.bookId, table.accountId),
+    index('txn_line_subcategory_idx').on(table.bookId, table.subcategoryId),
+    index('txn_line_income_source_idx').on(table.bookId, table.incomeSourceId),
+  ],
 );

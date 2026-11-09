@@ -1,0 +1,294 @@
+import { type SQL, sql } from 'drizzle-orm';
+import { inBook } from '../access/book';
+import type { Database } from '../db/client';
+import { dbAll, transaction } from '../db/exec';
+import * as postgresSchema from '../db/schema/postgres';
+import * as sqliteSchema from '../db/schema/sqlite';
+import { bookTable } from './books';
+import {
+  type AccountFacts,
+  type LineInput,
+  type TxnInput,
+  checkAccounts,
+  checkShape,
+  defaultStatus,
+  targetOf,
+} from './validate';
+
+/**
+ * **The one path every transaction is written through** (DESIGN.md §6.2, AGENTS.md): the add dialog, a recurring entry, a jar's movement, a loan instalment
+ * and import all come here, so the invariants are held in one place. A write is checked (`./validate.ts`: lines that add up, one target each, the targets a
+ * type may have), and then written in one transaction, **each statement carrying the permission**: the book is the account's (`inBook`), and everything a line
+ * points at is the same book's, in the statement that writes the line (§5.2). Anything that is not the account's reads as not found, as a row that never was.
+ *
+ * Editing replaces the lines in the same transaction as the entry's own row, so no other statement ever sees an entry half-changed. A transaction that is
+ * refused writes nothing.
+ */
+const schema = (database: Database) =>
+  database.dialect === 'postgres' ? postgresSchema : sqliteSchema;
+
+export type WriteResult =
+  | { readonly ok: true; readonly id: string }
+  /** What is wrong, in sentences a person can read; nothing was written. */
+  | { readonly ok: false; readonly reason: 'invalid'; readonly problems: readonly string[] }
+  /** The book, the entry or something a line points at is not the account's. It reads as a thing that is not there. */
+  | { readonly ok: false; readonly reason: 'not_found' };
+
+const NOT_FOUND = { ok: false, reason: 'not_found' } as const;
+
+/** Thrown inside the transaction to undo it; never leaves this file. */
+class Refused extends Error {
+  constructor(readonly result: Extract<WriteResult, { ok: false }>) {
+    super('refused');
+  }
+}
+
+/** The ids a transaction's lines point at, by kind, without repeats. */
+function targets(lines: readonly LineInput[]) {
+  const unique = (values: (string | undefined)[]) => [
+    ...new Set(values.filter((each): each is string => each !== undefined)),
+  ];
+  return {
+    accounts: unique(lines.map((line) => line.account)),
+    subcategories: unique(lines.map((line) => line.subcategory)),
+    incomeSources: unique(lines.map((line) => line.incomeSource)),
+  };
+}
+
+const list = (values: readonly string[]) =>
+  sql.join(
+    values.map((value) => sql`${value}`),
+    sql`, `,
+  );
+
+/**
+ * What the accounts the lines name are, **read in the book and as the account's own**; and whether every subcategory and income source is the book's. Anything
+ * missing is `not_found`: it is not told apart from something that belongs to someone else. This read is for the sentences (an account's type and currency); the
+ * statements that write the lines carry the same condition themselves, so a change between the two cannot let a line through.
+ */
+async function resolve(
+  tx: Database,
+  accountId: string,
+  bookId: string,
+  lines: readonly LineInput[],
+): Promise<AccountFacts | undefined> {
+  const s = schema(tx);
+  const wanted = targets(lines);
+  const facts = new Map<string, { type: string; currency: string }>();
+  if (wanted.accounts.length > 0) {
+    const rows = await dbAll<{ id: string; type: string; currency: string }>(
+      tx,
+      sql`SELECT a.id AS id, a.type AS type, a.currency AS currency FROM ${s.moneyAccount} a
+           WHERE a.book_id = ${bookId} AND ${inBook(tx, sql`a.book_id`, accountId)} AND a.id IN (${list(wanted.accounts)})`,
+    );
+    for (const row of rows) facts.set(row.id, { type: row.type, currency: row.currency });
+    if (facts.size !== wanted.accounts.length) return undefined;
+  }
+  const counted = async (table: SQL, ids: readonly string[]) => {
+    if (ids.length === 0) return true;
+    const rows = await dbAll<{ id: string }>(
+      tx,
+      sql`SELECT t.id AS id FROM ${table} t
+           WHERE t.book_id = ${bookId} AND ${inBook(tx, sql`t.book_id`, accountId)} AND t.id IN (${list(ids)})`,
+    );
+    return rows.length === ids.length;
+  };
+  if (!(await counted(sql`${s.subcategory}`, wanted.subcategories))) return undefined;
+  if (!(await counted(sql`${s.incomeSource}`, wanted.incomeSources))) return undefined;
+  return facts;
+}
+
+/** What can be said of the input alone, before anything is written: the first refusal is the answer. */
+function checkInput(input: TxnInput): Extract<WriteResult, { ok: false }> | undefined {
+  const problems = checkShape(input);
+  return problems.length > 0 ? { ok: false, reason: 'invalid', problems } : undefined;
+}
+
+/**
+ * What needs the accounts the lines name, **after the entry's own row has been written under the permission**: that every target is the book's, and that the
+ * accounts are what the lines say. A refusal rolls the row back with the rest, so nothing is left of it.
+ */
+async function checkTargets(
+  tx: Database,
+  accountId: string,
+  bookId: string,
+  input: TxnInput,
+): Promise<void> {
+  const facts = await resolve(tx, accountId, bookId, input.lines);
+  if (facts === undefined) throw new Refused(NOT_FOUND);
+  const problems = checkAccounts(input, facts);
+  if (problems.length > 0) throw new Refused({ ok: false, reason: 'invalid', problems });
+}
+
+/**
+ * The statement for one line: it inserts only if the entry is in the book **and is the account's to write to**, and only if what the line points at is in that
+ * same book. No row is written otherwise, and the caller reads the empty answer as not found.
+ */
+function lineStatement(
+  tx: Database,
+  accountId: string,
+  bookId: string,
+  txnId: string,
+  line: LineInput,
+  position: number,
+): SQL {
+  const s = schema(tx);
+  const kind = targetOf(line);
+  const id = crypto.randomUUID();
+  const pointed = (table: SQL, targetId: string) =>
+    sql`EXISTS (SELECT 1 FROM ${table} p WHERE p.id = ${targetId} AND p.book_id = t.book_id)`;
+  let column: SQL;
+  let value: SQL;
+  let exists: SQL;
+  switch (kind) {
+    case 'account':
+      column = sql.raw('account_id');
+      value = sql`${line.account}`;
+      exists = pointed(sql`${s.moneyAccount}`, line.account as string);
+      break;
+    case 'subcategory':
+      column = sql.raw('subcategory_id');
+      value = sql`${line.subcategory}`;
+      exists = pointed(sql`${s.subcategory}`, line.subcategory as string);
+      break;
+    case 'income_source':
+      column = sql.raw('income_source_id');
+      value = sql`${line.incomeSource}`;
+      exists = pointed(sql`${s.incomeSource}`, line.incomeSource as string);
+      break;
+    default:
+      column = sql.raw('equity');
+      value = sql`${line.equity}`;
+      exists = sql`1 = 1`;
+  }
+  return sql`INSERT INTO ${s.txnLine} (id, book_id, txn_id, ${column}, amount, currency, position)
+             SELECT ${id}, t.book_id, t.id, ${value}, ${line.amount}, ${line.currency}, ${position}
+               FROM ${s.txn} t
+              WHERE t.id = ${txnId} AND t.book_id = ${bookId} AND ${inBook(tx, sql`t.book_id`, accountId)}
+                AND ${exists}
+             RETURNING id`;
+}
+
+async function writeLines(
+  tx: Database,
+  accountId: string,
+  bookId: string,
+  txnId: string,
+  lines: readonly LineInput[],
+): Promise<void> {
+  for (const [position, line] of lines.entries()) {
+    const written = await dbAll<{ id: string }>(
+      tx,
+      lineStatement(tx, accountId, bookId, txnId, line, position),
+    );
+    if (written.length === 0) throw new Refused(NOT_FOUND);
+  }
+}
+
+const noteOf = (note: string | null | undefined): string | null => {
+  const trimmed = note?.trim();
+  return trimmed ? trimmed : null;
+};
+
+/** Runs `work` as one transaction and turns a refusal inside it into the answer, after it has been rolled back. */
+async function run(
+  database: Database,
+  work: (tx: Database) => Promise<string>,
+): Promise<WriteResult> {
+  try {
+    return { ok: true, id: await transaction(database, work) };
+  } catch (error) {
+    if (error instanceof Refused) return error.result;
+    throw error;
+  }
+}
+
+/** Writes a new transaction in the account's book, with its lines, or says why not. `now` is given so that a test needs no clock. */
+export async function createTransaction(
+  database: Database,
+  accountId: string,
+  bookId: string,
+  input: TxnInput,
+  now: number = Date.now(),
+): Promise<WriteResult> {
+  const refused = checkInput(input);
+  if (refused) return refused;
+  return run(database, async (tx) => {
+    const s = schema(tx);
+    const id = crypto.randomUUID();
+    const inserted = await dbAll<{ id: string }>(
+      tx,
+      sql`INSERT INTO ${s.txn} (id, book_id, type, date, note, status, original_amount, original_currency, created_by, created_at, updated_at)
+          SELECT ${id}, b.id, ${input.type}, ${input.date}, ${noteOf(input.note)}, ${input.status ?? defaultStatus(input.type)},
+                 ${input.original?.amount ?? null}, ${input.original?.currency ?? null}, ${accountId}, ${now}, ${now}
+            FROM ${bookTable(tx)} b
+           WHERE b.id = ${bookId} AND ${inBook(tx, sql`b.id`, accountId)}
+          RETURNING id`,
+    );
+    if (inserted.length === 0) throw new Refused(NOT_FOUND);
+    await checkTargets(tx, accountId, bookId, input);
+    await writeLines(tx, accountId, bookId, id, input.lines);
+    return id;
+  });
+}
+
+/**
+ * Replaces an entry: its own row and its lines, **in one transaction**, so that an entry is never seen with the lines of the old and the new together or with
+ * none. A status not given is kept; who made it and when are kept. An entry that is not the account's is not found.
+ */
+export async function updateTransaction(
+  database: Database,
+  accountId: string,
+  bookId: string,
+  txnId: string,
+  input: TxnInput,
+  now: number = Date.now(),
+): Promise<WriteResult> {
+  const refused = checkInput(input);
+  if (refused) return refused;
+  return run(database, async (tx) => {
+    const s = schema(tx);
+    const updated = await dbAll<{ id: string }>(
+      tx,
+      sql`UPDATE ${s.txn}
+             SET type = ${input.type}, date = ${input.date}, note = ${noteOf(input.note)},
+                 status = ${input.status ?? sql`status`},
+                 original_amount = ${input.original?.amount ?? null}, original_currency = ${input.original?.currency ?? null},
+                 updated_at = ${now}
+           WHERE id = ${txnId} AND book_id = ${bookId} AND ${inBook(tx, sql`${s.txn.bookId}`, accountId)}
+          RETURNING id`,
+    );
+    if (updated.length === 0) throw new Refused(NOT_FOUND);
+    await checkTargets(tx, accountId, bookId, input);
+    await dbAll(
+      tx,
+      sql`DELETE FROM ${s.txnLine} WHERE txn_id = ${txnId} AND book_id = ${bookId} RETURNING id`,
+    );
+    await writeLines(tx, accountId, bookId, txnId, input.lines);
+    return txnId;
+  });
+}
+
+/** Deletes an entry and its lines in one transaction. `true` if it was the account's and is gone; `false` if there was no such entry for them. Safe to repeat. */
+export async function deleteTransaction(
+  database: Database,
+  accountId: string,
+  bookId: string,
+  txnId: string,
+): Promise<boolean> {
+  return transaction(database, async (tx) => {
+    const s = schema(tx);
+    const gone = await dbAll<{ id: string }>(
+      tx,
+      sql`DELETE FROM ${s.txn}
+           WHERE id = ${txnId} AND book_id = ${bookId} AND ${inBook(tx, sql`${s.txn.bookId}`, accountId)}
+          RETURNING id`,
+    );
+    if (gone.length === 0) return false;
+    await dbAll(
+      tx,
+      sql`DELETE FROM ${s.txnLine} WHERE txn_id = ${txnId} AND book_id = ${bookId} RETURNING id`,
+    );
+    return true;
+  });
+}

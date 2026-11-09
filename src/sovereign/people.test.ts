@@ -8,6 +8,10 @@ import * as sqliteSchema from '../db/schema/sqlite';
 import { tableNamed } from '../db/tables';
 import { testTarget } from '../db/test-support';
 import { bookIdFor, ensureBook, memberTable } from '../ledger/books';
+import { addCurrency } from '../ledger/currencies';
+import { seedAccount, seedIncomeSource, seedSubcategory } from '../ledger/testing';
+import { createTransaction } from '../ledger/transactions';
+import type { TxnInput } from '../ledger/validate';
 import { BOOK_TABLES } from '../ledger/tables';
 import { RateLimiter } from '../limits/rate';
 import { deletePerson } from './people';
@@ -100,6 +104,53 @@ describe(`deleting a person (${leg})`, () => {
             VALUES (${pk}, 'k', ${who}, ${`c-${pk}`}, 0, 'singleDevice', ${t.auth.database.dialect === 'postgres' ? false : 0}) RETURNING id`,
       );
     }
+    // One row of every table of a book, for each of them, made by the code that makes them: a table that is added and not seeded here fails below.
+    for (const who of [ada, grace]) {
+      const book = bookIdFor(who);
+      const bank = await seedAccount(database, book, 'USD');
+      const cash = await seedAccount(database, book, 'USD', 'cash');
+      const food = await seedSubcategory(database, book);
+      const pay = await seedIncomeSource(database, book);
+      await addCurrency(database, who, book, 'EUR');
+      const entries: [TxnInput['type'], TxnInput['lines']][] = [
+        [
+          'expense',
+          [
+            { account: bank, amount: -500, currency: 'USD' },
+            { subcategory: food, amount: 500, currency: 'USD' },
+          ],
+        ],
+        [
+          'income',
+          [
+            { account: bank, amount: 9000, currency: 'USD' },
+            { incomeSource: pay, amount: -9000, currency: 'USD' },
+          ],
+        ],
+        [
+          'transfer',
+          [
+            { account: bank, amount: -100, currency: 'USD' },
+            { account: cash, amount: 100, currency: 'USD' },
+          ],
+        ],
+      ];
+      for (const [type, lines] of entries)
+        expect(
+          (await createTransaction(database, who, book, { type, date: '2026-11-06', lines })).ok,
+        ).toBe(true);
+    }
+    const inBookCount = (who: string, name: string) =>
+      count(database, name, sql`book_id = ${bookIdFor(who)}`);
+    for (const name of BOOK_TABLES) {
+      expect(await inBookCount(ada, name), `${name} of ada, seeded`).toBeGreaterThan(0);
+      expect(await inBookCount(grace, name), `${name} of grace, seeded`).toBeGreaterThan(0);
+    }
+    const graces = Object.fromEntries(
+      await Promise.all(
+        BOOK_TABLES.map(async (name) => [name, await inBookCount(grace, name)] as const),
+      ),
+    );
     // Both have a session from signing up, and a sign-in, and a book.
     expect(await count(t.auth.database, 'session', sql`user_id = ${ada}`)).toBeGreaterThan(0);
 
@@ -120,6 +171,11 @@ describe(`deleting a person (${leg})`, () => {
     expect(await mineGone(database, 'book_member', 'account_id', ada)).toBe(0);
     expect(await mineGone(database, 'book', 'id', bookIdFor(ada))).toBe(0);
     expect(await count(database, 'rate_bucket', sql`"key" LIKE ${`%:${ada}`}`)).toBe(0);
+
+    for (const name of BOOK_TABLES) {
+      expect(await inBookCount(ada, name), `${name} of ada, after`).toBe(0);
+      expect(await inBookCount(grace, name), `${name} of grace, after`).toBe(graces[name]);
+    }
 
     // The other person is whole.
     for (const [table, column] of [

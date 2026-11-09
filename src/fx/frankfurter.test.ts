@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   FxError,
   fetchLatestRates,
-  isCalendarDay,
   isRateText,
   latestUrl,
   parseLatest,
   type FxFailure,
 } from './frankfurter';
+import { isCalendarDay } from '../dates';
 import { startFakeFrankfurter, type FakeFrankfurter } from './testing/fake-frankfurter';
 
 const NOW = new Date('2026-11-07T10:00:00Z');

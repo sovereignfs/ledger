@@ -6,4 +6,12 @@
  *
  * The order is the order of deletion: a table that points at another (by value, never a foreign key) is listed before the one it points at.
  */
-export const BOOK_TABLES: readonly string[] = ['book_currency'];
+export const BOOK_TABLES: readonly string[] = [
+  'txn_line',
+  'txn',
+  'subcategory',
+  'category',
+  'income_source',
+  'money_account',
+  'book_currency',
+];

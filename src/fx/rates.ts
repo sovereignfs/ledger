@@ -5,7 +5,8 @@ import * as postgresSchema from '../db/schema/postgres';
 import * as sqliteSchema from '../db/schema/sqlite';
 import { FX_PIVOT_CODE, isSupportedCurrencyCode } from '../money/currencies';
 import { RateTable, type RateRow } from '../money/convert';
-import { fetchLatestRates, isCalendarDay, type FetchOptions } from './frankfurter';
+import { isCalendarDay } from '../dates';
+import { fetchLatestRates, type FetchOptions } from './frankfurter';
 
 /**
  * The rate table and what is read from it (DESIGN.md §9.2). `fx_rate` is the instance's and no person's: it has no `book_id`, so none of these statements carries
