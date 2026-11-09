@@ -1,22 +1,16 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { requireBook } from '@/src/access/page';
-import { EmptyState, PageContainer, PageHeader } from '@sovereignfs/ui';
+import { getDatabase } from '@/src/db/boot';
+import { loadOverviewPage } from '@/src/overview/overview';
+import { OverviewScreen } from '@/src/overview/OverviewScreen';
 
 export const metadata: Metadata = { title: 'Overview' };
 
-/** The front address for someone signed in. A book that is not set up is taken to the wizard from here (DESIGN.md §15.3); Overview itself is task 9.2. */
+/** Overview (DESIGN.md §14.3), the front address for someone signed in; a book that is not set up is taken to the wizard from here (§15.3). */
 export default async function Page() {
-  const { book } = await requireBook();
+  const { accountId, book } = await requireBook();
   if (book.setupDoneAt === null) redirect('/setup');
-  return (
-    <PageContainer>
-      <PageHeader title="Overview" description="Where things stand, at a glance." />
-      <EmptyState
-        icon="house"
-        heading="Nothing to show yet"
-        description="This arrives with a later task of the roadmap."
-      />
-    </PageContainer>
-  );
+  const page = await loadOverviewPage(await getDatabase(), accountId, book);
+  return <OverviewScreen page={page} locale={book.locale ?? undefined} />;
 }
