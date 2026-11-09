@@ -7,10 +7,22 @@ import { expect, type Page } from '@playwright/test';
 export const EMAIL = 'owner@example.com';
 export const PASSWORD = 'correct horse battery';
 
+/**
+ * Waits until React has taken over the page. A form filled before that is cleared when it does, and on a slow runner (WebKit on a shared one) that is between two
+ * `fill`s: the password stays and the address goes, and the form does nothing when it is sent. React marks each element it has taken over, and the first control of the page's main part is one (a page may have only a button).
+ */
+export async function hydrated(page: Page) {
+  await page.waitForFunction(() => {
+    const control = document.querySelector('main input, main button');
+    return control !== null && Object.keys(control).some((key) => key.startsWith('__reactProps$'));
+  });
+}
+
 export async function ensureAccount(page: Page) {
   await page.goto('/sign-up');
   const create = page.getByRole('heading', { name: 'Create your account' });
   if (!(await create.isVisible())) return;
+  await hydrated(page);
   await page.getByLabel('Name').fill('Ada');
   await page.getByLabel('Email').fill(EMAIL);
   await page.getByLabel('Password').fill(PASSWORD);
@@ -46,6 +58,7 @@ async function gotoSignIn(page: Page) {
  */
 export async function trySignIn(page: Page, email: string, password: string) {
   await gotoSignIn(page);
+  await hydrated(page);
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password').fill(password);
   const submit = page.getByRole('button', { name: 'Sign in' });

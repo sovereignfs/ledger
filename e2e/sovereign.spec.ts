@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { gotoSettled, signOut as signOutOf } from './helpers';
+import { gotoSettled, hydrated, signOut as signOutOf } from './helpers';
 import { PORTS } from './ports';
 
 /**
@@ -32,6 +32,8 @@ async function nextPersonIs(page: Page, who: { sub: string; email: string; name?
 async function throughSovereign(page: Page) {
   const button = page.getByRole('button', { name: 'Sign in with Sovereign' });
   const limited = page.getByText(/Too many tries/);
+  // A button clicked before the page is hydrated does nothing.
+  await hydrated(page);
   for (let attempt = 0; attempt < 3; attempt++) {
     await button.click();
     await expect(
@@ -271,6 +273,7 @@ test.describe('an instance that signs in through Sovereign only', () => {
 async function signUpLocal(page: Page, name: string): Promise<{ email: string; name: string }> {
   const email = `local-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.com`;
   await page.goto('/sign-up');
+  await hydrated(page);
   await page.getByLabel('Name').fill(name);
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password').fill('correct horse battery');
@@ -312,6 +315,7 @@ test.describe('an instance that offers both ways', () => {
 
     // And an account with a password, made here, still signs in with it.
     await page.goto('/sign-up');
+    await hydrated(page);
     const email = `local-${Date.now()}@example.com`;
     await page.getByLabel('Name').fill('Local Ada');
     await page.getByLabel('Email').fill(email);
@@ -326,6 +330,7 @@ test.describe('an instance that offers both ways', () => {
   }) => {
     const email = `taken-${Date.now()}@example.com`;
     await page.goto('/sign-up');
+    await hydrated(page);
     await page.getByLabel('Name').fill('Local Grace');
     await page.getByLabel('Email').fill(email);
     await page.getByLabel('Password').fill('correct horse battery');
