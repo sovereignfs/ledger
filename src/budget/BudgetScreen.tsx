@@ -167,11 +167,18 @@ export function BudgetScreen({
               ))
             : null}
           <h3>Budget</h3>
-          <BudgetEditor
-            id={selected.line.subcategory.id}
-            name={selected.line.subcategory.name}
-            currency={selected.line.category.currency}
-          />
+          {selected.line.subcategory.budgetSource === 'bills' ? (
+            <p className={styles.note}>
+              This is budgeted by its recurring bills: what they come to in a month. Change them on{' '}
+              <Link href="/budget/bills">Bills</Link>, or budget it by hand from Categories.
+            </p>
+          ) : (
+            <BudgetEditor
+              id={selected.line.subcategory.id}
+              name={selected.line.subcategory.name}
+              currency={selected.line.category.currency}
+            />
+          )}
           <h3>History</h3>
           {selected.history.length === 0 ? (
             <p className={styles.note}>No budget has been set.</p>

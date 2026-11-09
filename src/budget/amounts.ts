@@ -2,7 +2,7 @@ import { sql } from 'drizzle-orm';
 import { inBook } from '../access/book';
 import { addMonths, isMonth } from '../dates';
 import type { Database } from '../db/client';
-import { dbAll } from '../db/exec';
+import { dbAll, dbGet } from '../db/exec';
 import * as postgresSchema from '../db/schema/postgres';
 import * as sqliteSchema from '../db/schema/sqlite';
 import { isMinor } from '../money/amount';
@@ -60,6 +60,34 @@ export async function setBudget(
   if (!isMonth(input.currentMonth)) throw new RangeError('setBudget: not a month');
   if (typeof input.targetId !== 'string' || input.targetId === '' || input.targetId.length > 64)
     return { ok: false, reason: 'not_found' };
+  const s = schema(database);
+  // A subcategory budgeted by its bills is not set by hand: its figure is what its bills come to (`src/recurring/bills.ts`, which writes it with `writeBudget`).
+  if (input.kind === 'subcategory') {
+    const source = await dbGet<{ source: string }>(
+      database,
+      sql`SELECT u.budget_source AS source FROM ${s.subcategory} u
+           WHERE u.id = ${input.targetId} AND u.book_id = ${bookId} AND ${inBook(database, sql`u.book_id`, accountId)}`,
+    );
+    if (source?.source === 'bills')
+      return {
+        ok: false,
+        reason: 'invalid',
+        problems: [
+          'This subcategory is budgeted by its recurring bills. Change them, or budget it by hand first.',
+        ],
+      };
+  }
+  return writeBudget(database, accountId, bookId, input, now);
+}
+
+/** The write of `setBudget`, without its checks of the input and of how the subcategory is budgeted: for the code that has made them. */
+export async function writeBudget(
+  database: Database,
+  accountId: string,
+  bookId: string,
+  input: { kind: TargetKind; targetId: string; amount: number; when: When; currentMonth: string },
+  now: number = Date.now(),
+): Promise<WriteResult> {
   const s = schema(database);
   const from = effectiveMonth(input.currentMonth, input.when);
   const target =

@@ -182,3 +182,65 @@ test('skips a bill that asks first: it is gone and nothing is posted', async ({
   await expect(page.getByRole('region', { name: 'Summary' })).toContainText('$1,000.00');
   await expect(page.getByRole('button', { name: 'Edit the entry of 2020-07-10' })).toHaveCount(0);
 });
+
+test('budgets a subcategory by its bills: a yearly 600 is 50 a month, and it follows an edit of the bill', async ({
+  page,
+  browserName,
+}) => {
+  await signedIn(page);
+  await page.goto('/accounts');
+  const tag = `insure ${browserName}`;
+  const origin = new URL(page.url()).origin;
+  const post = async (path: string, data: unknown) => {
+    const reply = await page.request.post(path, { data, headers: { origin } });
+    expect(reply.status(), path).toBe(201);
+    return ((await reply.json()) as { id: string }).id;
+  };
+  const account = await post('/api/accounts', {
+    type: 'bank',
+    name: `Bank ${tag}`,
+    currency: 'USD',
+  });
+  const category = await post('/api/categories', { name: `Cover ${tag}`, currency: 'USD' });
+  const subcategory = await post(`/api/categories/${category}/subcategories`, {
+    name: `Car ${tag}`,
+  });
+
+  await page.goto('/budget/categories');
+  await page.getByRole('button', { name: `Budget Car ${tag} by its bills` }).click();
+  await expect(page.getByRole('button', { name: `Budget Car ${tag} by hand` })).toBeVisible();
+
+  const template = (amount: number) => ({
+    type: 'expense',
+    payee: `Insurer ${tag}`,
+    lines: [
+      { account, amount: -amount, currency: 'USD' },
+      { subcategory, amount, currency: 'USD' },
+    ],
+  });
+  const bill = await post('/api/recurring', {
+    template: template(60_000),
+    unit: 'year',
+    every: 1,
+    anchor: '2099-07-01',
+    mode: 'auto',
+  });
+
+  await page.goto('/budget');
+  const row = page
+    .getByRole('region', { name: 'Bills', exact: true })
+    .getByRole('link', { name: new RegExp(`Car ${tag}`) });
+  await expect(row).toContainText('of $50.00');
+
+  // Edited: from this month it is 60 a month. The hand editor is not offered for it.
+  const changed = await page.request.patch(`/api/recurring/${bill}`, {
+    data: { template: template(72_000) },
+    headers: { origin },
+  });
+  expect(changed.status()).toBe(200);
+  await page.goto('/budget');
+  await expect(row).toContainText('of $60.00');
+  await row.click();
+  await expect(page.getByText('This is budgeted by its recurring bills')).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Set budget|^Save/ })).toHaveCount(0);
+});

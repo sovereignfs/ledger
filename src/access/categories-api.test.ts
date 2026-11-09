@@ -164,6 +164,16 @@ describe(`the category routes (${leg})`, () => {
     );
     await expect404(
       await call(
+        changeSubcategory,
+        t.grace,
+        `/api/subcategories/${subId}`,
+        { method: 'PATCH', body: { budgetSource: 'bills' } },
+        subId,
+      ),
+      'budget by bills',
+    );
+    await expect404(
+      await call(
         removeSubcategory,
         t.grace,
         `/api/subcategories/${subId}`,
@@ -254,5 +264,36 @@ describe(`the category routes (${leg})`, () => {
       ).status,
     ).toBe(413);
     expect((await names(t.ada)).length).toBe(before + 1);
+  });
+});
+
+describe(`how a subcategory is budgeted (${leg})`, () => {
+  it('is chosen by its owner, and a mistake is a sentence and a 400', async () => {
+    const id = await make(t.ada, 'Insurance');
+    const sub = (await (
+      await call(
+        addSubcategory,
+        t.ada,
+        `/api/categories/${id}/subcategories`,
+        { method: 'POST', body: { name: 'Car' } },
+        id,
+      )
+    ).json()) as { id: string };
+    const patch = (body: unknown, person: Person = t.ada) =>
+      call(
+        changeSubcategory,
+        person,
+        `/api/subcategories/${sub.id}`,
+        { method: 'PATCH', body },
+        sub.id,
+      );
+    expect((await patch({ budgetSource: 'bills' })).status).toBe(200);
+    expect((await patch({ budgetSource: 'manual' })).status).toBe(200);
+    for (const body of [{ budgetSource: 'sometimes' }, { budgetSource: 5 }]) {
+      const reply = await patch(body);
+      expect(reply.status, JSON.stringify(body)).toBe(400);
+      expect(((await reply.json()) as { problems: string[] }).problems.length).toBeGreaterThan(0);
+    }
+    expect((await patch({ budgetSource: 'bills' }, t.grace)).status).toBe(404);
   });
 });

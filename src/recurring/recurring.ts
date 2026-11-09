@@ -2,7 +2,7 @@ import { sql } from 'drizzle-orm';
 import { inBook } from '../access/book';
 import { todayIn } from '../dates';
 import type { Database } from '../db/client';
-import { dbAll, dbGet } from '../db/exec';
+import { dbAll, dbGet, transaction } from '../db/exec';
 import * as postgresSchema from '../db/schema/postgres';
 import * as sqliteSchema from '../db/schema/sqlite';
 import { bookTable } from '../ledger/books';
@@ -15,6 +15,7 @@ import {
   type WriteResult,
 } from '../ledger/transactions';
 import { type LineInput, type TxnInput, checkShape } from '../ledger/validate';
+import { subcategoriesOf, syncBills } from './bills';
 import { type Rule, checkRule, nextOccurrence } from './rule';
 
 /**
@@ -230,6 +231,7 @@ async function insertRecurring(
   if (inserted.length === 0) throw refusal(NOT_FOUND);
   // What the template points at must be the book's and be what its lines say: the same check a transaction is written under.
   await verifyTargets(tx, accountId, bookId, entryOf(input.template, rule.anchor));
+  await syncBills(tx, accountId, bookId, subcategoriesOf(input.template), now);
   return id;
 }
 
@@ -358,6 +360,13 @@ export async function updateRecurring(
            WHERE id = ${id} AND book_id = ${bookId} AND ${inBook(tx, sql`${s.recurring.bookId}`, accountId)} RETURNING id`,
     );
     if (updated.length === 0) throw refusal(NOT_FOUND);
+    await syncBills(
+      tx,
+      accountId,
+      bookId,
+      [...subcategoriesOf(row.template), ...subcategoriesOf(template)],
+      now,
+    );
     return id;
   });
 }
@@ -371,12 +380,18 @@ export async function endRecurring(
   now: number = Date.now(),
 ): Promise<boolean> {
   const s = schema(database);
-  const rows = await dbAll<{ id: string }>(
-    database,
-    sql`UPDATE ${s.recurring} SET ended_at = COALESCE(ended_at, ${now}), updated_at = ${now}
-         WHERE id = ${id} AND book_id = ${bookId} AND ${inBook(database, sql`${s.recurring.bookId}`, accountId)} RETURNING id`,
-  );
-  return rows.length > 0;
+  return transaction(database, async (tx) => {
+    const row = await one(tx, accountId, bookId, id);
+    if (!row) return false;
+    const rows = await dbAll<{ id: string }>(
+      tx,
+      sql`UPDATE ${s.recurring} SET ended_at = COALESCE(ended_at, ${now}), updated_at = ${now}
+           WHERE id = ${id} AND book_id = ${bookId} AND ${inBook(tx, sql`${s.recurring.bookId}`, accountId)} RETURNING id`,
+    );
+    if (rows.length === 0) return false;
+    await syncBills(tx, accountId, bookId, subcategoriesOf(row.template), now);
+    return true;
+  });
 }
 
 /**
@@ -401,6 +416,8 @@ async function claim(
            AND ${inBook(tx, sql`${s.recurring.bookId}`, accountId)}
         RETURNING id`,
   );
+  if (claimed.length > 0 && following === null)
+    await syncBills(tx, accountId, bookId, subcategoriesOf(row.template), now);
   return claimed.length > 0;
 }
 

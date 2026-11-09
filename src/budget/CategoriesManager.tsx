@@ -251,6 +251,23 @@ export function CategoriesManager({
                     <Button
                       variant="ghost"
                       size="sm"
+                      aria-label={
+                        sub.budgetSource === 'bills'
+                          ? `Budget ${sub.name} by hand`
+                          : `Budget ${sub.name} by its bills`
+                      }
+                      disabled={working}
+                      onClick={() =>
+                        void send(`/api/subcategories/${sub.id}`, 'PATCH', {
+                          budgetSource: sub.budgetSource === 'bills' ? 'manual' : 'bills',
+                        })
+                      }
+                    >
+                      {sub.budgetSource === 'bills' ? 'By hand' : 'By bills'}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       aria-label={`Archive ${sub.name}`}
                       disabled={working}
                       onClick={() =>

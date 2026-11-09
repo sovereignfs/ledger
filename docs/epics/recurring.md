@@ -2,7 +2,7 @@
 
 ## Status
 
-⏳ In progress: 3 of 5 tasks are done.
+⏳ In progress: 4 of 5 tasks are done.
 
 ## Overview
 
@@ -82,7 +82,7 @@ Tests: 14 more (10 on all three databases, 4 pure) (the list by state and by the
 ending the entry, second person for every call) and 4 in the browser. Each key test was seen to fail against the code it guards (the stale check, the skip's
 record, the mode filter of the list, the signs of a corrected amount).
 
-#### 📋 6.4 — Bills in the budget
+#### ✅ 6.4 — Bills in the budget
 
 **Goal:** a subcategory budgeted by its recurring entries. **Design:** §7.2, §8.4. **Depends on:** 6.2, 5.2.
 
@@ -91,6 +91,22 @@ force; making, editing or ending one writes the subcategory's `budget_amount` fr
 
 **Accepts when:** a yearly 600 insurance budgets 50 a month and its payment lands in the month paid; editing it to 720 from June changes June on and
 not May.
+
+**Done as:** `src/recurring/bills.ts`. **`billsFigure`** (pure) is the sum, over the un-ended recurring entries with lines on a subcategory, of each one's
+`monthlyEquivalent` (6.1) in its lines' currency, converted to the category's currency at the rate in force today and rounded half to even; a refund line is
+not a bill; an entry that cannot be converted for want of a rate is left out and **counted, never counted as nothing**. **`syncBills`** runs in the transaction
+that changed the entries (making one or "Repeat…", editing its template or rule, ending it, and the last occurrence of one that ran out, in `claim`) for
+every subcategory the old and the new template are spent on, and **writes the figure from the book's current month through `writeBudget`**, only when it is not
+the one already in force, so a past month is never rewritten and the history table works as for a budget set by hand (§7.3): yearly 600 is 50 from the month
+it was made, edited to 720 in June it is 60 from June and May stays 50, and the last bill ending writes a zero. `budget_source` is chosen with
+`setBudgetSource` (`PATCH /api/subcategories/[id]` with `budgetSource: 'bills' | 'manual'`, a _By bills_ / _By hand_ button on the Categories page): choosing bills
+writes the sum at once, choosing by hand **keeps the amount in force**, which is then the person's. **`setBudget` now refuses a subcategory budgeted by its
+bills** in a sentence, since a hand-set figure would be overwritten by the next change to a bill; `writeBudget` is the same write without that check, for
+`bills.ts` alone. The Budget screen already grouped such rows under _Bills_; selecting one now says it is set by its bills and links to the Bills page in
+place of the hand editor. 10 tests on all three databases (the worked example including the payment landing in July only, several bills with a weekly one
+and a zero when the last ends, one that runs out, a foreign-currency bill converted and one with no rate, hand-set left alone and refused when by bills,
+second person), 4 pure, 1 route test and 1 browser test. Each key test was seen to fail against the code it guards (from next month, no sync on ending,
+no sync when the last occurrence runs out, the refusal of a hand-set budget, no sync of an edit).
 
 #### 📋 6.5 — Loan instalments
 

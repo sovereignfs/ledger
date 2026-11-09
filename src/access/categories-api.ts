@@ -12,6 +12,7 @@ import {
   type DeleteCategory,
 } from '../budget/categories';
 import type { Database } from '../db/client';
+import { setBudgetSource } from '../recurring/bills';
 import type { WriteResult } from '../ledger/transactions';
 import { readCapped } from './body';
 import type { BookContext } from './route';
@@ -144,20 +145,21 @@ export async function addSubcategory(
   );
 }
 
-/** Renames a subcategory, archives it or brings it back: `{ name?, archived? }`. */
+/** Renames a subcategory, archives it or brings it back, or chooses how it is budgeted: `{ name?, archived?, budgetSource? }` (`manual` or `bills`). */
 export async function changeSubcategory(
   database: Database,
   { request, accountId, bookId, params }: BookContext,
 ) {
   const read = await body(request);
   if (read instanceof Response) return read;
-  const { name, archived } = read.value;
+  const { name, archived, budgetSource } = read.value;
   if (
     (name !== undefined && typeof name !== 'string') ||
-    (archived !== undefined && typeof archived !== 'boolean')
+    (archived !== undefined && typeof archived !== 'boolean') ||
+    (budgetSource !== undefined && budgetSource !== 'manual' && budgetSource !== 'bills')
   )
     return json({ problems: ['That is not a change to a subcategory.'] }, 400);
-  if (name === undefined && archived === undefined)
+  if (name === undefined && archived === undefined && budgetSource === undefined)
     return json({ problems: ['There is nothing to change.'] }, 400);
   const id = idOf(params);
   if (typeof name === 'string') {
@@ -167,6 +169,11 @@ export async function changeSubcategory(
   if (
     typeof archived === 'boolean' &&
     !(await setCategoryArchived(database, accountId, bookId, 'subcategory', id, archived))
+  )
+    return notFound();
+  if (
+    budgetSource !== undefined &&
+    !(await setBudgetSource(database, accountId, bookId, id, budgetSource))
   )
     return notFound();
   return json({ id });
