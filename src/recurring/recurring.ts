@@ -16,6 +16,7 @@ import {
 } from '../ledger/transactions';
 import { type LineInput, type TxnInput, checkShape } from '../ledger/validate';
 import { subcategoriesOf, syncBills } from './bills';
+import { loanEntry } from './loan-entry';
 import { type Rule, checkRule, nextOccurrence } from './rule';
 
 /**
@@ -175,6 +176,8 @@ export interface NewRecurring {
   readonly mode: Mode;
   /** Whether the anchor's own occurrence has been posted already (an entry made repeat): then the next is the one after it. */
   readonly posted?: boolean;
+  /** A loan whose instalment this is: the split of each posting is worked out when it is posted (`loan-entry.ts`). */
+  readonly loanAccountId?: string;
 }
 
 /** What is wrong with a template and a rule and a mode, from the input alone, in sentences. */
@@ -201,7 +204,7 @@ function checkNew(input: NewRecurring): string[] {
 }
 
 /** Writes the recurring entry on a handle already in a transaction; throws a refusal that `runWrite` turns into the answer. */
-async function insertRecurring(
+export async function insertRecurring(
   tx: Database,
   accountId: string,
   bookId: string,
@@ -221,9 +224,9 @@ async function insertRecurring(
   const id = crypto.randomUUID();
   const inserted = await dbAll<{ id: string }>(
     tx,
-    sql`INSERT INTO ${s.recurring} (id, book_id, template, unit, every, anchor_date, end_date, mode, next_date, ended_at, created_at, updated_at)
+    sql`INSERT INTO ${s.recurring} (id, book_id, template, unit, every, anchor_date, end_date, mode, next_date, loan_account_id, ended_at, created_at, updated_at)
         SELECT ${id}, b.id, ${JSON.stringify(input.template)}, ${rule.unit}, ${rule.every}, ${rule.anchor}, ${rule.end}, ${input.mode}, ${next},
-               ${next === null ? now : null}, ${now}, ${now}
+               ${input.loanAccountId ?? null}, ${next === null ? now : null}, ${now}, ${now}
           FROM ${bookTable(tx)} b
          WHERE b.id = ${bookId} AND ${inBook(tx, sql`b.id`, accountId)}
         RETURNING id`,
@@ -421,6 +424,22 @@ async function claim(
   return claimed.length > 0;
 }
 
+/** Ends the entry here and now, with nothing to come: a loan that is paid off. */
+async function endNow(
+  tx: Database,
+  accountId: string,
+  bookId: string,
+  id: string,
+  now: number,
+): Promise<void> {
+  const s = schema(tx);
+  await dbAll(
+    tx,
+    sql`UPDATE ${s.recurring} SET next_date = NULL, ended_at = COALESCE(ended_at, ${now}), updated_at = ${now}
+         WHERE id = ${id} AND book_id = ${bookId} AND ${inBook(tx, sql`${s.recurring.bookId}`, accountId)} RETURNING id`,
+  );
+}
+
 export type PostResult =
   | { readonly status: 'posted'; readonly date: string }
   /** The occurrence was one the person skipped, or was posted already: the entry is moved on and nothing is made. */
@@ -483,13 +502,35 @@ export async function postOccurrence(
       outcome = { status: 'passed', date };
       return recurringId;
     }
-    await insertTransaction(
-      tx,
-      actingAccountId,
-      bookId,
-      entryOf(options.template ?? row.template, date, { id: recurringId, occurrenceDate: date }),
-      now,
-    );
+    let entry = entryOf(options.template ?? row.template, date, {
+      id: recurringId,
+      occurrenceDate: date,
+    });
+    let finishes = false;
+    if (row.loanAccountId) {
+      // A loan's instalment: split into interest and principal on the day, and the last one capped at what is left (DESIGN.md §8.3).
+      const payer = row.template.lines.find((line) => line.account !== undefined)?.account;
+      const planned = await loanEntry(tx, actingAccountId, bookId, {
+        recurringId,
+        loanAccountId: row.loanAccountId,
+        payerAccountId: payer ?? '',
+        date,
+        ...(options.template
+          ? { instalment: Math.abs(options.template.lines[0]?.amount ?? 0) }
+          : {}),
+      });
+      if (planned.kind === 'problem') throw refusal(invalid(...planned.problems));
+      if (planned.kind === 'paid_off') {
+        await endNow(tx, actingAccountId, bookId, recurringId, now);
+        outcome = { status: 'passed', date };
+        return recurringId;
+      }
+      entry = { ...planned.entry, recurring: { id: recurringId, occurrenceDate: date } };
+      finishes = planned.last;
+    }
+    await insertTransaction(tx, actingAccountId, bookId, entry, now);
+    // The entry ends with the loan: its last instalment leaves nothing to come.
+    if (finishes) await endNow(tx, actingAccountId, bookId, recurringId, now);
     outcome = { status: 'posted', date };
     return recurringId;
   });

@@ -4,7 +4,8 @@ import { requireBook } from '@/src/access/page';
 import { AccountDetail } from '@/src/accounts/AccountDetail';
 import { todayIn } from '@/src/dates';
 import { getDatabase } from '@/src/db/boot';
-import { entriesOf, getAccount } from '@/src/ledger/accounts';
+import { entriesOf, getAccount, listAccounts } from '@/src/ledger/accounts';
+import { listRecurring } from '@/src/recurring/recurring';
 import { listEntries } from '@/src/ledger/entry-list';
 
 export const metadata: Metadata = { title: 'Account' };
@@ -30,6 +31,26 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           )
         ).entries
       : [];
+  const loanTerms =
+    account.type === 'loan'
+      ? await Promise.all([
+          listAccounts(database, accountId, book.id),
+          listRecurring(database, accountId, book.id),
+        ])
+      : null;
+  const payers = (loanTerms?.[0] ?? [])
+    .filter(
+      (each) =>
+        each.currency === account.currency &&
+        each.type !== 'loan' &&
+        each.type !== 'credit_card' &&
+        each.type !== 'investment' &&
+        each.type !== 'property',
+    )
+    .map((each) => ({ id: each.id, name: each.name }));
+  const instalments =
+    (loanTerms?.[1] ?? []).find((each) => each.loanAccountId === id && each.endedAt === null) ??
+    null;
   return (
     <AccountDetail
       account={account}
@@ -37,6 +58,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       values={values}
       today={todayIn(book.timeZone)}
       locale={book.locale ?? undefined}
+      payers={payers}
+      instalments={instalments ? { nextDate: instalments.nextDate, mode: instalments.mode } : null}
     />
   );
 }

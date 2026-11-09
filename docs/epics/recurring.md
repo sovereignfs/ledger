@@ -2,7 +2,7 @@
 
 ## Status
 
-⏳ In progress: 4 of 5 tasks are done.
+✅ Done: 5 of 5 tasks.
 
 ## Overview
 
@@ -108,7 +108,7 @@ and a zero when the last ends, one that runs out, a foreign-currency bill conver
 second person), 4 pure, 1 route test and 1 browser test. Each key test was seen to fail against the code it guards (from next month, no sync on ending,
 no sync when the last occurrence runs out, the refusal of a hand-set budget, no sync of an edit).
 
-#### 📋 6.5 — Loan instalments
+#### ✅ 6.5 — Loan instalments
 
 **Goal:** a loan that pays itself down. **Design:** §8.3. **Depends on:** 6.3, 4.1.
 
@@ -118,3 +118,21 @@ confirming); the last instalment capped; the entry ends with the loan.
 
 **Accepts when:** worked example: 10,000 at 6% with 200 a month gives the expected first three splits to the cent; the final payment leaves exactly
 zero; deleting an instalment restores the loan's balance.
+
+**Done as:** `src/recurring/loan-split.ts`, pure: **interest = what is left × the yearly rate × the days since the last instalment (or the loan's start) ÷
+365, half to even, in `bigint`**, principal the rest; the **last instalment is capped at what is left, interest included**, so the loan ends at exactly zero;
+an instalment that does not cover its interest is all interest and never makes a negative principal. The worked example, 10,000 at 6% with 200 a month from
+1 January, posts on 1 February, 1 March and 1 April: **interest 50.96, 45.34, 49.41 and principal 149.04, 154.66, 150.59**, leaving 9,545.71. `loan-entry.ts`
+works the split out **when the instalment is posted** from the loan's balance on the day (derived, so a deleted instalment or an extra payment is in the next
+one) and the days since the last posting, and makes the entry: an expense of **three lines** (the paying account down, the loan up by the principal, the interest
+subcategory up) or, with no interest, a transfer to the loan. `loan.ts` `createInstalments` (**`POST /api/accounts/[id]/instalments`**, `{ from, firstDate, mode }`)
+makes the recurring entry for a loan once (monthly from the first day to the loan's end date, `loan_account_id` set; what it stores is who pays and the
+loan's instalment, the split is not stored) and makes the **Loans category and the loan's interest subcategory** (reusing a _Loans_ category that is there, the
+loan's name in the subcategory's) and names it on the loan. `postOccurrence` hands a loan's entry to `loan-entry.ts`; the **entry ends with the instalment that pays the
+loan off**, at once and not only on the next run, and one found already paid off posts nothing and ends; **deleting a loan (before anything was posted) ends its
+instalments**. A corrected amount when confirming is the instalment for that day, split the same way. **Screen:** an _Instalments_ section on the loan's own page
+(_Pay from_, _First instalment_, _Ask me before each is posted_), which becomes a line about them with a link to Bills. Differences from the plan: the offer is on the loan's
+page and not in the add-account dialog (so a loan made earlier can be given instalments too); a split of an instalment by hand when confirming is not offered (the person
+edits the posted entry). 10 tests on all three databases (the worked example to the cent, the categories once, the last capped to zero, no rate as a transfer, deleting
+an instalment, confirming a corrected amount, already paid off, a deleted loan, second person), 10 pure, 2 route tests and 1 browser test. Each key test was seen to
+fail against the code it guards (no cap on the last, the days ignored, the balance ignored, half-up rounding, the entry not ended with the loan, a deleted loan's instalments kept).

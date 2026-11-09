@@ -342,6 +342,12 @@ export async function deleteAccount(
       tx,
       sql`DELETE FROM ${s.loan} WHERE account_id = ${moneyAccountId} AND book_id = ${bookId} RETURNING account_id`,
     );
+    // The instalments of a loan that is gone have nothing to pay: they end with it (DESIGN.md §8.3), and nothing of theirs was posted.
+    await dbAll(
+      tx,
+      sql`UPDATE ${s.recurring} SET next_date = NULL, ended_at = COALESCE(ended_at, ${Date.now()}), updated_at = ${Date.now()}
+           WHERE loan_account_id = ${moneyAccountId} AND book_id = ${bookId} AND ${inBook(tx, sql`${s.recurring.bookId}`, accountId)} RETURNING id`,
+    );
     return 'deleted';
   });
 }

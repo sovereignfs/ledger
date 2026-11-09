@@ -186,3 +186,10 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+.instalments {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-3);
+  max-width: 28rem;
+}

@@ -10,6 +10,7 @@ import { ReconcileButton } from './ReconcileButton';
 import { ValueButton } from './ValueButton';
 import type { ListedEntry } from '../ledger/entry-list';
 import { StatusToggle } from './StatusToggle';
+import { InstalmentsSection, type Payer } from './InstalmentsSection';
 import styles from './Accounts.module.css';
 import { ENTRY_TYPE_LABEL } from './words';
 
@@ -23,6 +24,8 @@ export function AccountDetail({
   values = [],
   today,
   locale,
+  payers = [],
+  instalments = null,
 }: {
   account: AccountRow;
   entries: readonly EntryOfAccount[];
@@ -30,6 +33,10 @@ export function AccountDetail({
   values?: readonly ListedEntry[];
   today: string;
   locale?: string;
+  /** The accounts a loan's instalment may be paid from. */
+  payers?: readonly Payer[];
+  /** A loan's instalments, when it has them. */
+  instalments?: { nextDate: string | null; mode: 'auto' | 'confirm' } | null;
 }) {
   const money = (value: number) => formatMoney(value, account.currency, locale);
   const said = sayBalance(account.type, account.balance, account.currency, locale);
@@ -95,6 +102,17 @@ export function AccountDetail({
           locale={locale}
         />
       </div>
+      {account.type === 'loan' && account.loan && account.archivedAt === null ? (
+        <InstalmentsSection
+          loanId={account.id}
+          currency={account.currency}
+          instalment={account.loan.instalment}
+          today={today}
+          locale={locale}
+          payers={payers}
+          existing={instalments}
+        />
+      ) : null}
       {values.length > 0 ? (
         <section aria-label="Value history">
           <h2>Value history</h2>

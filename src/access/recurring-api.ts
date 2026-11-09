@@ -14,6 +14,7 @@ import {
   skipOccurrence,
   updateRecurring,
 } from '../recurring/recurring';
+import { createInstalments } from '../recurring/loan';
 import { withAmount } from '../recurring/present';
 import { UNITS } from '../recurring/rule';
 import { readCapped } from './body';
@@ -236,4 +237,30 @@ export async function skip(
   const result = await skipOccurrence(database, accountId, bookId, idOf(params), read.value.date);
   if (result === 'skipped') return json({ skipped: true });
   return result === 'stale' ? json({ problems: [STALE] }, 409) : notFound();
+}
+
+/**
+ * Makes a loan's instalment a recurring entry (DESIGN.md §8.3): `{ from, firstDate, mode }`, the account that pays, the first day (then every month) and
+ * whether it posts itself or asks first. The loan is the one in the address; another person's is not found.
+ */
+export async function instalments(
+  database: Database,
+  { request, accountId, bookId, params }: BookContext,
+) {
+  const read = await body(request);
+  if (read instanceof Response) return read;
+  const { from, firstDate, mode } = read.value;
+  const parsed = modeOf(mode);
+  if (typeof from !== 'string' || typeof firstDate !== 'string' || !parsed)
+    return bad(
+      'An instalment is paid from an account, from a first day, and posts itself or asks first.',
+    );
+  return answer(
+    await createInstalments(database, accountId, bookId, idOf(params), {
+      from,
+      firstDate,
+      mode: parsed,
+    }),
+    201,
+  );
 }

@@ -2,8 +2,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { testTarget } from '../db/test-support';
 import { ensureBook } from '../ledger/books';
 import { seedAccount, seedSubcategory } from '../ledger/testing';
+import { createAccount } from '../ledger/accounts';
 import { createTransaction } from '../ledger/transactions';
-import { change, create, list, post, remove, skip, upcoming } from './recurring-api';
+import { change, create, instalments, list, post, remove, skip, upcoming } from './recurring-api';
 import { type BookHandler, bookRoute } from './route';
 import { type Person, type TwoAccounts, twoAccounts } from './two-accounts';
 
@@ -287,5 +288,68 @@ describe(`confirming from the routes (${leg})`, () => {
     }
     expect((await act(skip, t.ada, id, 'skip', {})).status).toBe(400);
     expect((await waiting()).find((row) => row.id === id)).toMatchObject({ date: today });
+  });
+});
+
+describe(`a loan's instalments from the routes (${leg})`, () => {
+  const makeLoan = async () => {
+    const made = await createAccount(t.database, t.ada.id, adas, {
+      type: 'loan',
+      name: 'House',
+      currency: 'USD',
+      opening: { amount: -500_000, date: '2026-01-01' },
+      loan: {
+        lender: 'Lender',
+        principal: 500_000,
+        startDate: '2026-01-01',
+        endDate: '2030-01-01',
+        instalment: 10_000,
+        yearlyRate: '5',
+        interestSubcategoryId: null,
+      },
+    });
+    if (!made.ok) throw new Error('not made');
+    return made.id;
+  };
+  const make = (person: Person, loan: string, data: unknown, headers?: Record<string, string>) =>
+    call(
+      instalments,
+      person,
+      `/api/accounts/${loan}/instalments`,
+      { method: 'POST', body: data, ...(headers ? { headers } : {}) },
+      loan,
+    );
+
+  it('makes the instalments for the owner once, and says so the second time', async () => {
+    const loan = await makeLoan();
+    const body = { from: bank, firstDate: '2026-02-01', mode: 'auto' };
+    expect((await make(t.ada, loan, body)).status).toBe(201);
+    const again = await make(t.ada, loan, body);
+    expect(again.status).toBe(400);
+    expect(((await again.json()) as { problems: string[] }).problems[0]).toContain(
+      'instalments already',
+    );
+    expect((await listed(t.ada)).length).toBeGreaterThan(0);
+  });
+
+  it('is not found for another person, writing nothing, and refuses another address and a mistake', async () => {
+    const loan = await makeLoan();
+    const body = { from: bank, firstDate: '2026-02-01', mode: 'auto' };
+    const strange = await make(t.grace, loan, body);
+    expect(strange.status).toBe(404);
+    expect(await strange.text()).toBe('');
+    expect((await make(t.ada, loan, body, { origin: 'https://evil.example' })).status).toBe(403);
+    for (const bad of [
+      {},
+      { ...body, from: 5 },
+      { ...body, mode: 'maybe' },
+      { ...body, firstDate: '2026-02-30' },
+      { ...body, firstDate: '2040-01-01' },
+    ]) {
+      const reply = await make(t.ada, loan, bad);
+      expect(reply.status, JSON.stringify(bad)).toBe(400);
+    }
+    expect((await make(t.ada, loan, { ...body, from: 'nope' })).status).toBe(404);
+    expect((await make(t.ada, loan, body)).status).toBe(201);
   });
 });

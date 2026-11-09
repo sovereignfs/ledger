@@ -244,3 +244,62 @@ test('budgets a subcategory by its bills: a yearly 600 is 50 a month, and it fol
   await expect(page.getByText('This is budgeted by its recurring bills')).toBeVisible();
   await expect(page.getByRole('button', { name: /^Set budget|^Save/ })).toHaveCount(0);
 });
+
+test('pays a loan’s instalments: offered on the loan, each split into interest and principal when posted', async ({
+  page,
+  browserName,
+}) => {
+  await signedIn(page);
+  await page.goto('/accounts');
+  const tag = `loan ${browserName}`;
+  const origin = new URL(page.url()).origin;
+  const post = async (path: string, data: unknown) => {
+    const reply = await page.request.post(path, { data, headers: { origin } });
+    expect(reply.status(), path).toBe(201);
+    return ((await reply.json()) as { id: string }).id;
+  };
+  await post('/api/accounts', { type: 'bank', name: `Pays ${tag}`, currency: 'USD' });
+  const loan = await post('/api/accounts', {
+    type: 'loan',
+    name: `Car ${tag}`,
+    currency: 'USD',
+    opening: { amount: -1_000_000, date: '2020-01-01' },
+    loan: {
+      lender: `Lender ${tag}`,
+      principal: 1_000_000,
+      startDate: '2020-01-01',
+      endDate: '2031-01-01',
+      instalment: 20_000,
+      yearlyRate: '6',
+      interestSubcategoryId: null,
+    },
+  });
+
+  await page.goto(`/accounts/${loan}`);
+  const form = page.getByRole('form', { name: 'Pay the instalments' });
+  await form.getByLabel('Pay from').selectOption({ label: `Pays ${tag}` });
+  await form.getByLabel('First instalment').fill('2020-02-01');
+  await form.getByLabel('Ask me before each is posted').check();
+  await form.getByRole('button', { name: 'Pay the instalments' }).click();
+  await expect(page.getByRole('region', { name: 'Instalments' })).toContainText('asking you first');
+
+  // The first is waiting, and is posted: 31 days of 6% on 10,000.00 is 50.96, so 149.04 comes off the loan.
+  await page.goto('/transactions');
+  const row = page
+    .getByRole('region', { name: 'Upcoming' })
+    .getByRole('listitem')
+    .filter({ hasText: `Lender ${tag}` });
+  await expect(row).toContainText('$200.00');
+  await row.getByRole('button', { name: `Post Lender ${tag}` }).click();
+  await page.goto(`/accounts/${loan}`);
+  await expect(page.getByRole('region', { name: 'Summary' })).toContainText('$9,850.96');
+
+  // Leave nothing waiting for the other tests.
+  const all = (await (await page.request.get('/api/recurring')).json()) as {
+    recurring: { id: string; loanAccountId: string | null }[];
+  };
+  const mine = all.recurring.find((each) => each.loanAccountId === loan);
+  expect(mine).toBeDefined();
+  const ended = await page.request.delete(`/api/recurring/${mine?.id}`, { headers: { origin } });
+  expect(ended.status()).toBe(200);
+});
