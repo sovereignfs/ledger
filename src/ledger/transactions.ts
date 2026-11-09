@@ -4,6 +4,7 @@ import type { Database } from '../db/client';
 import { dbAll, transaction } from '../db/exec';
 import * as postgresSchema from '../db/schema/postgres';
 import * as sqliteSchema from '../db/schema/sqlite';
+import { clearSpend, spendFromJar, spendOf } from '../jars/spend';
 import { bookTable } from './books';
 import { rememberPayee, resolvePayee } from './payee-write';
 import {
@@ -294,6 +295,7 @@ export async function insertTransaction(
   await verifyTargets(tx, accountId, bookId, input);
   await writeLines(tx, accountId, bookId, id, input.lines);
   await setPayee(tx, accountId, bookId, id, input, now, false);
+  if (input.fromJar) await spendFromJar(tx, accountId, bookId, id, input, input.fromJar, now);
   return id;
 }
 
@@ -354,6 +356,11 @@ export async function updateTransaction(
     );
     await writeLines(tx, accountId, bookId, txnId, input.lines);
     await setPayee(tx, accountId, bookId, txnId, input, now, true);
+    // The jar it was paid from follows the entry: taken off first, so that what it held before counts, and written again for the new lines.
+    const was = await spendOf(tx, accountId, bookId, txnId);
+    const jar = input.fromJar === undefined ? was : input.fromJar;
+    if (was !== undefined) await clearSpend(tx, bookId, txnId);
+    if (jar) await spendFromJar(tx, accountId, bookId, txnId, input, jar, now);
     return txnId;
   });
 }
@@ -378,6 +385,8 @@ export async function deleteTransaction(
       tx,
       sql`DELETE FROM ${s.txnLine} WHERE txn_id = ${txnId} AND book_id = ${bookId} RETURNING id`,
     );
+    // An expense paid from a jar takes its movement with it, so the jar holds what it did.
+    await clearSpend(tx, bookId, txnId);
     return true;
   });
 }

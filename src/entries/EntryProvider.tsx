@@ -20,6 +20,8 @@ import {
   differs,
   editable,
   formOf,
+  jarProblem,
+  jarsFor,
   missing,
   remainder,
 } from './compose';
@@ -84,6 +86,7 @@ const BLANK: EntryForm = {
   date: '',
   note: '',
   payee: '',
+  jarId: '',
 };
 
 type Mode = { kind: 'add' } | { kind: 'edit'; id: string };
@@ -99,6 +102,8 @@ export function EntryProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState('');
   const [notEditable, setNotEditable] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  /** The jar the entry being changed was paid from, and what it took: that is given back first when it changes (DESIGN.md §10.2). */
+  const [was, setWas] = useState<{ jarId: string; amount: number } | null>(null);
 
   const fail = (...sentences: string[]) => setProblems(sentences);
 
@@ -119,6 +124,7 @@ export function EntryProvider({ children }: { children: ReactNode }) {
     setProblems([]);
     setNotEditable(false);
     setConfirmDelete(false);
+    setWas(null);
     setForm(BLANK);
     setOpen(true);
     void (async () => {
@@ -141,6 +147,7 @@ export function EntryProvider({ children }: { children: ReactNode }) {
       setProblems([]);
       setNotEditable(false);
       setConfirmDelete(false);
+      setWas(null);
       setForm(BLANK);
       setOpen(true);
       void (async () => {
@@ -152,8 +159,15 @@ export function EntryProvider({ children }: { children: ReactNode }) {
           const { entry } = (await reply.json()) as {
             entry: Parameters<typeof editable>[0] & Parameters<typeof formOf>[0];
           };
-          if (editable(entry)) setForm(formOf(entry));
-          else setNotEditable(true);
+          if (editable(entry)) {
+            const loadedForm = formOf(entry);
+            setForm(loadedForm);
+            setWas(
+              loadedForm.jarId === ''
+                ? null
+                : { jarId: loadedForm.jarId, amount: loadedForm.amount ?? 0 },
+            );
+          } else setNotEditable(true);
         } catch {
           fail('This needs a connection.');
         }
@@ -168,13 +182,20 @@ export function EntryProvider({ children }: { children: ReactNode }) {
     (each) => each.id === form.accountId,
   );
   const set = (change: Partial<EntryForm>) => setForm((now) => ({ ...now, ...change }));
+  // The jar counts only while it is one of this account's for this kind of entry: changing the account or the kind drops it, as the form shows.
+  const jarChoices = options?.jars ?? [];
+  const jarsHere = jarsFor(form, jarChoices);
+  const sendable: EntryForm = {
+    ...form,
+    jarId: jarsHere.some((jar) => jar.id === form.jarId) ? form.jarId : '',
+  };
 
   /** Sends the form. A save that is not "add another" closes at once, and a refusal opens it again with what was typed. */
   async function submit(another: boolean) {
-    const problem = missing(form);
+    const problem = missing(sendable, jarChoices, was);
     if (problem) return fail(problem);
     setProblems([]);
-    const entry = compose(form);
+    const entry = compose(sendable);
     const editing = mode.kind === 'edit';
     if (!another) {
       setOpen(false);
@@ -201,6 +222,7 @@ export function EntryProvider({ children }: { children: ReactNode }) {
             refund: false,
             note: '',
             payee: '',
+            jarId: '',
           });
         return;
       }
@@ -416,6 +438,34 @@ export function EntryProvider({ children }: { children: ReactNode }) {
                   checked={form.refund}
                   onChange={(refund) => set({ refund })}
                 />
+              ) : null}
+              {targets && !form.refund && jarsHere.length > 0 ? (
+                <FormField
+                  label="From a jar"
+                  hint="The expense releases the same amount from the jar."
+                  {...(jarProblem(sendable, jarChoices, was)
+                    ? { error: jarProblem(sendable, jarChoices, was) as string }
+                    : {})}
+                >
+                  {(field) => (
+                    <Select
+                      {...field}
+                      value={sendable.jarId}
+                      onChange={(event) => set({ jarId: event.target.value })}
+                    >
+                      <option value="">Not from a jar</option>
+                      {jarsHere.map((jar) => (
+                        <option key={jar.id} value={jar.id}>
+                          {jar.name} ·{' '}
+                          {formatMoney(
+                            jar.balance + (was?.jarId === jar.id ? was.amount : 0),
+                            form.currency,
+                          )}
+                        </option>
+                      ))}
+                    </Select>
+                  )}
+                </FormField>
               ) : null}
               {!form.split ? (
                 <>

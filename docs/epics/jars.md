@@ -2,7 +2,7 @@
 
 ## Status
 
-⏳ In progress: 2 of 3 tasks are done.
+✅ Done: 3 of 3 tasks.
 
 ## Overview
 
@@ -68,7 +68,7 @@ room again the next month, a new jar, the contribution in force and its history,
 to fail against the code it guards (no marker on a skip, a jar made this month contributing, a later month's contribution used); two mutants are equivalent and say
 so: the archived-jar filter and the already-made check are each backed up by a second guard (the lock refuses an archived jar, the unique key refuses a second month).
 
-#### 📋 7.3 — Spending from a jar
+#### ✅ 7.3 — Spending from a jar
 
 **Goal:** booking the trip against the Travel jar. **Design:** §10.2, §14.4. **Depends on:** 7.1, 4.3.
 
@@ -77,3 +77,17 @@ movement in one transaction; deleting or editing the expense updates the movemen
 
 **Accepts when:** a 400 flight from the Travel jar releases 400 and counts as spending in its subcategory; more than the jar holds is refused before
 submitting; deleting the expense restores the jar.
+
+**Done as:** `TxnInput.fromJar` (a jar's id, or `null` to take it off; `undefined` on a change keeps it) and `src/jars/spend.ts`. **The expense and its `spend`
+movement are one transaction** through the one write path: `insertTransaction` writes the movement after the lines (a negative movement pointing at the entry,
+for the amount the paying account lost), under 7.1's rule that **a jar cannot go below zero**, a condition of the statement that writes it, and refuses a jar
+that is not in the account that paid, money back, and any entry that is not an expense, in sentences; a jar that is another person's, or not there, is not found.
+`updateTransaction` gives the old movement back first and writes it again for the new lines, so an entry changed to the full amount the jar held is allowed, one that
+is too much is refused with the jar as it was, and `undefined` keeps the jar and follows the amount. `deleteTransaction` and `bulkDelete` delete the movement with the
+entry, so the jar holds what it did. An account with a jar in it is not deleted (`has_entries`; archive it). **The add dialog** offers _From a jar_ for an expense that
+is not money back, from an account that has jars, each with what it holds (what this entry took counts when it is changed); more than the jar holds is **refused
+before it is sent** (`jarProblem`, pure, in `compose.ts`, shared with the server's sentence by the same figures), and changing the account or the kind drops the jar.
+`getEntry` says the jar an entry was paid from, and the entry options list the jars with their balances. Tests: 7 on all three databases (the 400 flight and its
+spending and the account's free money unchanged, too much refused with nothing written, a jar of another account or another person or money back, deleting one by one and in bulk, a change of
+amount, jar and none, the options, the request read as hostile input), 1 on the routes as a second person, 6 pure and 1 browser test. Each key test was seen to fail against
+the code it guards (delete and bulk delete keeping the movement, a change leaving it, a jar of another account, the given-back amount not counted before submitting).

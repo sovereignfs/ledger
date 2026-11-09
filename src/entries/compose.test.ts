@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { checkShape } from '../ledger/validate';
-import { type EntryForm, compose, differs, editable, formOf, missing, remainder } from './compose';
+import {
+  type EntryForm,
+  type JarChoice,
+  compose,
+  differs,
+  editable,
+  formOf,
+  jarProblem,
+  jarsFor,
+  missing,
+  remainder,
+} from './compose';
 
 const form = (over: Partial<EntryForm> = {}): EntryForm => ({
   type: 'expense',
@@ -17,6 +28,7 @@ const form = (over: Partial<EntryForm> = {}): EntryForm => ({
   date: '2026-11-06',
   note: '',
   payee: '',
+  jarId: '',
   ...over,
 });
 
@@ -32,6 +44,7 @@ describe('what the form means', () => {
       ],
       note: 'lunch',
       payee: null,
+      fromJar: null,
     });
     expect(checkShape(entry)).toEqual([]);
   });
@@ -403,5 +416,72 @@ describe('a refund', () => {
     expect(compose(form({ type: 'income', targetId: 'pay', refund: true })).lines[0]?.amount).toBe(
       1250,
     );
+  });
+});
+
+describe('paying from a jar', () => {
+  const jars: JarChoice[] = [
+    { id: 'travel', name: 'Travel', accountId: 'bank', balance: 50_000 },
+    { id: 'car', name: 'Car', accountId: 'bank', balance: 10_000 },
+    { id: 'other', name: 'Elsewhere', accountId: 'savings', balance: 99_999 },
+  ];
+
+  it('offers the jars of the chosen account for an expense, and none for money back, an income or a transfer', () => {
+    expect(jarsFor(form(), jars).map((jar) => jar.id)).toEqual(['travel', 'car']);
+    expect(jarsFor(form({ accountId: 'savings' }), jars).map((jar) => jar.id)).toEqual(['other']);
+    expect(jarsFor(form({ refund: true }), jars)).toEqual([]);
+    expect(jarsFor(form({ type: 'income' }), jars)).toEqual([]);
+    expect(jarsFor(form({ type: 'transfer' }), jars)).toEqual([]);
+  });
+
+  it('says the jar in the entry for an expense, and none (so a change can take it off) when there is no jar', () => {
+    expect(compose(form({ jarId: 'travel' })).fromJar).toBe('travel');
+    expect(compose(form()).fromJar).toBeNull();
+    expect(compose(form({ jarId: 'travel', refund: true })).fromJar).toBeNull();
+    expect('fromJar' in compose(form({ type: 'income', targetId: 'pay', jarId: 'travel' }))).toBe(
+      false,
+    );
+  });
+
+  it('refuses before it is sent what is more than the jar holds, and says what it holds', () => {
+    expect(jarProblem(form({ jarId: 'travel', amount: 50_000 }), jars)).toBeUndefined();
+    expect(jarProblem(form({ jarId: 'travel', amount: 50_001 }), jars)).toBe(
+      'The Travel jar holds 500.00 USD. Choose another jar, or a smaller amount.',
+    );
+    expect(missing(form({ jarId: 'car', amount: 10_001 }), jars)).toContain('The Car jar holds');
+    expect(missing(form({ jarId: 'car', amount: 10_000 }), jars)).toBeUndefined();
+    expect(jarProblem(form(), jars)).toBeUndefined();
+  });
+
+  it('counts what the entry took from its jar already, since changing it gives that back', () => {
+    const was = { jarId: 'car', amount: 8_000 };
+    expect(jarProblem(form({ jarId: 'car', amount: 18_000 }), jars, was)).toBeUndefined();
+    expect(jarProblem(form({ jarId: 'car', amount: 18_001 }), jars, was)).toContain(
+      'holds 180.00 USD',
+    );
+    // Another jar gets nothing back.
+    expect(jarProblem(form({ jarId: 'travel', amount: 50_001 }), jars, was)).toContain(
+      'holds 500.00 USD',
+    );
+  });
+
+  it('refuses a jar of another account', () => {
+    expect(jarProblem(form({ jarId: 'other' }), jars)).toBe('That jar is not in this account.');
+  });
+
+  it('reads the jar back from an entry paid from one', () => {
+    const entry = {
+      type: 'expense',
+      date: '2026-11-06',
+      note: null,
+      payee: null,
+      fromJar: { id: 'travel' },
+      lines: [
+        { account: 'bank', amount: -4_000, currency: 'USD' },
+        { subcategory: 'flights', amount: 4_000, currency: 'USD' },
+      ],
+    };
+    expect(formOf(entry).jarId).toBe('travel');
+    expect(formOf({ ...entry, fromJar: null }).jarId).toBe('');
   });
 });

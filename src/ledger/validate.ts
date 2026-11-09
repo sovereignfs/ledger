@@ -60,6 +60,11 @@ export interface TxnInput {
    * is posted once however many try; it is set by the recurring code and by nothing a person sends (`txn-input.ts` never reads it).
    */
   readonly recurring?: { readonly id: string; readonly occurrenceDate: string };
+  /**
+   * The jar an expense is paid from (DESIGN.md §10.2): the entry and a movement that releases the same amount from the jar are written together. It must be in the
+   * account that paid. On a change, `undefined` keeps the jar the entry was paid from (and its amount follows the entry) and `null` takes it off.
+   */
+  readonly fromJar?: string | null;
   /** Pending unless given; an opening and an adjustment are cleared (DESIGN.md §6.7). */
   readonly status?: TxnStatus;
   /** What was charged in another currency, for information only (§6.8); not on a transfer. */

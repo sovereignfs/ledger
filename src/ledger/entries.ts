@@ -4,6 +4,7 @@ import type { Database } from '../db/client';
 import { dbAll, dbGet } from '../db/exec';
 import * as postgresSchema from '../db/schema/postgres';
 import * as sqliteSchema from '../db/schema/sqlite';
+import { listJars } from '../jars/jars';
 import type { Equity, LineInput, TxnStatus, TxnType } from './validate';
 
 /**
@@ -22,6 +23,8 @@ export interface EntryRow {
   readonly status: TxnStatus;
   readonly original: { amount: number; currency: string } | null;
   readonly lines: readonly LineInput[];
+  /** The jar the entry was paid from, if it was (DESIGN.md §10.2). */
+  readonly fromJar: { readonly id: string; readonly name: string } | null;
 }
 
 /** One entry with its lines in order, or `undefined` for one that is not the account's. */
@@ -67,6 +70,11 @@ export async function getEntry(
          WHERE l.txn_id = ${txnId} AND l.book_id = ${bookId} AND ${inBook(database, sql`l.book_id`, accountId)}
          ORDER BY l.position`,
   );
+  const jar = await dbGet<{ id: string; name: string }>(
+    database,
+    sql`SELECT j.id AS id, j.name AS name FROM ${s.jarMovement} v JOIN ${s.jar} j ON j.id = v.jar_id AND j.book_id = v.book_id
+         WHERE v.txn_id = ${txnId} AND v.book_id = ${bookId} AND v.kind = 'spend' AND ${inBook(database, sql`v.book_id`, accountId)}`,
+  );
   return {
     id: head.id,
     type: head.type as TxnType,
@@ -78,6 +86,7 @@ export async function getEntry(
       head.originalAmount === null || head.originalCurrency === null
         ? null
         : { amount: Number(head.originalAmount), currency: head.originalCurrency },
+    fromJar: jar ? { id: jar.id, name: jar.name } : null,
     lines: lines.map((line) => ({
       ...(line.account === null ? {} : { account: line.account }),
       ...(line.subcategory === null ? {} : { subcategory: line.subcategory }),
@@ -109,6 +118,8 @@ export interface EntryOptions {
     subcategories: readonly { id: string; name: string }[];
   }[];
   readonly incomeSources: readonly { id: string; name: string; currency: string }[];
+  /** The jars an expense may be paid from, with what each holds (DESIGN.md §10.2): the form offers those of the account chosen. */
+  readonly jars: readonly { id: string; name: string; accountId: string; balance: number }[];
 }
 
 /** The kinds of account an entry of the add dialog is on. A loan, an investment and a property are changed by their own entries, and a person's account by transfers (4.6). */
@@ -162,6 +173,7 @@ export async function loadEntryOptions(
          WHERE i.book_id = ${book.id} AND ${member('i')} AND i.archived_at IS NULL
          ORDER BY i.kind, i.created_at, i.id`,
   );
+  const jars = await listJars(database, accountId, book.id);
   return {
     today,
     baseCurrency: book.baseCurrency,
@@ -174,5 +186,11 @@ export async function loadEntryOptions(
         .map(({ id, name }) => ({ id, name })),
     })),
     incomeSources: sources,
+    jars: jars.map(({ id, name, accountId: inAccount, balance }) => ({
+      id,
+      name,
+      accountId: inAccount,
+      balance,
+    })),
   };
 }

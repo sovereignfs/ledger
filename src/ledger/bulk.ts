@@ -113,11 +113,17 @@ export async function bulkDelete(
            WHERE book_id = ${bookId} AND ${inBook(tx, sql`${s.txn.bookId}`, accountId)} AND id IN (${list(wanted)})
           RETURNING id`,
     );
-    if (gone.length > 0)
+    if (gone.length > 0) {
       await dbAll(
         tx,
         sql`DELETE FROM ${s.txnLine} WHERE book_id = ${bookId} AND txn_id IN (${list(gone.map((row) => row.id))}) RETURNING id`,
       );
+      // Entries paid from a jar take their movements with them, so the jars hold what they did.
+      await dbAll(
+        tx,
+        sql`DELETE FROM ${s.jarMovement} WHERE book_id = ${bookId} AND kind = 'spend' AND txn_id IN (${list(gone.map((row) => row.id))}) RETURNING id`,
+      );
+    }
     return { changed: gone.length, skipped: wanted.length - gone.length };
   });
 }

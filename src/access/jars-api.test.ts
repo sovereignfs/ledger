@@ -2,6 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { testTarget } from '../db/test-support';
 import { createAccount } from '../ledger/accounts';
 import { ensureBook } from '../ledger/books';
+import { seedSubcategory } from '../ledger/testing';
+import { create as createEntry, remove as removeEntry } from './transactions-api';
 import { change, create, list, movement } from './jars-api';
 import { type BookHandler, bookRoute } from './route';
 import { type Person, type TwoAccounts, twoAccounts } from './two-accounts';
@@ -217,5 +219,67 @@ describe(`the jar routes (${leg})`, () => {
     });
     expect(reply.status).toBe(404);
     expect(await reply.text()).toBe('');
+  });
+});
+
+describe(`paying an expense from a jar through the entry routes (${leg})`, () => {
+  it('releases the jar, refuses more than it holds with a 400, and a jar that is another person’s as not found', async () => {
+    const sub = await seedSubcategory(t.database, adas);
+    const herSub = await seedSubcategory(t.database, graces);
+    const jar = await make('Flights');
+    await call(
+      movement,
+      t.ada,
+      `/api/jars/${jar}/movements`,
+      { method: 'POST', body: { direction: 'earmark', amount: 40_000 } },
+      jar,
+    );
+    const expense = (account: string, subcategory: string, amount: number, fromJar: unknown) => ({
+      type: 'expense',
+      date: '2026-11-04',
+      fromJar,
+      lines: [
+        { account, amount: -amount, currency: 'USD' },
+        { subcategory, amount, currency: 'USD' },
+      ],
+    });
+    const held = async () => (await listed(t.ada)).jars.find((j) => j.id === jar)?.balance;
+
+    const paid = await call(createEntry, t.ada, '/api/transactions', {
+      method: 'POST',
+      body: expense(savings, sub, 10_000, jar),
+    });
+    expect(paid.status).toBe(201);
+    expect(await held()).toBe(30_000);
+
+    const more = await call(createEntry, t.ada, '/api/transactions', {
+      method: 'POST',
+      body: expense(savings, sub, 30_001, jar),
+    });
+    expect(more.status).toBe(400);
+    expect(((await more.json()) as { problems: string[] }).problems[0]).toContain('holds less');
+    expect(await held()).toBe(30_000);
+
+    const strange = await call(createEntry, t.grace, '/api/transactions', {
+      method: 'POST',
+      body: expense(hers, herSub, 100, jar),
+    });
+    expect(strange.status).toBe(404);
+    expect(await strange.text()).toBe('');
+    expect(
+      (
+        await call(createEntry, t.ada, '/api/transactions', {
+          method: 'POST',
+          body: expense(savings, sub, 100, 5),
+        })
+      ).status,
+    ).toBe(400);
+    expect(await held()).toBe(30_000);
+
+    const id = ((await paid.json()) as { id: string }).id;
+    expect(
+      (await call(removeEntry, t.ada, `/api/transactions/${id}`, { method: 'DELETE' }, id)).status,
+    ).toBe(200);
+    expect(await held()).toBe(40_000);
   });
 });

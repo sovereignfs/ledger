@@ -295,7 +295,7 @@ export type DeleteAccount = 'deleted' | 'has_entries' | 'not_found';
 
 /**
  * Deletes an account, **only if it has nothing but its opening balance**: the account, that opening and the loan's terms go together, in one transaction.
- * `has_entries` for one that has been used (archive it instead, and it stays in past totals); `not_found` for one that is not theirs or not there. The
+ * `has_entries` for one that has been used, or has a jar in it (archive it instead, and it stays in past totals); `not_found` for one that is not theirs or not there. The
  * statement that deletes the account carries the condition, so an entry written between a look and the delete cannot be orphaned.
  */
 export async function deleteAccount(
@@ -312,6 +312,7 @@ export async function deleteAccount(
            WHERE id = ${moneyAccountId} AND book_id = ${bookId} AND ${inBook(tx, sql`${s.moneyAccount.bookId}`, accountId)}
              AND NOT EXISTS (SELECT 1 FROM ${s.txnLine} x JOIN ${s.txn} t ON t.id = x.txn_id AND t.book_id = x.book_id
                               WHERE x.account_id = ${moneyAccountId} AND x.book_id = ${bookId} AND t.type <> 'opening')
+             AND NOT EXISTS (SELECT 1 FROM ${s.jar} q WHERE q.account_id = ${moneyAccountId} AND q.book_id = ${bookId})
           RETURNING id`,
     );
     if (gone.length === 0) {

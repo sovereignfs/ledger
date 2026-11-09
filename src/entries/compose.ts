@@ -37,6 +37,44 @@ export interface EntryForm {
   readonly note: string;
   /** Who was paid, as typed: a known payee's name or a new one, which is made when the entry is saved (DESIGN.md §6.5). Empty for none. */
   readonly payee: string;
+  /** The jar an expense is paid from (DESIGN.md §10.2); empty for none. Only an expense that is not money back, from an account with that jar. */
+  readonly jarId: string;
+}
+
+/** A jar the form may offer: what it holds, and the account it is in. */
+export interface JarChoice {
+  readonly id: string;
+  readonly name: string;
+  readonly accountId: string;
+  readonly balance: number;
+}
+
+/** The jars the form offers: those in the chosen account, for an expense that is not money back. */
+export function jarsFor(
+  form: Pick<EntryForm, 'type' | 'refund' | 'accountId'>,
+  jars: readonly JarChoice[],
+): JarChoice[] {
+  return form.type === 'expense' && !form.refund
+    ? jars.filter((jar) => jar.accountId === form.accountId)
+    : [];
+}
+
+/**
+ * What is wrong with paying from the jar chosen, or `undefined`: **more than the jar holds is refused before it is sent**. An entry that was paid from this jar already
+ * (`was`) counts what it took, since changing it gives that back first.
+ */
+export function jarProblem(
+  form: EntryForm,
+  jars: readonly JarChoice[],
+  was: { readonly jarId: string; readonly amount: number } | null = null,
+): string | undefined {
+  if (form.jarId === '') return undefined;
+  const jar = jarsFor(form, jars).find((each) => each.id === form.jarId);
+  if (!jar) return 'That jar is not in this account.';
+  const holds = jar.balance + (was && was.jarId === jar.id ? was.amount : 0);
+  if ((form.amount ?? 0) > holds)
+    return `The ${jar.name} jar holds ${decimalText(holds, form.currency)} ${form.currency}. Choose another jar, or a smaller amount.`;
+  return undefined;
 }
 
 /** A form with nothing in it, which the forms read back start from. */
@@ -55,6 +93,7 @@ const BLANK_FORM: EntryForm = {
   date: '',
   note: '',
   payee: '',
+  jarId: '',
 };
 
 /** What is left of the amount when the parts are taken off it: more than nothing while they fall short, below nothing when they go over. */
@@ -64,7 +103,11 @@ export function remainder(form: Pick<EntryForm, 'amount' | 'parts'>): number {
 }
 
 /** The sentence that says what is missing from a form, or `undefined` when it can be sent. */
-export function missing(form: EntryForm): string | undefined {
+export function missing(
+  form: EntryForm,
+  jars: readonly JarChoice[] = [],
+  was: { readonly jarId: string; readonly amount: number } | null = null,
+): string | undefined {
   if (form.type === 'transfer') {
     if (form.accountId === '') return 'Choose the account the money comes from.';
     if (form.toAccountId === '') return 'Choose the account the money goes to.';
@@ -95,7 +138,7 @@ export function missing(form: EntryForm): string | undefined {
     }
   }
   if (form.date === '') return 'Enter the date.';
-  return undefined;
+  return jarProblem(form, jars, was);
 }
 
 /** Whether a transfer is between two currencies, which then records both amounts (DESIGN.md §6.8). */
@@ -142,6 +185,8 @@ export function compose(form: EntryForm): TxnInput {
     lines: [account, ...lines],
     note,
     payee: form.payee.trim() === '' ? null : form.payee.trim(),
+    // Always said for an expense, so that a change can take the jar off: the jar, or none.
+    ...(expense ? { fromJar: !form.refund && form.jarId !== '' ? form.jarId : null } : {}),
   };
 }
 
@@ -177,6 +222,7 @@ export function formOf(entry: {
   date: string;
   note: string | null;
   payee?: { name: string } | null;
+  fromJar?: { id: string } | null;
   lines: readonly LineInput[];
 }): EntryForm {
   if (entry.type === 'transfer') {
@@ -214,5 +260,6 @@ export function formOf(entry: {
     date: entry.date,
     note: entry.note ?? '',
     payee: entry.payee?.name ?? '',
+    jarId: entry.fromJar?.id ?? '',
   };
 }

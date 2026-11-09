@@ -122,3 +122,55 @@ test('says on Overview that spending took an account below what its jars hold, a
     '$30.00 over-earmarked',
   );
 });
+
+test('pays an expense from a jar: the jar is released, more than it holds is refused, and deleting the expense gives it back', async ({
+  page,
+  browserName,
+}) => {
+  await signedIn(page);
+  await page.goto('/accounts');
+  const tag = `spend ${browserName}`;
+  const origin = new URL(page.url()).origin;
+  const post = async (path: string, data: unknown) => {
+    const reply = await page.request.post(path, { data, headers: { origin } });
+    expect(reply.status(), path).toBe(201);
+    return ((await reply.json()) as { id: string }).id;
+  };
+  const account = await savings(page, tag, 100_000);
+  const jar = await post('/api/jars', { accountId: account, name: `Flights ${tag}` });
+  await post(`/api/jars/${jar}/movements`, { direction: 'earmark', amount: 50_000 });
+  const category = await post('/api/categories', { name: `Trips ${tag}`, currency: 'USD' });
+  await post(`/api/categories/${category}/subcategories`, { name: `Air ${tag}` });
+
+  await page.goto(`/accounts/${account}`);
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Add entry' });
+  await dialog.getByLabel('Account').selectOption({ label: `Savings ${tag} · USD` });
+  await dialog.getByLabel('Subcategory').selectOption({ label: `Air ${tag}` });
+  await dialog.getByLabel('From a jar').selectOption({ label: `Flights ${tag} · $500.00` });
+  // More than the jar holds is refused before anything is sent.
+  await dialog.getByLabel(/^Amount/).fill('600');
+  await expect(dialog).toContainText('jar holds');
+  await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(dialog).toBeVisible();
+
+  await dialog.getByLabel(/^Amount/).fill('400');
+  await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  const jars = page.getByRole('region', { name: 'Jars', exact: true });
+  const row = jars.getByRole('listitem').filter({ hasText: `Flights ${tag}` });
+  await expect(row).toContainText('$100.00');
+  await expect(page.getByRole('region', { name: 'Summary' })).toContainText('$600.00');
+
+  // Deleting the expense gives the jar back what it took.
+  await page
+    .getByRole('button', { name: /Edit the entry of/ })
+    .first()
+    .click();
+  const edit = page.getByRole('dialog', { name: 'Edit entry' });
+  await expect(edit.getByLabel('From a jar')).toContainText(`Flights ${tag}`);
+  await edit.getByRole('button', { name: 'Delete…' }).click();
+  await edit.getByRole('button', { name: 'Delete for good' }).click();
+  await expect(edit).toHaveCount(0);
+  await expect(row).toContainText('$500.00');
+});
