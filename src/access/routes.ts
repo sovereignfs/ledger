@@ -112,6 +112,9 @@ export const ROUTES: RouteRule[] = [
   // The book's settings (DESIGN.md §15.1): the person's own book. Nothing in a request names whose.
   { route: '/api/book', methods: { GET: { kind: 'book' }, PATCH: { kind: 'book' } } },
   { route: '/api/book/currencies', methods: { POST: { kind: 'book' } } },
+  // The book in one file, and a file back into an empty book (DESIGN.md §16): the person's own, and nothing in a request names whose.
+  { route: '/api/export', methods: { GET: { kind: 'book' } } },
+  { route: '/api/import', methods: { POST: { kind: 'book' } } },
   // The month-end review (DESIGN.md §11.4): the person's own book's. Nothing in a request names whose.
   { route: '/api/reviews', methods: { GET: { kind: 'book' }, POST: { kind: 'book' } } },
   // The instance asks it before it sends anyone to the app, and a container's health check does: it says only whether the database answers.
