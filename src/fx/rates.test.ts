@@ -9,7 +9,8 @@ import { addCurrency } from '../ledger/currencies';
 import { JobRunner, kindOf, type RunnerDeps } from '../jobs/runner';
 import { FxError } from './frankfurter';
 import { fetchRatesJob } from './job';
-import { currenciesInUse, fetchRates, rateOn, storeRates } from './rates';
+import { convertMinor, convertedTotal } from '../money/convert';
+import { currenciesInUse, fetchRates, loadRates, rateOn, storeRates } from './rates';
 import { startFakeFrankfurter, type FakeFrankfurter } from './testing/fake-frankfurter';
 
 const { leg } = testTarget();
@@ -303,5 +304,98 @@ describe(`the fetch-rates job (${leg})`, () => {
     } finally {
       await other.close();
     }
+  });
+});
+
+describe(`rates loaded once for a range (${leg})`, () => {
+  beforeEach(async () => {
+    for (const [day, rates] of [
+      ['2026-10-01', { EUR: '0.90', JPY: '150' }],
+      ['2026-10-20', { EUR: '0.88' }],
+      ['2026-11-03', { EUR: '0.85', JPY: '151' }],
+      ['2026-11-09', { EUR: '0.87', JPY: '152' }],
+      ['2026-12-01', { EUR: '0.80' }],
+    ] as const)
+      await storeRates(t.database, day, new Map(Object.entries(rates)), 1);
+  });
+
+  it('holds the rows of the range and the one in force at its start, and no others', async () => {
+    const table = await loadRates(t.database, ['EUR', 'JPY'], '2026-11-05', '2026-11-30');
+    // At the start of the range EUR is the 3rd's and JPY the 3rd's; the 1st and the 20th of October are not needed, nor December.
+    expect(table.on('EUR', '2026-11-05')).toBe('0.85');
+    expect(table.on('JPY', '2026-11-05')).toBe('151');
+    expect(table.on('EUR', '2026-11-09')).toBe('0.87');
+    expect(table.on('EUR', '2026-11-30')).toBe('0.87'); // December's row is after the range
+    expect(table.on('JPY', '2026-11-30')).toBe('152');
+  });
+
+  it('agrees with rateOn on every day of the range', async () => {
+    const table = await loadRates(t.database, ['EUR', 'JPY'], '2026-10-15', '2026-11-20');
+    for (
+      let day = new Date('2026-10-15T00:00:00Z');
+      day <= new Date('2026-11-20T00:00:00Z');
+      day.setUTCDate(day.getUTCDate() + 1)
+    ) {
+      const date = day.toISOString().slice(0, 10);
+      for (const currency of ['EUR', 'JPY'])
+        expect(table.on(currency, date), `${currency} ${date}`).toBe(
+          (await rateOn(t.database, currency, date))?.rate,
+        );
+    }
+  });
+
+  it('has no rate before the first row, and for a currency never fetched', async () => {
+    const table = await loadRates(t.database, ['EUR', 'GBP'], '2026-09-01', '2026-09-30');
+    expect(table.on('EUR', '2026-09-15')).toBeUndefined();
+    expect(table.on('GBP', '2026-09-15')).toBeUndefined();
+  });
+
+  it('makes no query for no currencies, or only the dollar, and still knows the dollar', async () => {
+    expect(
+      (await loadRates(t.database, [], '2026-11-01', '2026-11-30')).on('USD', '2026-11-02'),
+    ).toBe('1');
+    expect(
+      (await loadRates(t.database, ['USD'], '2026-11-01', '2026-11-30')).on('EUR', '2026-11-02'),
+    ).toBeUndefined();
+  });
+
+  it('refuses a range, a code or a list that is not one', async () => {
+    await expect(loadRates(t.database, ['EUR'], '2026-11-30', '2026-11-01')).rejects.toThrow(
+      RangeError,
+    );
+    await expect(loadRates(t.database, ['EUR'], '2026-11-31', '2026-12-01')).rejects.toThrow(
+      RangeError,
+    );
+    await expect(
+      loadRates(t.database, ['EUR'], "2026-11-01' OR '1'='1", '2026-12-01'),
+    ).rejects.toThrow(RangeError);
+    await expect(
+      loadRates(t.database, ["EUR') OR ('1'='1"], '2026-11-01', '2026-12-01'),
+    ).rejects.toThrow(RangeError);
+    await expect(loadRates(t.database, ['BTC'], '2026-11-01', '2026-12-01')).rejects.toThrow(
+      RangeError,
+    );
+  });
+
+  it('converts a page of amounts at their own dates from what was stored, and says what it left out', async () => {
+    const table = await loadRates(t.database, ['EUR', 'JPY', 'GBP'], '2026-11-01', '2026-11-30');
+    // 87.00 EUR on the 10th at 0.87 is 100.00 USD; on the 4th at 0.85 it is 102.35 USD (102.3529…).
+    expect(convertMinor(8700, 'EUR', 'USD', '2026-11-10', table)).toBe(10000);
+    expect(convertMinor(8700, 'EUR', 'USD', '2026-11-04', table)).toBe(10235);
+    const total = convertedTotal(
+      [
+        { amount: 8700, currency: 'EUR', date: '2026-11-10' },
+        { amount: 15200, currency: 'JPY', date: '2026-11-10' }, // 15 200 JPY at 152 = 100.00 USD
+        { amount: 999, currency: 'GBP', date: '2026-11-10' },
+      ],
+      'USD',
+      table,
+    );
+    expect(total).toEqual({
+      currency: 'USD',
+      amount: 20000,
+      included: 2,
+      notIncluded: [{ currency: 'GBP', count: 1, amount: 999 }],
+    });
   });
 });

@@ -4,6 +4,7 @@ import { dbAll, transaction } from '../db/exec';
 import * as postgresSchema from '../db/schema/postgres';
 import * as sqliteSchema from '../db/schema/sqlite';
 import { FX_PIVOT_CODE, isSupportedCurrencyCode } from '../money/currencies';
+import { RateTable, type RateRow } from '../money/convert';
 import { fetchLatestRates, isCalendarDay, type FetchOptions } from './frankfurter';
 
 /**
@@ -123,4 +124,37 @@ export async function rateOn(
          ORDER BY as_of DESC LIMIT 1`,
   );
   return rows[0];
+}
+
+/**
+ * The rates a page needs, **loaded once** for the currencies and the dates (`from` to `to`, both days): every row in the range, and for each currency the
+ * latest row before it, so that the rate in force on any date of the range is in the table (DESIGN.md §9.3). One statement, whatever the number of amounts the
+ * page converts. USD needs no row. A currency with no row at all is simply absent, and an amount in it comes out as not included.
+ */
+export async function loadRates(
+  database: Database,
+  currencies: readonly string[],
+  from: string,
+  to: string,
+): Promise<RateTable> {
+  if (!isCalendarDay(from) || !isCalendarDay(to) || from > to)
+    throw new RangeError('loadRates: not a range of days');
+  const wanted = [...new Set(currencies)].filter((code) => code !== FX_PIVOT_CODE);
+  if (!wanted.every(isSupportedCurrencyCode))
+    throw new RangeError('loadRates: not a list of currencies');
+  if (wanted.length === 0) return new RateTable(from, to, []);
+  const rows = await dbAll<RateRow>(
+    database,
+    sql`SELECT f.currency AS currency, f.as_of AS "asOf", f.rate AS rate FROM ${table(database)} f
+         WHERE f.currency IN (${sql.join(
+           wanted.map((code) => sql`${code}`),
+           sql`, `,
+         )})
+           AND f.as_of <= ${to}
+           AND f.as_of >= COALESCE(
+                 (SELECT MAX(p.as_of) FROM ${table(database)} p WHERE p.currency = f.currency AND p.as_of <= ${from}),
+                 '')
+         ORDER BY f.currency, f.as_of`,
+  );
+  return new RateTable(from, to, rows);
 }
