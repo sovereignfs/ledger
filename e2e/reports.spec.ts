@@ -1,0 +1,80 @@
+import { expect, test } from '@playwright/test';
+import { signedIn } from './helpers';
+
+/**
+ * Reports (task 8.1, DESIGN.md §11): the list of months with the current one in progress, and a month's report with its income, its spending by category
+ * against the budget and the savings figures. Fixtures are made through the app's own routes with its own `Origin`.
+ */
+test('shows a month’s income, spending against the budget and what was saved, and lists the months', async ({
+  page,
+  browserName,
+}) => {
+  await signedIn(page);
+  await page.goto('/accounts');
+  const tag = `report ${browserName}`;
+  // A month of its own for each browser, since both run against one instance and a month's figures are the book's.
+  const month = browserName === 'webkit' ? '2020-07' : '2020-06';
+  const origin = new URL(page.url()).origin;
+  const post = async (path: string, data: unknown) => {
+    const reply = await page.request.post(path, { data, headers: { origin } });
+    expect(reply.status(), path).toBe(201);
+    return ((await reply.json()) as { id: string }).id;
+  };
+  // The totals are in the base currency: the book has one by now, and this says so when this file runs alone.
+  const setup = await page.request.post('/api/setup', {
+    data: { step: 'currency', currency: 'USD' },
+    headers: { origin },
+  });
+  expect(setup.status()).toBe(200);
+  const account = await post('/api/accounts', {
+    type: 'bank',
+    name: `Bank ${tag}`,
+    currency: 'USD',
+    opening: { amount: 500_000, date: '2019-12-01' },
+  });
+  const source = await post('/api/income-sources', { name: `Pay ${tag}`, kind: 'secondary' });
+  const category = await post('/api/categories', { name: `Home ${tag}`, currency: 'USD' });
+  const groceries = await post(`/api/categories/${category}/subcategories`, {
+    name: `Groceries ${tag}`,
+  });
+  const budget = await page.request.post('/api/budget', {
+    data: { kind: 'subcategory', id: groceries, amount: 30_000, when: 'this' },
+    headers: { origin },
+  });
+  expect(budget.status()).toBe(200);
+  await post('/api/transactions', {
+    type: 'income',
+    date: `${month}-01`,
+    lines: [
+      { account, amount: 100_000, currency: 'USD' },
+      { incomeSource: source, amount: -100_000, currency: 'USD' },
+    ],
+  });
+  await post('/api/transactions', {
+    type: 'expense',
+    date: `${month}-10`,
+    lines: [
+      { account, amount: -20_000, currency: 'USD' },
+      { subcategory: groceries, amount: 20_000, currency: 'USD' },
+    ],
+  });
+
+  await page.goto(`/reports?month=${month}`);
+  await expect(page.getByRole('heading', { level: 1, name: `Report for ${month}` })).toBeVisible();
+  const income = page.getByRole('region', { name: 'Income and saving' });
+  await expect(income).toContainText('$1,000.00');
+  await expect(income).toContainText('$200.00');
+  const spending = page.getByRole('region', { name: 'Spending by category' });
+  const row = spending.getByRole('row').filter({ hasText: `Groceries ${tag}` });
+  await expect(row).toContainText('$200.00');
+  await expect(spending.getByRole('row').filter({ hasText: `Home ${tag}` })).toContainText(
+    '$200.00',
+  );
+
+  // The list: this month is in progress, and a month opens its report.
+  await page.goto('/reports');
+  const months = page.getByRole('table', { name: 'Months' });
+  await expect(months).toContainText('In progress');
+  await months.getByRole('link').first().click();
+  await expect(page).toHaveURL(/\/reports\?month=\d{4}-\d{2}$/);
+});

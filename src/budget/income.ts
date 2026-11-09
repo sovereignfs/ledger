@@ -123,6 +123,17 @@ export async function receivedInMonth(
   month: string,
 ): Promise<Received[]> {
   if (!isMonth(month)) throw new RangeError('receivedInMonth: not a month');
+  return receivedBetween(database, accountId, bookId, `${month}-01`, lastDayOf(month));
+}
+
+/** What was received from one day to another, both included: the same rows as a month's, over any range. */
+export async function receivedBetween(
+  database: Database,
+  accountId: string,
+  bookId: string,
+  from: string,
+  to: string,
+): Promise<Received[]> {
   const s = schema(database);
   const rows = await dbAll<{
     sourceId: string;
@@ -134,7 +145,7 @@ export async function receivedInMonth(
     sql`SELECT l.income_source_id AS "sourceId", l.currency AS currency, t.date AS date, -SUM(l.amount) AS amount
           FROM ${s.txnLine} l JOIN ${s.txn} t ON t.id = l.txn_id AND t.book_id = l.book_id
          WHERE l.book_id = ${bookId} AND ${inBook(database, sql`l.book_id`, accountId)}
-           AND l.income_source_id IS NOT NULL AND t.date >= ${`${month}-01`} AND t.date <= ${lastDayOf(month)}
+           AND l.income_source_id IS NOT NULL AND t.date >= ${from} AND t.date <= ${to}
          GROUP BY l.income_source_id, l.currency, t.date
          ORDER BY t.date, l.income_source_id`,
   );

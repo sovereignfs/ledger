@@ -201,6 +201,17 @@ export async function spentInMonth(
   month: string,
 ): Promise<Spent[]> {
   if (!isMonth(month)) throw new RangeError('spentInMonth: not a month');
+  return spentBetween(database, accountId, bookId, `${month}-01`, lastDayOf(month));
+}
+
+/** What was spent from one day to another, both included: the same rows as a month's, over any range, for the reports of a year and the list of months. */
+export async function spentBetween(
+  database: Database,
+  accountId: string,
+  bookId: string,
+  from: string,
+  to: string,
+): Promise<Spent[]> {
   const s = schema(database);
   const rows = await dbAll<{
     subcategoryId: string;
@@ -212,7 +223,7 @@ export async function spentInMonth(
     sql`SELECT l.subcategory_id AS "subcategoryId", l.currency AS currency, t.date AS date, SUM(l.amount) AS amount
           FROM ${s.txnLine} l JOIN ${s.txn} t ON t.id = l.txn_id AND t.book_id = l.book_id
          WHERE l.book_id = ${bookId} AND ${inBook(database, sql`l.book_id`, accountId)}
-           AND l.subcategory_id IS NOT NULL AND t.date >= ${`${month}-01`} AND t.date <= ${lastDayOf(month)}
+           AND l.subcategory_id IS NOT NULL AND t.date >= ${from} AND t.date <= ${to}
          GROUP BY l.subcategory_id, l.currency, t.date
          ORDER BY t.date, l.subcategory_id`,
   );

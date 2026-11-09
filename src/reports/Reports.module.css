@@ -1,0 +1,66 @@
+/* The reports (DESIGN.md §11). Tokens only. */
+.nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sv-space-3);
+  align-items: center;
+  margin: 0 0 var(--sv-space-4);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-3);
+  margin-bottom: var(--sv-space-6);
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--sv-space-3);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-1);
+  padding: var(--sv-space-3) var(--sv-space-4);
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-lg);
+  background-color: var(--sv-color-surface);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  padding: var(--sv-space-2) var(--sv-space-3);
+  text-align: left;
+  border-bottom: 1px solid var(--sv-color-border);
+}
+
+.table th:not(:first-child),
+.table td:not(:first-child) {
+  text-align: right;
+}
+
+.sub td:first-child {
+  padding-left: var(--sv-space-6);
+  color: var(--sv-color-text-muted);
+}
+
+.over {
+  font-weight: 600;
+}
+
+.note {
+  margin: 0;
+  color: var(--sv-color-text-muted);
+}
+
+.scroll {
+  overflow-x: auto;
+}

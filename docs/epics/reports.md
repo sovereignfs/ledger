@@ -2,7 +2,7 @@
 
 ## Status
 
-📋 Planned.
+⏳ In progress: 1 of 7 tasks is done.
 
 ## Overview
 
@@ -15,7 +15,7 @@ Every figure is a pure function over rows, shared by the screens, the recap and 
 
 ## Tasks
 
-#### 📋 8.1 — The month
+#### ✅ 8.1 — The month
 
 **Goal:** a month's figures, one computation everywhere. **Design:** §11.1, §11.2. **Depends on:** 5.4, 4.6.
 
@@ -24,6 +24,23 @@ figures (actual after jars reads 7.1's contributions once it exists, zero before
 `/reports` with the month list ("In progress", reviewed or not) and a month's detail.
 
 **Accepts when:** a seeded multi-currency month's figures match hand-worked values; loan principal is not spending and loan interest is.
+
+**Done as:** `src/reports/month.ts`. **`buildMonthReport` is pure** over the month's parts (the income figures and the budget figures the income page and the Budget screen already
+read, the jar contributions, the accounts with their balances at the month's end, the principal paid on each loan, the rates) and **adds no arithmetic that is not a sum or a
+difference of theirs**, so the report agrees with the screens by construction. It holds income budgeted and received; spending by category (`categoriesOf`: each category rolled up in its
+own currency from its subcategories, with how far it is over) and subcategory against the budget; **the three savings figures**: _projected_ (budgeted income less budgeted spending), _actual_
+(received less spent) and _actual after jars_ (actual less what was earmarked in the jars in the month: the contributions that were made, a skipped one being nothing; 7.2 now exists, so
+the plan's "zero before it exists" is not needed); and the small summaries: each **card** (used of its limit), **people** (owed to you and you owe, in the base currency) and **loan** (left to pay at the
+month's end, and the principal that came off it in the month). **Loan interest is spent and loan principal is not** with no rule for it: interest is a line on a subcategory and principal is a
+line on the loan, so the sum of subcategory lines is spending and a transfer of debt is not in it. What any figure left out for want of a rate is said ("Income: 1 amount in CHF not included"),
+never counted as nothing. `loadMonthList` lists the months from the first entry's to the current one (newest first, at most 36) with income received, spent and saved, the current one
+**in progress**, in **two reads for the whole range** (`spentBetween` and `receivedBetween`, the month's own queries over any range) and not two for each month. **`/reports`** is the list and
+`/reports?month=YYYY-MM` a month's report (income and saving, spending by category with its subcategories, cards, people and loans, links to the Budget row). Whether a month is
+reviewed waits for 8.5. A hand-worked month of two currencies (rate 1.25), a loan with interest and principal, money lent, a card and a jar is tested on all three databases: received
+3,500, spent 1,270, projected 1,700, actual 2,230, after jars 2,080, the loan 4,850 left and 150 paid, the card 120 of 3,000, 100 owed to you; 7 tests of the month and the list (one for
+a book with nothing, one for another person, one for a missing rate), 2 pure, and 1 browser test. Each key test was seen to fail against the code it guards (after-jars ignoring the jars, the
+sign of what people owe, the list not splitting by month); one mutant is equivalent and says so: excluding an opening from what was paid off a loan, which a loan's opening, being below nothing, is
+already excluded from by the sign.
 
 #### 📋 8.2 — The year
 
