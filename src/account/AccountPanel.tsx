@@ -1,5 +1,12 @@
 import { authSettings } from '../auth/server';
 import { requireSession } from '../auth/session';
+import { requireBook } from '../access/page';
+import { getDatabase } from '../db/boot';
+import { listCurrencies } from '../ledger/currencies';
+import { BookSection } from './BookSection';
+import { BudgetSection } from './BudgetSection';
+import { CurrenciesSection } from './CurrenciesSection';
+import { NotificationsSection } from './NotificationsSection';
 import { AccountShell } from './AccountShell';
 import { DataSection } from './DataSection';
 import { PreferencesSection } from './PreferencesSection';
@@ -10,12 +17,13 @@ import { signInsOf } from './sign-ins';
 
 /**
  * Settings, in one place (DESIGN.md §15.1), as a dialog over the page it was opened from or at an address of its own. The sections are server-rendered and
- * handed to the shell, which only shows the one that is open. The book's own sections (currencies, income sources, categories, payees, the recap) join
- * with task 9.3.
+ * handed to the shell, which only shows the one that is open. The book's own sections (its settings, currencies, where the budget's parts are, the recap) are here too (task 9.3).
  */
 export async function AccountPanel({ query }: { query: AccountQuery }) {
   const { user } = await requireSession();
+  const { accountId, book } = await requireBook();
   const signIns = await signInsOf(user.id);
+  const currencies = await listCurrencies(await getDatabase(), accountId, book.id);
   return (
     <AccountShell
       initial={sectionOf(query)}
@@ -28,6 +36,18 @@ export async function AccountPanel({ query }: { query: AccountQuery }) {
           />
         ),
         preferences: <PreferencesSection />,
+        book: (
+          <BookSection
+            name={book.name}
+            baseCurrency={book.baseCurrency}
+            timeZone={book.timeZone}
+            firstDayOfWeek={book.firstDayOfWeek}
+            locale={book.locale}
+          />
+        ),
+        currencies: <CurrenciesSection codes={currencies} base={book.baseCurrency} />,
+        budget: <BudgetSection />,
+        notifications: <NotificationsSection recap={book.recap} />,
         data: <DataSection />,
       }}
     />

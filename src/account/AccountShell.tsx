@@ -9,6 +9,10 @@ const SECTIONS: { id: AccountSection; label: string; icon: IconName }[] = [
   { id: 'profile', label: 'Profile', icon: 'user' },
   { id: 'security', label: 'Security', icon: 'shield' },
   { id: 'preferences', label: 'Preferences', icon: 'sliders-horizontal' },
+  { id: 'book', label: 'Book', icon: 'notebook-pen' },
+  { id: 'currencies', label: 'Currencies', icon: 'arrow-left-right' },
+  { id: 'budget', label: 'Budget', icon: 'list-todo' },
+  { id: 'notifications', label: 'Notifications', icon: 'bell' },
   { id: 'data', label: 'Data', icon: 'database' },
 ];
 

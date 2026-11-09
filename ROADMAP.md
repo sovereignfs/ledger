@@ -121,7 +121,7 @@ Part of the suite, and a person can leave. **Done when** it signs in through cor
 | 50  | [2.4](docs/epics/accounts.md)     | Core's notices           | P0       | 2.3, 2.5       | 📋     |
 | 51  | [10.1](docs/epics/suite.md)       | Bell, email and activity | P2       | 2.3, 1.6       | 📋     |
 | 52  | [8.6](docs/epics/reports.md)      | The recap                | P2       | 8.1, 8.7, 10.1 | 📋     |
-| 53  | [9.3](docs/epics/setup.md)        | The book's settings      | P2       | 2.6, 9.1       | 📋     |
+| 53  | [9.3](docs/epics/setup.md)        | The book's settings      | P2       | 2.6, 9.1       | ✅     |
 | 54  | [11.1](docs/epics/portability.md) | Export                   | P2       | 7.3, 6.5, 8.5  | 📋     |
 | 55  | [11.2](docs/epics/portability.md) | Import                   | P2       | 11.1           | 📋     |
 | 56  | [1.11](docs/epics/foundation.md)  | The PWA                  | P2       | 1.8            | 📋     |

@@ -44,6 +44,10 @@ test('has its sections, and each shows what it is for', async ({ page }) => {
     'Profile',
     'Security',
     'Preferences',
+    'Book',
+    'Currencies',
+    'Budget',
+    'Notifications',
     'Data',
   ]);
   await sections.getByRole('button', { name: 'Security' }).click();

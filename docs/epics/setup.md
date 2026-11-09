@@ -2,7 +2,7 @@
 
 ## Status
 
-⏳ In progress: 2 of 3 tasks are done.
+✅ Done: 3 of 3 tasks.
 
 ## Overview
 
@@ -39,7 +39,7 @@ setup" link. Upcoming bills (6.3), insights (8.7) and the review banner (8.5) jo
 
 **Done as:** **`/` for someone signed in** (`app/(app)/home/page.tsx`; a book not set up is sent to the wizard from here). `src/overview/overview.ts` adds **no arithmetic of its own** but two differences: it gathers `loadIncome` (5.3), `loadBudget` (5.4), `loadOverview` (4.1's accounts and net worth), the latest eight entries and the book's accounts and sources, so **its figures are the budget screen's, the income page's and the accounts' own, and equal the month's report (8.1) by construction**, which a test shows by comparing them. `thisMonth` (pure): income received, spent, **saved so far** (received less spent) and **planned to save** (budgeted income less budgeted spending), in the base currency, with what any figure left out for want of a rate said in words and by which figure; a saving below nothing is shown as "short", never hidden; with no base currency yet each figure says to choose one and net worth is each currency's own. `closestRows` (pure): the rows with a budget in force and something spent, **most used first, over ones before the rest**, at most five, with "over by" in words. `checklist` (pure): more accounts, a credit card or a loan, a second source of income, bills, jars, people, each **done when the book has one** (an archived secondary source does not count); bills and jars are not built, so they say "Coming soon" and go nowhere, and the checklist is not shown at all when everything that can be done is. The client `SetupChecklist` has **Add an entry**, which opens the add dialog from it, and can be put away, which **this device remembers in `localStorage`** (a convenience of the viewer and not the book's) with a link that brings it back. The screen shows the four cards, net worth (money owed is said in words, "You owe … more than you have"), the closest rows, and recent transactions with each entry's status button, and an empty state for a book with no account. Tested on all three databases: this month's spent and received equal the screens', saved is their difference, the net worth of the accounts, the closest rows over before the rest with nothing from another month, eight latest entries, the checklist ticking as a card is added, and another person's Overview with nothing. 4 browser tests across Chromium and WebKit. Each key test was seen to fail against the code it guards (saved not a difference, the closest least used first, a row with no budget counted, an archived source counted as done). **Since 6.2 and 7.1 the bills and the jars items are real:** _Add the bills you pay every month_ goes to Bills and is ticked when a recurring entry is going, _Set money aside in a jar_ goes to Accounts (where a jar is made) and is ticked when there is a jar, and neither says "Coming soon" any more (found when the user noticed it). Left out, as the tasks that give them land: upcoming bills (6.3), insights (8.7), the month-end review banner (8.5), the jars total (7.1), and projected saving drawn from bills (6.4).
 
-#### 📋 9.3 — The book's settings
+#### ✅ 9.3 — The book's settings
 
 **Goal:** everything setup chose, changeable. **Design:** §15.1, §15.2. **Depends on:** 2.6, 9.1.
 
@@ -48,3 +48,14 @@ setup" link. Upcoming bills (6.3), insights (8.7) and the review banner (8.5) jo
 
 **Accepts when:** changing the base currency re-reports every figure in the new one with nothing stored changed; changing the time zone moves when
 the next recap and posting happen.
+
+**Done as:** `src/ledger/book-settings.ts`: **`updateBook`** changes only what is given of the book's **name, base currency, time zone, first day of the week, number locale and recap** under `inBook`
+(a book that is not the caller's is not found), a mistake being a sentence and writing nothing (`checkBookPatch`, pure: a name of 1 to 80 characters, a supported currency code, an IANA zone, a day
+from 0 to 6, a locale tag the platform can write numbers in, a boolean). A new base currency also joins the book's currencies, for the rates. **Nothing stored is changed**: the test builds a dollar account and a
+euro account, reads the net worth in dollars (2,000), changes the base currency to euros and reads 1,600 with the lines' count and sum exactly as they were; and **the time zone moves when posting happens**: the
+same instant posts a bill due on the 2nd in a book on Kiritimati (+14) and not in one on UTC (the recap, which reads the same zone, is 8.6). Routes `GET` and `PATCH /api/book` and `POST /api/book/currencies`,
+each for the caller's own book. **Settings** gains four sections: **Book** (the form above, with the zones the browser knows), **Currencies** (the book's currencies, and one added by itself, never taken away since
+what was entered in it stays), **Budget** (where income sources, categories and payees are, which have pages of their own because they are used there as well as set up) and **Notifications** (the recap on or off, saying
+that it is sent where the server can send it and nowhere if no mail or bell is set up); Data keeps what it had until export and import (11.1, 11.2). 7 tests on all three databases (and 3 pure) in
+`book-settings.test.ts`, 3 on the routes, and 1 browser test; each key test was seen to fail against the code it guards (the update without the permission, a zone not checked, the base currency not joined to the book's
+currencies). The existing test of Settings' sections lists the new ones.
