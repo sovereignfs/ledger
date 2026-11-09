@@ -3,6 +3,7 @@ import type { Database } from '../db/client';
 import { findBook } from '../ledger/books';
 import { exportBook } from '../portability/format';
 import { importBook } from '../portability/import';
+import type { Notifier } from '../notifications/server';
 import { readCapped } from './body';
 import type { BookContext } from './route';
 
@@ -27,11 +28,22 @@ export function fileNameFor(bookName: string, day: string): string {
 }
 
 /** The book as a file to download. */
-export async function download(database: Database, { accountId, bookId }: BookContext) {
+export async function download(
+  database: Database,
+  { accountId, bookId }: BookContext,
+  activity?: Notifier['activity'],
+) {
   const book = await findBook(database, accountId);
   if (!book || book.id !== bookId) return new Response(null, { status: 404 });
   const file = await exportBook(database, accountId, bookId);
   if (!file) return new Response(null, { status: 404 });
+  // A line on the person's activity page at core, if there is one: what was done and where, with no figure of the book. Never held up for, and never a reason for it to fail.
+  void activity?.({
+    accountId,
+    summary: 'You exported your book',
+    path: '/account?section=data',
+    key: `export-${Date.now()}`,
+  }).catch(() => undefined);
   return new Response(JSON.stringify(file), {
     headers: {
       'content-type': 'application/json',
@@ -42,11 +54,23 @@ export async function download(database: Database, { accountId, bookId }: BookCo
 }
 
 /** Imports a file into the person's own book, which must be empty: the body is the file. */
-export async function upload(database: Database, { request, accountId, bookId }: BookContext) {
+export async function upload(
+  database: Database,
+  { request, accountId, bookId }: BookContext,
+  activity?: Notifier['activity'],
+) {
   const text = await readCapped(request, MAX_IMPORT_BYTES);
   if (text === null) return json({ problems: ['That file is too large.'] }, 413);
   const result = await importBook(database, accountId, bookId, text);
-  if (result.ok) return json({ rows: result.rows }, 201);
+  if (result.ok) {
+    void activity?.({
+      accountId,
+      summary: 'You imported a file into your book',
+      path: '/account?section=data',
+      key: `import-${Date.now()}`,
+    }).catch(() => undefined);
+    return json({ rows: result.rows }, 201);
+  }
   if (result.reason === 'invalid') return json({ problems: result.problems }, 400);
   if (result.reason === 'not_empty')
     return json(

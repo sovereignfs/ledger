@@ -331,11 +331,12 @@ describe('starting the jobs', () => {
 
   it('has the jobs of the tasks so far, and each task that adds one says so here: the rate fetch, unless LEDGER_FX=off', () => {
     const database = {} as Parameters<typeof jobsFor>[0]['database'];
+    const rest = { database, url: undefined, auth: undefined, mail: undefined };
     expect(
-      jobsFor({ fx: { enabled: true, url: undefined }, database }).map((job) => job.name),
-    ).toEqual(['fetch-rates', 'post-recurring', 'contribute-jars']);
+      jobsFor({ fx: { enabled: true, url: undefined }, ...rest }).map((job) => job.name),
+    ).toEqual(['fetch-rates', 'post-recurring', 'contribute-jars', 'notify']);
     expect(
-      jobsFor({ fx: { enabled: false, url: undefined }, database }).map((job) => job.name),
-    ).toEqual(['post-recurring', 'contribute-jars']);
+      jobsFor({ fx: { enabled: false, url: undefined }, ...rest }).map((job) => job.name),
+    ).toEqual(['post-recurring', 'contribute-jars', 'notify']);
   });
 });

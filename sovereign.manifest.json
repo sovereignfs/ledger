@@ -15,5 +15,5 @@
   },
   "database": true,
   "generate": ["LEDGER_AUTH_SECRET", { "name": "LEDGER_ENCRYPTION_KEY", "bytes": 32 }],
-  "core": ">=0.57.0 <1.0.0"
+  "core": ">=0.80.0 <1.0.0"
 }

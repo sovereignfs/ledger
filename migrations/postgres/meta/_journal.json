@@ -78,6 +78,13 @@
       "when": 1794236531975,
       "tag": "0010_month_review",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1794248591662,
+      "tag": "0011_book_job_mark",
+      "breakpoints": true
     }
   ]
 }

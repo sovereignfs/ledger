@@ -327,3 +327,19 @@ export const monthReview = app.table(
   },
   (table) => [primaryKey({ columns: [table.bookId, table.month] })],
 );
+
+/**
+ * What a job did for a book, once (DESIGN.md §11.5, §13.4): a row for `(book, kind, mark)` is **the claim**, made by an insert that does nothing when the row is there, so a job run
+ * twice or by two processes does the thing once. `kind` is `upcoming` (the daily count of bills to confirm, `mark` the day), `insight` (one that newly fires, `mark` the insight and
+ * the month) or `recap` (`mark` the month). A claim is made before the send, so a send is never made twice for a lost answer.
+ */
+export const bookJobMark = app.table(
+  'book_job_mark',
+  {
+    bookId: ref('book_id').notNull(),
+    kind: text('kind').notNull(),
+    mark: text('mark').notNull(),
+    createdAt: epochMs('created_at').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.bookId, table.kind, table.mark] })],
+);

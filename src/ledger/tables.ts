@@ -11,6 +11,7 @@ export const BOOK_TABLES: readonly string[] = [
   'txn',
   'payee',
   'month_review',
+  'book_job_mark',
   'jar_movement',
   'jar',
   'recurring_skip',

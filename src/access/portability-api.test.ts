@@ -96,3 +96,44 @@ describe(`the import route (${leg})`, () => {
     ).toBe(413);
   });
 });
+
+describe(`the line on the activity page (${leg})`, () => {
+  const logged: { accountId: string; summary: string; path: string; key: string }[] = [];
+  const record = async (entry: (typeof logged)[number]) => {
+    logged.push(entry);
+    return { outcome: 'sent' as const };
+  };
+  const via = (
+    handler: typeof download | typeof upload,
+    person: Person,
+    path: string,
+    activity: Parameters<typeof download>[2],
+    init: { method?: string; body?: unknown } = {},
+  ) =>
+    bookRoute((context) => handler(t.database, context, activity), t.deps)(
+      t.request(person, path, init),
+      { params: Promise.resolve({}) },
+    );
+
+  it('says an export and an import to the person who did it, with no figure of the book, and nothing for a file that was refused', async () => {
+    logged.length = 0;
+    expect((await via(download, t.ada, '/api/export', record)).status).toBe(200);
+    expect(logged).toHaveLength(1);
+    expect(logged[0]?.accountId).toBe(t.ada.id);
+    expect(logged[0]?.summary).toBe('You exported your book');
+    expect(JSON.stringify(logged)).not.toContain('secret');
+    // A refused import (Ada's book is not empty) writes no line.
+    const file = JSON.parse(await exported(t.ada));
+    expect(
+      (await via(upload, t.ada, '/api/import', record, { method: 'POST', body: file })).status,
+    ).toBe(409);
+    expect(logged).toHaveLength(1);
+  });
+
+  it('is never a reason for the export to fail: a logger that throws or is refused leaves the answer as it was', async () => {
+    const broken = async () => {
+      throw new Error('core is down');
+    };
+    expect((await via(download, t.ada, '/api/export', broken)).status).toBe(200);
+  });
+});

@@ -116,6 +116,7 @@ export const TABLES: readonly TableSpec[] = [
     order: ['date', 'created_at', 'kind', 'amount'],
   },
   { table: 'month_review', refs: {}, person: ['reviewed_by'], order: ['month'] },
+  { table: 'book_job_mark', refs: {}, order: ['kind', 'mark', 'created_at'] },
   { table: 'book_currency', refs: {}, order: ['code'] },
 ];
 

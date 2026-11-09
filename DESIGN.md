@@ -476,12 +476,13 @@ Back-channel logout at `/api/sovereign/backchannel-logout`, account-deleted at `
   },
   "database": true,
   "generate": ["LEDGER_AUTH_SECRET", { "name": "LEDGER_ENCRYPTION_KEY", "bytes": 32 }],
-  "core": ">=0.57.0 <1.0.0"
+  "core": ">=0.80.0 <1.0.0"
 }
 ```
 
-The `core` floor is the release that shipped the app scopes Ledger calls; it is checked against core's changelog in the task that calls them (10.1)
-and raised if needed. `pooling` is not set: the jobs' claims are conditional updates and need no session state, but nothing is gained by asking.
+The `core` floor is the release that shipped the app scopes Ledger calls: 0.80.0 shipped the last of the three (the bell, email to a person by `sub`, and
+activity), checked against core's history when they were first called. An instance below it does not host the app; the app
+itself still sends nothing to a core that does not serve a call (`NotSupportedError`) and says so once in its log. `pooling` is not set: the jobs' claims are conditional updates and need no session state, but nothing is gained by asking.
 
 ### 13.4 Core's services
 

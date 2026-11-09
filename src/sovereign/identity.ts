@@ -44,3 +44,16 @@ export async function endSessionsOf(authDatabase: Database, accountId: string): 
   );
   return ended.length;
 }
+
+/** The address of an account, or null: where an email to the person goes when the app sends it itself. Read when it is used and never kept. */
+export async function emailOfAccount(
+  authDatabase: Database,
+  accountId: string,
+): Promise<string | null> {
+  const auth = tables(authDatabase);
+  const row = await dbGet<{ email: string }>(
+    authDatabase,
+    sql`SELECT email FROM ${auth.user} WHERE id = ${accountId}`,
+  );
+  return row?.email ?? null;
+}

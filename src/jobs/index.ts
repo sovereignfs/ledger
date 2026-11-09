@@ -1,6 +1,7 @@
 import type { Config } from '../config';
 import { fetchRatesJob } from '../fx/job';
 import { contributeJarsJob } from '../jars/job';
+import { notifyJob } from '../notifications/job';
 import { postRecurringJob } from '../recurring/job';
 import { JobRunner, realDeps, type JobDefinition, type RunnerDeps } from './runner';
 
@@ -9,7 +10,9 @@ import { JobRunner, realDeps, type JobDefinition, type RunnerDeps } from './runn
  * fetch (3.3) is there unless `LEDGER_FX=off`. A job claims its work with a conditional update (`claim.ts`) or is idempotent by its key, so any process may run it
  * at any time and the work is done once.
  */
-export function jobsFor(config: Pick<Config, 'fx' | 'database'>): readonly JobDefinition[] {
+export function jobsFor(
+  config: Pick<Config, 'fx' | 'database' | 'url' | 'auth' | 'mail'>,
+): readonly JobDefinition[] {
   return [
     ...(config.fx.enabled
       ? [
@@ -28,6 +31,22 @@ export function jobsFor(config: Pick<Config, 'fx' | 'database'>): readonly JobDe
     // The jars' monthly contributions (task 7.2): the book's own, so always on as well.
     contributeJarsJob({
       database: async () => (await import('../db/boot')).getDatabase(config.database),
+    }),
+    // What Ledger tells people on its own (task 10.1): the bills waiting and a new insight, through the channels this server has (none: it claims nothing).
+    notifyJob({
+      database: async () => (await import('../db/boot')).getDatabase(config.database),
+      channels: async () => {
+        const boot = await import('../db/boot');
+        const { serverNotifier } = await import('../notifications/server');
+        return serverNotifier(
+          config,
+          {
+            app: await boot.getDatabase(config.database),
+            auth: await boot.getAuthDatabase(config.database),
+          },
+          (line) => console.info(`[ledger] ${line}`),
+        ).channels;
+      },
     }),
   ];
 }
