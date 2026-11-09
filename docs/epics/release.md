@@ -2,7 +2,7 @@
 
 ## Status
 
-📋 Planned.
+⏳ In progress: 1 of 5 tasks is done.
 
 ## Overview
 
@@ -14,7 +14,7 @@ What makes phase 1 releasable and hosted.
 
 ## Tasks
 
-#### 📋 12.1 — Development seed
+#### ✅ 12.1 — Development seed
 
 **Goal:** a book worth looking at. **Design:** §19 Testing. **Depends on:** 6.5, 7.2.
 
@@ -22,6 +22,22 @@ What makes phase 1 releasable and hosted.
 loan, jars, recurring entries of both modes, reviewed and unreviewed months, a missing rate. Grows as later tasks land.
 
 **Accepts when:** a seeded book opens every screen with realistic data on all three databases.
+
+**Done as:** **`pnpm seed [--reset | --remove] [--email you@example.com]`** (`scripts/seed.ts`), which fills the book of an account that has signed in (the oldest, or the one named)
+and **refuses a database that is not on this machine** (`src/seed/local.ts`, pure and strict: a file, or `localhost`, `127.0.0.1`, `::1` or `*.localhost`; a service named
+`sqld`, an address on a network, or a name that merely contains `localhost` is not local, and a URL that cannot be read is not). It does not make the account: it says to sign
+up first (a password is not the seed's to choose), and without `--reset` it leaves a book that has accounts alone; `--remove` only empties it. **It adds no dependency:**
+the app's own TypeScript runs under Node's `--experimental-transform-types` with a small resolver (`scripts/lib/ts-resolve.mjs`) that finds the files the source imports
+without an extension, and the settings are read as the server reads them, from the environment and `.env.local` (`pnpm dev` makes it). `src/seed/seed.ts` is a function
+(`seedBook`) and `clearBook`, so that it is tested: **a year deep (13 months), 11 accounts of every kind in USD, EUR and CHF, about 260 entries**, made through the same code the screens use
+and not by writing rows: a rent, a salary, an internet bill and a subscription that post themselves, a yearly insurance that **budgets its subcategory**, an electricity bill that **asks
+first** (a year of them confirmed with what each came to, and this month's due today, so Upcoming has something in it), a **car loan paying itself down** with its Loans category,
+**two jars** with a contribution every month and a flight paid from one, splits, a card paid off, savings, a refund, a transfer between currencies with its two amounts, money lent to a
+person and part paid back, side work, revaluations of an investment and a property, a reconciled account and a short wallet (an adjustment), a month-by-month budget with history, a
+euro rate for each month and **no rate for the Swiss franc**, which is the missing rate said on Accounts and Overview. Random amounts come from a seeded generator, so the same day
+makes the same book. 6 tests on all three databases (the invariants hold over the whole book, **every screen's own loader reads it**, what is listed above is there, the other
+person's book is untouched, a book with accounts is refused, `clearBook` and a second seed make the same book) and 2 pure (what is local); and the built server was seeded and signed
+into, and every page answered 200 with the data. **Left out, and said:** _reviewed and unreviewed months_, which wait for the month-end review (8.5); the seed grows with the tasks after it.
 
 #### 📋 12.2 — Security review
 
