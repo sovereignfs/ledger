@@ -2,7 +2,16 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { testTarget } from '../db/test-support';
 import { bookIdFor, ensureBook } from '../ledger/books';
 import { createTransaction } from '../ledger/transactions';
-import { change, create, list, read, reconcileInfo, reconcileNow, remove } from './accounts-api';
+import {
+  change,
+  create,
+  list,
+  read,
+  reconcileInfo,
+  reconcileNow,
+  remove,
+  valueNow,
+} from './accounts-api';
 import { type BookHandler, bookRoute } from './route';
 import { type Person, type TwoAccounts, twoAccounts } from './two-accounts';
 
@@ -263,5 +272,57 @@ describe(`the account routes (${leg})`, () => {
       adjustment: 0,
       cleared: 0,
     });
+  });
+
+  it('give an investment a value for the owner, and are not another person’s to value', async () => {
+    const id = await make(t.ada, {
+      type: 'investment',
+      name: 'Fund',
+      opening: { amount: 1_000_000, date: '2026-01-01' },
+    });
+    const bank = await make(t.ada, { name: 'Plain bank' });
+    const value = (
+      person: Person | null,
+      accountId: string,
+      body: unknown,
+      headers?: Record<string, string>,
+    ) =>
+      call(
+        valueNow,
+        person,
+        `/api/accounts/${accountId}/value`,
+        { method: 'POST', body, headers },
+        accountId,
+      );
+    const refused = await value(t.grace, id, { date: '2026-06-30', value: 1_050_000 });
+    expect(refused.status).toBe(404);
+    expect(await refused.text()).toBe('');
+    expect((await value(null, id, { date: '2026-06-30', value: 1 })).status).toBe(401);
+    expect(
+      (await value(t.ada, id, { date: '2026-06-30', value: 1 }, { origin: 'https://evil.example' }))
+        .status,
+    ).toBe(403);
+    for (const body of [
+      {},
+      { date: '2026-06-30' },
+      { date: 5, value: 1 },
+      { date: '2026-06-30', value: '1' },
+      { date: '2026-06-30', value: -1 },
+      { date: '2026-02-30', value: 1 },
+      [],
+    ])
+      expect((await value(t.ada, id, body)).status, JSON.stringify(body)).toBe(400);
+    // A bank account is not valued.
+    expect((await value(t.ada, bank, { date: '2026-06-30', value: 100 })).status).toBe(400);
+    const done = await value(t.ada, id, { date: '2026-06-30', value: 1_050_000 });
+    expect(done.status).toBe(200);
+    expect(await done.json()).toEqual({ change: 50_000 });
+    const after = (await (await call(read, t.ada, `/api/accounts/${id}`, {}, id)).json()) as {
+      account: { balance: number };
+    };
+    expect(after.account.balance).toBe(1_050_000);
+    expect(await (await value(t.ada, id, { date: '2026-06-30', value: 1_050_000 })).json()).toEqual(
+      { change: 0 },
+    );
   });
 });

@@ -9,6 +9,7 @@ import {
   updateAccount,
 } from '../ledger/accounts';
 import { reconcile, reconcileSummary } from '../ledger/reconcile';
+import { revalue } from '../ledger/revalue';
 import { parseAccountPatch, parseNewAccount } from './account-input';
 import { readCapped } from './body';
 import type { BookContext } from './route';
@@ -112,5 +113,23 @@ export async function reconcileNow(
     return json({ problems: ['The statement needs a day and a balance.'] }, 400);
   const result = await reconcile(database, accountId, bookId, idOf(params), { date, balance });
   if (result.ok) return json({ adjustment: result.adjustment, cleared: result.cleared });
+  return result.reason === 'invalid' ? json({ problems: result.problems }, 400) : notFound();
+}
+
+/** Gives an investment or a property a value: `{ date, value }`, the value in minor units. The answer says the change recorded, 0 when it was worth that already. */
+export async function valueNow(
+  database: Database,
+  { request, accountId, bookId, params }: BookContext,
+) {
+  const read = await body(request);
+  if (read instanceof Response) return read;
+  const value = read.value;
+  if (typeof value !== 'object' || value === null || Array.isArray(value))
+    return json({ problems: ['The request is not a value.'] }, 400);
+  const { date, value: amount } = value as Record<string, unknown>;
+  if (typeof date !== 'string' || typeof amount !== 'number')
+    return json({ problems: ['A value needs a day and an amount.'] }, 400);
+  const result = await revalue(database, accountId, bookId, idOf(params), { date, value: amount });
+  if (result.ok) return json({ change: result.change });
   return result.reason === 'invalid' ? json({ problems: result.problems }, 400) : notFound();
 }

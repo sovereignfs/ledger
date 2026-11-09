@@ -7,6 +7,8 @@ import { formatMoney } from '../money/text';
 import { EditEntryButton } from '../entries/EditEntryButton';
 import { AccountActions } from './AccountActions';
 import { ReconcileButton } from './ReconcileButton';
+import { ValueButton } from './ValueButton';
+import type { ListedEntry } from '../ledger/entry-list';
 import { StatusToggle } from './StatusToggle';
 import styles from './Accounts.module.css';
 import { ENTRY_TYPE_LABEL } from './words';
@@ -18,11 +20,14 @@ import { ENTRY_TYPE_LABEL } from './words';
 export function AccountDetail({
   account,
   entries,
+  values = [],
   today,
   locale,
 }: {
   account: AccountRow;
   entries: readonly EntryOfAccount[];
+  /** The changes in value, for an investment or a property, newest first. */
+  values?: readonly ListedEntry[];
   today: string;
   locale?: string;
 }) {
@@ -73,6 +78,15 @@ export function AccountDetail({
         deletable={account.deletable}
       />
       <div className={styles.actions}>
+        {account.type === 'investment' || account.type === 'property' ? (
+          <ValueButton
+            id={account.id}
+            currency={account.currency}
+            balance={account.balance}
+            today={today}
+            locale={locale}
+          />
+        ) : null}
         <ReconcileButton
           id={account.id}
           type={account.type}
@@ -81,6 +95,39 @@ export function AccountDetail({
           locale={locale}
         />
       </div>
+      {values.length > 0 ? (
+        <section aria-label="Value history">
+          <h2>Value history</h2>
+          <table className={styles.entries}>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Change</th>
+                <th>Worth after</th>
+              </tr>
+            </thead>
+            <tbody>
+              {values.map((entry) => (
+                <tr key={entry.id}>
+                  <td>{entry.date}</td>
+                  <td>
+                    {formatMoney(
+                      entry.lines.find((line) => line.account)?.amount ?? 0,
+                      account.currency,
+                      locale,
+                    )}
+                  </td>
+                  <td>
+                    {entry.balanceAfter === null
+                      ? ''
+                      : formatMoney(entry.balanceAfter, account.currency, locale)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      ) : null}
       <section aria-label="Entries">
         <h2>Entries</h2>
         {entries.length === 0 ? (

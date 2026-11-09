@@ -18,7 +18,7 @@ file or PostgreSQL), signing people in locally, through a Sovereign core, or bot
 
 **What is built:** the foundation (Milestone A: settings, the database on three forms, the job runner, the policy and headers, the shell, browser tests, the
 image and its setups) and the first people's part (Milestone B: local sign-in, the book and the permission, the landing page, deleting a person, Settings, and
-amounts and currencies), and the first of Milestone C (the exchange rates, conversion, and the one write path for transactions, money accounts, categories, the add dialog, splits, payees, transfers and the list). The rest of the ledger, the budget and everything after are not (`ROADMAP.md` has each). `DESIGN.md` is the design, `ROADMAP.md` the order.
+amounts and currencies), and the ledger (Milestone C: exchange rates and conversion, the one write path for transactions, money accounts, categories, the add dialog, splits, payees, transfers, the list, reconciling and revaluation). The budget and everything after are not (`ROADMAP.md` has each). `DESIGN.md` is the design, `ROADMAP.md` the order.
 
 ## Source of truth
 
