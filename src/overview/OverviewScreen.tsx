@@ -27,6 +27,13 @@ export function OverviewScreen({ page, locale }: { page: OverviewPage; locale?: 
   return (
     <PageContainer>
       <PageHeader title="Overview" description={`Where things stand in ${month.month}.`} />
+      {page.reviewMonth ? (
+        <p className={styles.note} role="status">
+          <Link href={`/reports?month=${page.reviewMonth}`}>
+            {page.reviewMonth} needs its review
+          </Link>
+        </p>
+      ) : null}
       <SetupChecklist items={page.checklist} />
       {!page.hasAccounts ? (
         <EmptyState

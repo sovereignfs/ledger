@@ -14,6 +14,7 @@ import { addCurrency } from '../ledger/currencies';
 import { seedAccount, seedIncomeSource, seedSubcategory } from '../ledger/testing';
 import { createTransaction } from '../ledger/transactions';
 import { createJar, moveMoney } from '../jars/jars';
+import { setReviewed } from '../reports/review';
 import { createRecurring } from '../recurring/recurring';
 import type { TxnInput } from '../ledger/validate';
 import { BOOK_TABLES } from '../ledger/tables';
@@ -143,6 +144,8 @@ describe(`deleting a person (${leg})`, () => {
         },
       });
       expect(loan.ok).toBe(true);
+      // A month reviewed.
+      expect((await setReviewed(database, who, book, '2026-10', true, '2026-11-09')).ok).toBe(true);
       // A jar in a savings account, with something earmarked in it.
       const savings = await createAccount(database, who, book, {
         type: 'savings',

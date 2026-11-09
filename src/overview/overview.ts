@@ -9,6 +9,7 @@ import { loadIncome, type IncomeFigures } from '../budget/income';
 import { loadBudget, type BudgetFigures, type BudgetLine } from '../budget/screen';
 import type { ConvertedTotal } from '../money/convert';
 import { loadJarsOverview, type JarsOverview } from '../jars/notes';
+import { loadReviewBanner } from '../reports/review';
 import { listUpcoming, type Upcoming } from '../recurring/recurring';
 
 /**
@@ -144,6 +145,8 @@ export interface OverviewPage {
   readonly upcoming: readonly Upcoming[];
   /** What the jars hold, and what needs a person's attention in them. */
   readonly jars: JarsOverview;
+  /** The most recent past month that needs its review (DESIGN.md §11.4), or `null`. */
+  readonly reviewMonth: string | null;
   readonly hasAccounts: boolean;
 }
 
@@ -155,16 +158,18 @@ export async function loadOverviewPage(
   now: Date = new Date(),
 ): Promise<OverviewPage> {
   const month = monthOf(todayIn(book.timeZone, now));
-  const [income, budget, worth, recent, accounts, sources, upcoming, jars] = await Promise.all([
-    loadIncome(database, accountId, book, month, now),
-    loadBudget(database, accountId, book, month, now),
-    loadOverview(database, accountId, book, now),
-    listEntries(database, accountId, book.id, {}, undefined, 8),
-    listAccounts(database, accountId, book.id),
-    listIncomeSources(database, accountId, book.id),
-    listUpcoming(database, accountId, book.id, book.timeZone, now),
-    loadJarsOverview(database, accountId, book, now),
-  ]);
+  const [income, budget, worth, recent, accounts, sources, upcoming, jars, reviewMonth] =
+    await Promise.all([
+      loadIncome(database, accountId, book, month, now),
+      loadBudget(database, accountId, book, month, now),
+      loadOverview(database, accountId, book, now),
+      listEntries(database, accountId, book.id, {}, undefined, 8),
+      listAccounts(database, accountId, book.id),
+      listIncomeSources(database, accountId, book.id),
+      listUpcoming(database, accountId, book.id, book.timeZone, now),
+      loadJarsOverview(database, accountId, book, now),
+      loadReviewBanner(database, accountId, book, now),
+    ]);
   return {
     month,
     thisMonth: thisMonth(income, budget),
@@ -174,6 +179,7 @@ export async function loadOverviewPage(
     checklist: checklist({ accounts, sources }),
     upcoming,
     jars,
+    reviewMonth,
     hasAccounts: accounts.length > 0,
   };
 }

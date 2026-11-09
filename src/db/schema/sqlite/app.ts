@@ -367,3 +367,18 @@ export const jarMovement = sqliteTable(
     uniqueIndex('jar_movement_month_idx').on(table.jarId, table.month),
   ],
 );
+
+/**
+ * A month the person has reviewed (DESIGN.md §11.4): one row for a book and a month, made by "Mark reviewed" and deleted by undoing it, so marking twice leaves one. A past
+ * month without a row is "Needs review"; the current month is in progress and has none.
+ */
+export const monthReview = sqliteTable(
+  'month_review',
+  {
+    bookId: ref('book_id').notNull(),
+    month: month('month').notNull(),
+    reviewedAt: epochMs('reviewed_at').notNull(),
+    reviewedBy: ref('reviewed_by').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.bookId, table.month] })],
+);

@@ -71,6 +71,13 @@
       "when": 1794229534173,
       "tag": "0009_jars",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1794236531270,
+      "tag": "0010_month_review",
+      "breakpoints": true
     }
   ]
 }

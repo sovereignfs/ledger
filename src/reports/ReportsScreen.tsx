@@ -5,6 +5,8 @@ import { formatMoney } from '../money/text';
 import type { MonthLine, MonthReport } from './month';
 import type { YearReport } from './year';
 import { NetWorthTable } from './NetWorthTable';
+import { ReviewPanel } from './ReviewPanel';
+import type { ReviewStatus } from './review';
 import type { NetWorthPoint } from './net-worth';
 import styles from './Reports.module.css';
 
@@ -18,8 +20,11 @@ export function MonthList({
   base,
   locale,
   netWorth = null,
+  statuses = {},
 }: {
   lines: readonly MonthLine[];
+  /** Each past month's review status, by month; the month in progress has none here. */
+  statuses?: Readonly<Record<string, ReviewStatus>>;
   base: string | null;
   locale?: string;
   /** Net worth at each month end, when the book has a base currency (DESIGN.md §11.3). */
@@ -51,6 +56,7 @@ export function MonthList({
                 <th>Received</th>
                 <th>Spent</th>
                 <th>Saved</th>
+                <th>Review</th>
               </tr>
             </thead>
             <tbody>
@@ -58,7 +64,6 @@ export function MonthList({
                 <tr key={line.month}>
                   <td>
                     <Link href={`/reports?month=${line.month}`}>{line.month}</Link>
-                    {line.inProgress ? ' · In progress' : ''}
                   </td>
                   <td>{money(line.received?.amount)}</td>
                   <td>{money(line.spent?.amount)}</td>
@@ -68,6 +73,13 @@ export function MonthList({
                       : line.saved < 0
                         ? `${money(-line.saved)} short`
                         : money(line.saved)}
+                  </td>
+                  <td>
+                    {line.inProgress
+                      ? 'In progress'
+                      : statuses[line.month] === 'reviewed'
+                        ? 'Reviewed'
+                        : 'Needs review'}
                   </td>
                 </tr>
               ))}
@@ -80,7 +92,15 @@ export function MonthList({
   );
 }
 
-export function MonthDetail({ report, locale }: { report: MonthReport; locale?: string }) {
+export function MonthDetail({
+  report,
+  locale,
+  status,
+}: {
+  report: MonthReport;
+  locale?: string;
+  status: ReviewStatus;
+}) {
   const { month, base } = report;
   const money = (amount: number, currency: string) => formatMoney(amount, currency, locale);
   const inBase = (amount: number | null) =>
@@ -104,6 +124,8 @@ export function MonthDetail({ report, locale }: { report: MonthReport; locale?: 
         {' · '}
         <Link href={`/budget?month=${month}`}>Budget</Link>
       </p>
+
+      <ReviewPanel month={month} status={status} />
 
       <section className={styles.section} aria-label="Income and saving">
         <h2>Income and saving</h2>

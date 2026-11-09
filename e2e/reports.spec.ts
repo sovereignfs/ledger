@@ -119,3 +119,60 @@ test('shows net worth at each month end on Accounts and in Reports', async ({
     await expect(table.getByRole('row')).toHaveCount(13);
   }
 });
+
+test('marks a month reviewed and undoes it, and Overview says which month needs its review', async ({
+  page,
+  browserName,
+}) => {
+  await signedIn(page);
+  await page.goto('/accounts');
+  const origin = new URL(page.url()).origin;
+  await page.request.post('/api/setup', {
+    data: { step: 'currency', currency: 'USD' },
+    headers: { origin },
+  });
+  // A book that has been through months: an entry long ago.
+  const account = await page.request.post('/api/accounts', {
+    data: {
+      type: 'bank',
+      name: `Review ${browserName}`,
+      currency: 'USD',
+      opening: { amount: 1_000, date: '2019-01-01' },
+    },
+    headers: { origin },
+  });
+  expect(account.status()).toBe(201);
+
+  await page.goto('/');
+  const banner = page.getByRole('status').filter({ hasText: 'needs its review' });
+  await expect(banner).toBeVisible();
+  const shown = ((await banner.textContent()) ?? '').match(/\d{4}-\d{2}/)?.[0] as string;
+  await banner.getByRole('link').click();
+  await expect(page).toHaveURL(new RegExp(`/reports\\?month=${shown}$`));
+
+  const review = page.getByRole('region', { name: 'Review' });
+  await expect(review).toContainText('needs review');
+  await review.getByRole('button', { name: 'Mark reviewed' }).click();
+  await expect(review).toContainText('This month is reviewed.');
+  await expect(review.getByRole('link', { name: /^Adjust budgets for/ })).toBeVisible();
+
+  // The banner moves back to an earlier month; the list says reviewed.
+  await page.goto('/');
+  await expect(page.getByRole('status').filter({ hasText: 'needs its review' })).not.toContainText(
+    shown,
+  );
+  await page.goto('/reports');
+  await expect(page.getByRole('row').filter({ hasText: shown }).first()).toContainText('Reviewed');
+
+  // Undone, it returns.
+  await page.goto(`/reports?month=${shown}`);
+  await page
+    .getByRole('region', { name: 'Review' })
+    .getByRole('button', { name: 'Undo review' })
+    .click();
+  await expect(page.getByRole('region', { name: 'Review' })).toContainText('needs review');
+  await page.goto('/');
+  await expect(page.getByRole('status').filter({ hasText: 'needs its review' })).toContainText(
+    shown,
+  );
+});

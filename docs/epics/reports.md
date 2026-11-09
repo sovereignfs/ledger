@@ -2,7 +2,7 @@
 
 ## Status
 
-⏳ In progress: 3 of 7 tasks are done.
+⏳ In progress: 4 of 7 tasks are done.
 
 ## Overview
 
@@ -93,7 +93,7 @@ spending by category for a month, and budgeted vs spent by month for a year.
 
 **Accepts when:** each chart renders in light and dark and at a phone's width, and its table holds the same numbers.
 
-#### 📋 8.5 — The month-end review
+#### ✅ 8.5 — The month-end review
 
 **Goal:** close a month on purpose. **Design:** §11.4. **Depends on:** 8.1.
 
@@ -101,6 +101,17 @@ spending by category for a month, and budgeted vs spent by month for a year.
 budget for the next month; "Mark reviewed" idempotent and undoable.
 
 **Accepts when:** marking a month reviewed twice leaves one row; the banner goes when it is reviewed and returns when undone.
+
+**Done as:** one book table, **`month_review`** (migration `0010`, both dialects; `(book_id, month)` is the primary key, so **marking twice leaves one row**; in `BOOK_TABLES` and seeded in
+`people.test.ts`). `src/reports/review.ts`: **`reviewStatus`** (pure: the current month and any after are _in progress_, a past month with a row is _reviewed_, any other past month _needs review_),
+`pastMonths` and **`monthNeedingReview`** (the most recent past month, from the month of the first entry, without a row: the banner's month, which moves back as months are reviewed and
+returns when one is undone), `reviewedMonths`, and `setReviewed(month, reviewed, today)`: **only a month that is over is reviewed** (by the book's own calendar), a month not over or not a month
+is a sentence, marking and undoing are idempotent (an insert that does nothing on a repeat, a delete of nothing), and a book that is not the caller's is not found. **`POST /api/reviews`**
+(`{ month, reviewed }`) and `GET`, nothing in a request naming whose book, with a test as a second person. **Screens:** a _Review_ section on a month's report (_Mark reviewed_, _Undo review_,
+and **Adjust budgets for the next month**, a link to the Budget at that month, where a change writes history rows from it), a _Review_ column in the list of months (_In progress_, _Needs review_,
+_Reviewed_), and a **banner on Overview** ("2026-10 needs its review") linking to the month. 7 tests on all three databases (marking once however many times and undoing, a month not over, the book's
+own, the banner moving and returning, another person's), 3 pure, 2 on the routes and 1 browser test; each key test was seen to fail against the code it guards (a month in progress reviewed, the
+banner for the oldest month, undo doing nothing, the read without the permission). The recap (8.6), which reads the same figures, waits for the bell (10.1).
 
 #### 📋 8.6 — The recap
 
