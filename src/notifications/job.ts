@@ -10,9 +10,10 @@ import type { JobDefinition } from '../jobs/runner';
 import { listUpcoming } from '../recurring/recurring';
 import { type Channel, type Outgoing, fanOut } from './channels';
 import { claimMark } from './marks';
+import { sendRecap } from './recap';
 
 /**
- * **The notices Ledger sends on its own** (DESIGN.md §13.4, task 10.1), through the channels the server has (`server.ts`): **the daily count of bills waiting to be confirmed**
+ * **The notices Ledger sends on its own** (DESIGN.md §13.4, task 10.1), through the channels the server has (`server.ts`): **last month's recap** (`recap.ts`), **the daily count of bills waiting to be confirmed**
  * (the ones due today and the ones overdue, once for a book and a day by its own calendar, with the count and no name or amount) and **an insight that newly fires** (once for an insight
  * and a month). Each is **claimed before it is sent** (`marks.ts`), so two runs, or two processes, send it once, and a send whose answer was lost is not made again. **With no channel
  * nothing is claimed**, so a channel turned on later does not send what was waiting. A notice is for the book's owner, and what is logged is the kind and the outcome and never what it said.
@@ -77,6 +78,9 @@ export async function notifyDue(
         log,
       );
     }
+
+    // Last month's recap, in the first days of this one, if the book has it on.
+    if (await sendRecap(database, channels, owner, book, now, log)) claimed++;
 
     // The insights that fire now, each once for the month it fires in.
     for (const insight of await loadInsights(database, owner, book, now, { limit: 3 })) {

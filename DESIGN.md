@@ -425,7 +425,7 @@ actions: **adjust budgets** (opens the budget for the next month, writing histor
 
 ### 11.5 Recap
 
-On the 1st, in the book's time zone, the recap job claims `(book, month)` once and sends the previous month's figures: income, spent, the savings
+On the 1st, in the book's time zone (and in the days after it, until the 7th, if the server was down: the hourly job claims `(book, month)` once, so it is sent once), it sends the previous month's figures: income, spent, the savings
 figures, the three categories most over budget, and any insight, with a link to the month's report. Through core's bell and core's email when hosted;
 through the app's own SMTP when alone; neither if neither is set (§13.4). A person can turn the recap off in Settings.
 

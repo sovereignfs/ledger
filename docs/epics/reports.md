@@ -2,7 +2,7 @@
 
 ## Status
 
-⏳ In progress: 5 of 7 tasks are done; 8.4 waits on the charts of the design system, and 8.6 on the bell (10.1).
+⏳ In progress: 6 of 7 tasks are done; 8.4 waits on the charts of the design system.
 
 ## Overview
 
@@ -117,9 +117,9 @@ is a sentence, marking and undoing are idempotent (an insert that does nothing o
 and **Adjust budgets for the next month**, a link to the Budget at that month, where a change writes history rows from it), a _Review_ column in the list of months (_In progress_, _Needs review_,
 _Reviewed_), and a **banner on Overview** ("2026-10 needs its review") linking to the month. 7 tests on all three databases (marking once however many times and undoing, a month not over, the book's
 own, the banner moving and returning, another person's), 3 pure, 2 on the routes and 1 browser test; each key test was seen to fail against the code it guards (a month in progress reviewed, the
-banner for the oldest month, undo doing nothing, the read without the permission). The recap (8.6), which reads the same figures, waits for the bell (10.1).
+banner for the oldest month, undo doing nothing, the read without the permission). The recap (8.6) reads the same figures.
 
-#### 📋 8.6 — The recap
+#### ✅ 8.6 — The recap
 
 **Goal:** last month, delivered on the 1st. **Design:** §11.5, §13.4. **Depends on:** 8.1, 8.7, 10.1.
 
@@ -129,6 +129,19 @@ otherwise the app's SMTP, otherwise nothing; amounts in the base currency.
 
 **Accepts when:** the job run twice on the 1st, and from two processes, sends one recap; with neither core nor SMTP it sends nothing and logs nothing
 of the figures.
+
+**Done as:** `src/notifications/recap.ts`, called by the hourly `notify` job (10.1) for each book, so it is not a job of its own. **Pure:** `figuresOf` takes `loadMonthReport`'s own figures and the insights
+and adds only the ranking of the three categories furthest over budget, by the excess as a share of the budget (which compares categories in different currencies without converting any of
+them); `recapNotice` writes the bell's title and one-line body and the email's subject and text, in the base currency for the totals and the category's own for a category, in the book's locale
+(English where it has none), with "budgeted" and "spent", what was left out for want of a rate said in words, and a link to `/reports?month=…`; `recapMonthFor` says the month is due in the
+**first seven days** of the book's own month. `sendRecap` does nothing with no channel or with the book's recap off, nothing for a month in which nothing came in and nothing was spent (a month
+with only a budget is not one), and otherwise **claims `(book, recap, month)` in `book_job_mark` first** and then sends through every channel: core's bell, core's email and the app's SMTP,
+which are the channels `serverNotifier` has, so with neither core nor SMTP nothing is sent and nothing claimed. Logs hold the channel, the kind and the outcome, never a figure.
+Tests: 7 pure and 5 on all three databases (once for two runs at once and a third later, after the first week and nothing in the month, no channel, off then on, SMTP alone, no figure in a
+log); mutation checks seen failing: the recap-off guard, the claim, the window, the ranking, the empty month.
+
+**Deviation from the design:** §11.5 says "on the 1st"; the job runs hourly, so the recap goes in the first seven days, which lets a server that was down on the 1st send it, and means turning
+the recap on near the end of a month does not send a month long gone. It is still sent once for the month.
 
 #### ✅ 8.7 — Insights
 
