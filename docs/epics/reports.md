@@ -2,7 +2,7 @@
 
 ## Status
 
-⏳ In progress: 1 of 7 tasks is done.
+⏳ In progress: 2 of 7 tasks are done.
 
 ## Overview
 
@@ -42,13 +42,24 @@ a book with nothing, one for another person, one for a missing rate), 2 pure, an
 sign of what people owe, the list not splitting by month); one mutant is equivalent and says so: excluding an opening from what was paid off a loan, which a loan's opening, being below nothing, is
 already excluded from by the sign.
 
-#### 📋 8.2 — The year
+#### ✅ 8.2 — The year
 
 **Goal:** a year by category and subcategory. **Design:** §11.1. **Depends on:** 8.1.
 
 **Technical:** `?year=` summing the months with each month's own budget (history, 5.2) and rates; a table of months by category.
 
 **Accepts when:** a year with a mid-year budget change totals each month at the budget it had then.
+
+**Done as:** `src/reports/year.ts`. `buildYearReport` is **pure over the twelve month reports** (8.1) and **converts and rounds nothing: it adds the months' figures**, each already at the
+budget in force that month (5.2's history) and at the rates of its own days, so a budget of 100 until June and 200 from July is 6 × 100 + 6 × 200 = 1,800 for the year and not 12 × 200,
+and 80 euros is 100 dollars in March and 80 in September. A total that would leave a month out (a month with no base figure) is `null` and says nothing, rather than a smaller number.
+It holds each month's received, spent and saved; the year's totals (income received and budgeted, spent and budgeted, and the three savings figures summed); and **each category and subcategory by
+month** in the category's own currency with the year's spent and budgeted; and what any month left out for want of a rate, with the month. `monthsOfYear` gives the months so far for this
+year, all twelve for one that is over and none for one that has not begun. **`/reports?year=YYYY`** shows it (the year in total, month by month with links to each month, and the table of
+months by category and subcategory, which scrolls sideways on a phone), and the list of months links the years. A year of two currencies, a budget changed in July, income and savings is tested
+on all three databases (6 tests: the 1,800, the conversion by month, the sums and each month's figures, this year so far and a year not begun, another person) and 1 browser test; each key test was
+seen to fail against the code it guards (the budget at the last month's amount, the projected figure taken from the actual one). The year runs twelve month reports, which is twelve times the
+month's reads and no more; a single pass over a year is for 8.3's net worth, which needs the lines themselves.
 
 #### 📋 8.3 — Net worth over time
 

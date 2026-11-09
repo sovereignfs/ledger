@@ -77,4 +77,13 @@ test('shows a month’s income, spending against the budget and what was saved, 
   await expect(months).toContainText('In progress');
   await months.getByRole('link').first().click();
   await expect(page).toHaveURL(/\/reports\?month=\d{4}-\d{2}$/);
+
+  // The year: the same month inside it, by category.
+  await page.goto('/reports?year=2020');
+  await expect(page.getByRole('heading', { level: 1, name: 'Report for 2020' })).toBeVisible();
+  const year = page.getByRole('region', { name: 'Spent by category and month' });
+  await expect(year.getByRole('row').filter({ hasText: `Groceries ${tag}` })).toContainText(
+    '$200.00',
+  );
+  await expect(page.getByRole('region', { name: 'Months' })).toContainText(month);
 });

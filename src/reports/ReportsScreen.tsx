@@ -3,6 +3,7 @@ import { PageContainer, PageHeader } from '@sovereignfs/ui';
 import { addMonths } from '../dates';
 import { formatMoney } from '../money/text';
 import type { MonthLine, MonthReport } from './month';
+import type { YearReport } from './year';
 import styles from './Reports.module.css';
 
 /**
@@ -24,6 +25,16 @@ export function MonthList({
   return (
     <PageContainer>
       <PageHeader title="Reports" description="Looking back, month by month and year by year." />
+      {lines.length > 0 ? (
+        <p className={styles.nav}>
+          Years:
+          {[...new Set(lines.map((line) => line.month.slice(0, 4)))].map((year) => (
+            <Link key={year} href={`/reports?year=${year}`}>
+              {year}
+            </Link>
+          ))}
+        </p>
+      ) : null}
       {lines.length === 0 ? (
         <p className={styles.note}>Nothing to report yet: reports begin with the first entry.</p>
       ) : (
@@ -205,6 +216,169 @@ export function MonthDetail({ report, locale }: { report: MonthReport; locale?: 
           ) : null}
         </ul>
       </section>
+    </PageContainer>
+  );
+}
+
+const MONTH_NAMES = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
+
+export function YearDetail({ report, locale }: { report: YearReport; locale?: string }) {
+  const { year, base } = report;
+  const money = (amount: number, currency: string) => formatMoney(amount, currency, locale);
+  const inBase = (amount: number | null) =>
+    base && amount !== null
+      ? amount < 0
+        ? `${money(-amount, base)} short`
+        : money(amount, base)
+      : '—';
+  const prev = String(Number(year) - 1);
+  const next = String(Number(year) + 1);
+  return (
+    <PageContainer>
+      <PageHeader
+        title={`Report for ${year}`}
+        description="The year, month by month and by category."
+      />
+      <p className={styles.nav}>
+        <Link href={`/reports?year=${prev}`}>{prev}</Link>
+        <strong>{year}</strong>
+        <Link href={`/reports?year=${next}`}>{next}</Link>
+        {' · '}
+        <Link href="/reports">All months</Link>
+      </p>
+      {report.months.length === 0 ? (
+        <p className={styles.note}>This year has not begun.</p>
+      ) : (
+        <>
+          <section className={styles.section} aria-label="The year in total">
+            <h2>The year</h2>
+            <div className={styles.cards}>
+              <div className={styles.card}>
+                <span>Income received</span>
+                <strong>{inBase(report.totals.received)}</strong>
+                <span className={styles.note}>
+                  of {inBase(report.totals.budgetedIncome)} budgeted
+                </span>
+              </div>
+              <div className={styles.card}>
+                <span>Spent</span>
+                <strong>{inBase(report.totals.spent)}</strong>
+                <span className={styles.note}>
+                  of {inBase(report.totals.budgetedSpending)} budgeted
+                </span>
+              </div>
+              <div className={styles.card}>
+                <span>Planned to save</span>
+                <strong>{inBase(report.totals.projected)}</strong>
+              </div>
+              <div className={styles.card}>
+                <span>Saved</span>
+                <strong>{inBase(report.totals.actual)}</strong>
+              </div>
+              <div className={styles.card}>
+                <span>Saved after jars</span>
+                <strong>{inBase(report.totals.afterJars)}</strong>
+              </div>
+            </div>
+            {report.notIncluded.map((line) => (
+              <p key={line} className={styles.note}>
+                {line}
+              </p>
+            ))}
+          </section>
+
+          <section className={styles.section} aria-label="Months">
+            <h2>Month by month</h2>
+            <div className={styles.scroll}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>Month</th>
+                    <th>Received</th>
+                    <th>Spent</th>
+                    <th>Saved</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.months.map((each) => (
+                    <tr key={each.month}>
+                      <td>
+                        <Link href={`/reports?month=${each.month}`}>{each.month}</Link>
+                      </td>
+                      <td>{inBase(each.received)}</td>
+                      <td>{inBase(each.spent)}</td>
+                      <td>{inBase(each.saved)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section className={styles.section} aria-label="Spent by category and month">
+            <h2>Spent by category and month</h2>
+            <p className={styles.note}>
+              Each month against the budget it had then: the total budgeted is the sum of the
+              months'.
+            </p>
+            <div className={styles.scroll}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>Category</th>
+                    {report.months.map((each) => (
+                      <th key={each.month}>{MONTH_NAMES[Number(each.month.slice(5, 7)) - 1]}</th>
+                    ))}
+                    <th>Spent</th>
+                    <th>Budgeted</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.categories.flatMap((category) => [
+                    <tr key={category.id}>
+                      <td>
+                        <strong>{category.name}</strong>
+                      </td>
+                      {category.months.map((each) => (
+                        <td key={each.month}>
+                          {each.spent ? money(each.spent, category.currency) : ''}
+                        </td>
+                      ))}
+                      <td>{money(category.spent, category.currency)}</td>
+                      <td>{money(category.budgeted, category.currency)}</td>
+                    </tr>,
+                    ...category.rows.map((row) => (
+                      <tr key={row.id} className={styles.sub}>
+                        <td>{row.name}</td>
+                        {row.months.map((each) => (
+                          <td key={each.month}>
+                            {each.spent ? money(each.spent, category.currency) : ''}
+                          </td>
+                        ))}
+                        <td>{money(row.spent, category.currency)}</td>
+                        <td>{money(row.budgeted, category.currency)}</td>
+                      </tr>
+                    )),
+                  ])}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </>
+      )}
     </PageContainer>
   );
 }

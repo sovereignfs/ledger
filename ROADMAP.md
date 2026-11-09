@@ -105,7 +105,7 @@ Looking back. **Done when** month, year and net worth figures match a hand-worke
 | #   | ID                           | Task                 | Priority | Depends on                       | Status |
 | --- | ---------------------------- | -------------------- | -------- | -------------------------------- | ------ |
 | 43  | [8.1](docs/epics/reports.md) | The month            | P1       | 5.4, 4.6                         | ✅     |
-| 44  | [8.2](docs/epics/reports.md) | The year             | P1       | 8.1                              | 📋     |
+| 44  | [8.2](docs/epics/reports.md) | The year             | P1       | 8.1                              | ✅     |
 | 45  | [8.3](docs/epics/reports.md) | Net worth over time  | P1       | 8.1, 4.9                         | 📋     |
 | 46  | [8.5](docs/epics/reports.md) | The month-end review | P1       | 8.1                              | 📋     |
 | 47  | [8.7](docs/epics/reports.md) | Insights             | P1       | 8.1                              | 📋     |
