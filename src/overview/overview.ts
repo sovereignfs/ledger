@@ -9,6 +9,8 @@ import { loadIncome, type IncomeFigures } from '../budget/income';
 import { loadBudget, type BudgetFigures, type BudgetLine } from '../budget/screen';
 import type { ConvertedTotal } from '../money/convert';
 import { loadJarsOverview, type JarsOverview } from '../jars/notes';
+import { loadInsights } from '../insights/load';
+import type { Insight } from '../insights/rules';
 import { loadReviewBanner } from '../reports/review';
 import { listUpcoming, type Upcoming } from '../recurring/recurring';
 
@@ -147,6 +149,8 @@ export interface OverviewPage {
   readonly jars: JarsOverview;
   /** The most recent past month that needs its review (DESIGN.md §11.4), or `null`. */
   readonly reviewMonth: string | null;
+  /** At most three things worth a look (DESIGN.md §12), each with a link. */
+  readonly insights: readonly Insight[];
   readonly hasAccounts: boolean;
 }
 
@@ -158,7 +162,7 @@ export async function loadOverviewPage(
   now: Date = new Date(),
 ): Promise<OverviewPage> {
   const month = monthOf(todayIn(book.timeZone, now));
-  const [income, budget, worth, recent, accounts, sources, upcoming, jars, reviewMonth] =
+  const [income, budget, worth, recent, accounts, sources, upcoming, jars, reviewMonth, insights] =
     await Promise.all([
       loadIncome(database, accountId, book, month, now),
       loadBudget(database, accountId, book, month, now),
@@ -169,6 +173,7 @@ export async function loadOverviewPage(
       listUpcoming(database, accountId, book.id, book.timeZone, now),
       loadJarsOverview(database, accountId, book, now),
       loadReviewBanner(database, accountId, book, now),
+      loadInsights(database, accountId, book, now, { limit: 3 }),
     ]);
   return {
     month,
@@ -180,6 +185,7 @@ export async function loadOverviewPage(
     upcoming,
     jars,
     reviewMonth,
+    insights,
     hasAccounts: accounts.length > 0,
   };
 }

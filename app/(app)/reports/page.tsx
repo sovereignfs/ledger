@@ -4,6 +4,7 @@ import { isMonth, monthOf, todayIn } from '@/src/dates';
 import { getDatabase } from '@/src/db/boot';
 import { MonthDetail, MonthList, YearDetail } from '@/src/reports/ReportsScreen';
 import { loadYearReport } from '@/src/reports/year';
+import { loadInsights } from '@/src/insights/load';
 import { loadMonthList, loadMonthReport } from '@/src/reports/month';
 import { loadNetWorthSeries } from '@/src/reports/net-worth';
 import { reviewStatus, reviewedMonths } from '@/src/reports/review';
@@ -33,6 +34,7 @@ export default async function Page({
       <MonthDetail
         report={await loadMonthReport(database, accountId, book, month)}
         status={reviewStatus(month, monthOf(todayIn(book.timeZone)), reviewed)}
+        insights={await loadInsights(database, accountId, book, new Date(), { month })}
         locale={locale}
       />
     );

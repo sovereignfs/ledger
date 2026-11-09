@@ -18,7 +18,7 @@ file or PostgreSQL), signing people in locally, through a Sovereign core, or bot
 
 **What is built:** the foundation (Milestone A: settings, the database on three forms, the job runner, the policy and headers, the shell, browser tests, the
 image and its setups) and the first people's part (Milestone B: local sign-in, the book and the permission, the landing page, deleting a person, Settings, and
-amounts and currencies), and the ledger (Milestone C: exchange rates and conversion, the one write path for transactions, money accounts, categories, the add dialog, splits, payees, transfers, the list, reconciling and revaluation). The budget (history, income, the screen), setup and Overview (Milestone D) are built too, and so are recurring entries (the rule, posting, upcoming, bills in the budget, loan instalments); jars too (earmarks, monthly contributions, spending from a jar), and a development seed; reports and everything after are not. `DESIGN.md` is the design, `ROADMAP.md` the order.
+amounts and currencies), and the ledger (Milestone C: exchange rates and conversion, the one write path for transactions, money accounts, categories, the add dialog, splits, payees, transfers, the list, reconciling and revaluation). The budget (history, income, the screen), setup and Overview (Milestone D) are built too, and so are recurring entries (the rule, posting, upcoming, bills in the budget, loan instalments); jars too (earmarks, monthly contributions, spending from a jar), and a development seed; and reports (the month, the year, net worth over time, the review, insights; their charts wait on the design system, 8.4); the recap and everything of the suite and portability are not. `DESIGN.md` is the design, `ROADMAP.md` the order.
 
 ## Source of truth
 
@@ -175,7 +175,7 @@ A command a task adds is written here in that task's change, and `verify` means 
 
 ## Not in place yet
 
-Each is a task in `ROADMAP.md`, not a thing to assume exists: reports; sign-in through a Sovereign
+Each is a task in `ROADMAP.md`, not a thing to assume exists: the charts of the reports (8.4) and the recap (8.6); sign-in through a Sovereign
 core (2.3, 2.4); the PWA (1.11). Add them in their own branches, and move the line out of this section as each lands.
 
 <!-- BEGIN:nextjs-agent-rules -->

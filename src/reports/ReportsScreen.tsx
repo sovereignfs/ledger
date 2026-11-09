@@ -4,6 +4,7 @@ import { addMonths } from '../dates';
 import { formatMoney } from '../money/text';
 import type { MonthLine, MonthReport } from './month';
 import type { YearReport } from './year';
+import type { Insight } from '../insights/rules';
 import { NetWorthTable } from './NetWorthTable';
 import { ReviewPanel } from './ReviewPanel';
 import type { ReviewStatus } from './review';
@@ -96,10 +97,13 @@ export function MonthDetail({
   report,
   locale,
   status,
+  insights = [],
 }: {
   report: MonthReport;
   locale?: string;
   status: ReviewStatus;
+  /** Every insight there is as of this month (DESIGN.md §12). */
+  insights?: readonly Insight[];
 }) {
   const { month, base } = report;
   const money = (amount: number, currency: string) => formatMoney(amount, currency, locale);
@@ -126,6 +130,19 @@ export function MonthDetail({
       </p>
 
       <ReviewPanel month={month} status={status} />
+
+      {insights.length > 0 ? (
+        <section className={styles.section} aria-label="Worth a look">
+          <h2>Worth a look</h2>
+          <ul>
+            {insights.map((insight) => (
+              <li key={insight.id}>
+                <Link href={insight.href}>{insight.text}</Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <section className={styles.section} aria-label="Income and saving">
         <h2>Income and saving</h2>

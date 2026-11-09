@@ -120,6 +120,21 @@ export function OverviewScreen({ page, locale }: { page: OverviewPage; locale?: 
             </section>
           ) : null}
 
+          {page.insights.length > 0 ? (
+            <section className={styles.section} aria-label="Worth a look">
+              <h2>Worth a look</h2>
+              <ul className={styles.list}>
+                {page.insights.map((insight) => (
+                  <li key={insight.id}>
+                    <Link className={styles.item} href={insight.href}>
+                      {insight.text}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
           <section className={styles.section} aria-label="Closest to budget">
             <h2>Closest to their budget</h2>
             {close.length === 0 ? (

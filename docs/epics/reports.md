@@ -2,7 +2,7 @@
 
 ## Status
 
-⏳ In progress: 4 of 7 tasks are done.
+⏳ In progress: 5 of 7 tasks are done; 8.4 waits on the charts of the design system, and 8.6 on the bell (10.1).
 
 ## Overview
 
@@ -82,7 +82,7 @@ The hand-worked book (a dollar account, 800 euros, an investment revalued, a loa
 it guards (every date at the last day's rates, liabilities counted the wrong way, a day's own lines left out). A test that Accounts still shows its one _Net worth_ region now asks for it by its exact name, since the new
 table's name begins the same.
 
-#### 📋 8.4 — Charts
+#### 🚧 8.4 — Charts
 
 **Goal:** net worth, spending and budget trends, drawn. **Design:** §11.3, §14.5. **Depends on:** 8.3; the charts in `@sovereignfs/ui` (a task in
 `sovereign`, raised first).
@@ -92,6 +92,12 @@ keyboard and screen-reader readable, no external library loaded at run time); re
 spending by category for a month, and budgeted vs spent by month for a year.
 
 **Accepts when:** each chart renders in light and dark and at a phone's width, and its table holds the same numbers.
+
+**Not now:** the rule of this repository is that **reusable UI, charts first of all, is built in `@sovereignfs/ui` in `sovereign`, released, then used here and never forked**, and the version pinned
+here (0.92.0) has no chart. So this waits on a task in `sovereign` that is not ours to do from here (and not to be worked around with a library or a drawing of our own, which the rules
+about third-party loads and about forking both forbid). **What is ready for it:** every figure a chart would draw is already computed by a pure function and shown in a table, which is
+what the design says stays beside each chart: net worth by month end (`netWorthSeries`, 8.3, on Accounts and in Reports), spending by category for a month (`categoriesOf`, 8.1) and budgeted against
+spent by month for a year (`buildYearReport`, 8.2). When the release exists it is pinned here and the three charts take those arrays as they are.
 
 #### ✅ 8.5 — The month-end review
 
@@ -124,7 +130,7 @@ otherwise the app's SMTP, otherwise nothing; amounts in the base currency.
 **Accepts when:** the job run twice on the 1st, and from two processes, sends one recap; with neither core nor SMTP it sends nothing and logs nothing
 of the figures.
 
-#### 📋 8.7 — Insights
+#### ✅ 8.7 — Insights
 
 **Goal:** tips worth reading. **Design:** §12. **Depends on:** 8.1.
 
@@ -133,3 +139,14 @@ at least five to compare; at most three on Overview, all in a month's report, ea
 
 **Accepts when:** a single seeded month produces no insight; a second over-budget month produces exactly the expected one; each rule's test is seen
 to fail with the rule switched off.
+
+**Done as:** `src/insights/rules.ts`, **pure**, and `load.ts`. _Over budget again_: a subcategory over a budget that was in force (none, or one of nothing, is nothing to be over) in each of the last two
+**consecutive** completed months, counted back from the last completed one (a gap, or fewer than two, says nothing); _Unusually large_: an expense of **more than three times the median** (the middle, or the two
+middles' mean rounded half to even) of its subcategory's **other** expenses in the same currency over the six months **before** it, **with at least five to compare** (never itself, never a later one, a
+refund not an expense). Each is in a sentence with a link ("Groceries was over its budget in each of the last 2 months, by $0.50 in 2026-10" to the Budget row; "$35.00 on Fun on 2026-11-05 is more than three
+times the usual $10.00" to that subcategory's entries). **Worked out when a page needs them and never stored:** `loadInsights` reads the Budget screen's own figures for the last two completed months and the
+expenses of the six months before the window in one query; **Overview** shows at most three (the expenses of the last thirty days) under _Worth a look_, and **a month's report** shows all of them as of that
+month (the months through it when it is over, the ones before it when it is not, and the large expenses in it). A new book shows none. 11 pure tests (each rule fires, stays silent for one month, a month
+that was not over, a gap, no budget, exactly three times, four to compare, a currency or a subcategory that is not the same, a later expense, an expense outside the window, and the median) and 4 on all three
+databases (nothing for a book with no history or one month over; exactly the one for the second; the large one once there are five, in Overview and in the month's report; another person's book) and 1 browser test.
+**Each rule's test was seen to fail with the rule switched off**, and with each of its numbers moved (the consecutive check, five to compare, three times).

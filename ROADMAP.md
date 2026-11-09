@@ -108,8 +108,8 @@ Looking back. **Done when** month, year and net worth figures match a hand-worke
 | 44  | [8.2](docs/epics/reports.md) | The year             | P1       | 8.1                              | ✅     |
 | 45  | [8.3](docs/epics/reports.md) | Net worth over time  | P1       | 8.1, 4.9                         | ✅     |
 | 46  | [8.5](docs/epics/reports.md) | The month-end review | P1       | 8.1                              | ✅     |
-| 47  | [8.7](docs/epics/reports.md) | Insights             | P1       | 8.1                              | 📋     |
-| 48  | [8.4](docs/epics/reports.md) | Charts               | P1       | 8.3; charts in `@sovereignfs/ui` | 📋     |
+| 47  | [8.7](docs/epics/reports.md) | Insights             | P1       | 8.1                              | ✅     |
+| 48  | [8.4](docs/epics/reports.md) | Charts               | P1       | 8.3; charts in `@sovereignfs/ui` | 🚧     |
 
 ### Milestone G — The suite, and the person's data
 
