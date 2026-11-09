@@ -2,7 +2,7 @@
 
 The order of work. **This file tracks progress; it does not define behaviour.** [`DESIGN.md`](DESIGN.md) says what Ledger does, and where it disagrees with this file, this file is stale and should be corrected. The detail of every task, with its technical notes and what makes it done, is in [`docs/epics/`](docs/epics/). How a task is run is in [`AGENTS.md`](AGENTS.md).
 
-State as of 2026-11-09: **Milestones A, B and C are done**: the foundation (1.1 to 1.10); sign-in, the book, the front address, deleting a person, Settings, and money and currencies (2.1, 3.1, 2.2, 2.5, 2.6, 3.2); and the ledger, which is exchange rates and conversion (3.3, 3.4), the one write path for transactions (4.2), money accounts (4.1), categories (5.1), the add dialog, splits, payees and transfers (4.3 to 4.6), the transactions list (4.7), reconciling (4.8) and revaluation (4.9). The PWA (1.11) waits in Milestone G, and sign-in through core (2.3, 2.4) in Milestone G too. The developer assigns each task; the first row not done, with its dependencies met, is what the order recommends.
+State as of 2026-11-09: **Milestones A, B and C are done**: the foundation (1.1 to 1.10); sign-in, the book, the front address, deleting a person, Settings, and money and currencies (2.1, 3.1, 2.2, 2.5, 2.6, 3.2); and the ledger, which is exchange rates and conversion (3.3, 3.4), the one write path for transactions (4.2), money accounts (4.1), categories (5.1), the add dialog, splits, payees and transfers (4.3 to 4.6), the transactions list (4.7), reconciling (4.8) and revaluation (4.9). **Milestone D has begun** with budget history (5.2). The PWA (1.11) waits in Milestone G, and sign-in through core (2.3, 2.4) in Milestone G too. The developer assigns each task; the first row not done, with its dependencies met, is what the order recommends.
 
 _Status key: ✅ Done · ⏳ In progress · 📋 Planned · 🚧 Waits on a decision · ➖ Superseded_
 
@@ -76,7 +76,7 @@ A budget that keeps its history, and the first minute. **Done when** a fresh per
 
 | #   | ID                          | Task                               | Priority | Depends on    | Status |
 | --- | --------------------------- | ---------------------------------- | -------- | ------------- | ------ |
-| 29  | [5.2](docs/epics/budget.md) | Budget history                     | P1       | 5.1           | 📋     |
+| 29  | [5.2](docs/epics/budget.md) | Budget history                     | P1       | 5.1           | ✅     |
 | 30  | [5.3](docs/epics/budget.md) | Income sources and income received | P1       | 5.2, 4.3      | 📋     |
 | 31  | [5.4](docs/epics/budget.md) | The budget screen                  | P1       | 5.2, 5.3, 4.4 | 📋     |
 | 32  | [9.1](docs/epics/setup.md)  | The setup wizard                   | P1       | 4.1, 5.3      | 📋     |

@@ -60,6 +60,8 @@ export const ROUTES: RouteRule[] = [
     methods: { GET: { kind: 'book' }, POST: { kind: 'book' } },
   },
   { route: '/api/accounts/[id]/value', methods: { POST: { kind: 'book' } } },
+  // Budgeted amounts with their history (DESIGN.md §7.3): the person's own. Nothing in a request names whose, or which month is "this" one.
+  { route: '/api/budget', methods: { GET: { kind: 'book' }, POST: { kind: 'book' } } },
   // Categories and subcategories (DESIGN.md §7.1): the person's own. Nothing in a request names whose.
   {
     route: '/api/categories',

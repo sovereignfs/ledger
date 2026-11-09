@@ -25,3 +25,19 @@ export function todayIn(timeZone: string, now: Date = new Date()): string {
     return now.toISOString().slice(0, 10);
   }
 }
+
+/** A calendar month written `YYYY-MM` (DESIGN.md §18.2): 2026-13 is not one. */
+export function isMonth(value: string): boolean {
+  const match = /^(\d{4})-(\d{2})$/.exec(value);
+  return match !== null && Number(match[2]) >= 1 && Number(match[2]) <= 12;
+}
+
+/** The month a day is in: `2026-11-09` is `2026-11`. */
+export const monthOf = (date: string): string => date.slice(0, 7);
+
+/** The month `by` months from `month` (negative for earlier), carrying across the year: `addMonths('2026-12', 1)` is `2027-01`. */
+export function addMonths(month: string, by: number): string {
+  const [year, number] = month.split('-').map(Number) as [number, number];
+  const index = year * 12 + (number - 1) + by;
+  return `${String(Math.floor(index / 12)).padStart(4, '0')}-${String((index % 12) + 1).padStart(2, '0')}`;
+}

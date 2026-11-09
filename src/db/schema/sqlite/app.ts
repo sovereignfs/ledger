@@ -1,5 +1,5 @@
 import { index, primaryKey, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
-import { bool, counter, decimal, epochMs, id, isoDate, money, ref } from './columns';
+import { bool, counter, decimal, epochMs, id, isoDate, money, month, ref } from './columns';
 
 /**
  * What the app holds, in the app store (DESIGN.md §18.3). An account is better-auth's, in the other store, so `account_id` is a reference by
@@ -257,4 +257,24 @@ export const payee = sqliteTable(
     createdAt: epochMs('created_at').notNull(),
   },
   (table) => [uniqueIndex('payee_book_name_idx').on(table.bookId, table.nameKey)],
+);
+
+/**
+ * A budgeted amount, **effective-dated** (DESIGN.md §7.3): the amount in force for a month is the latest row of its target whose `from_month` is not after
+ * it, so a change writes a row from a month on and **never rewrites a past one**. `target_kind` is `subcategory`, `income` (an income source) or `jar`; a
+ * budget that ends writes a zero. The key is the target and the month, so two changes in one month keep the later.
+ */
+export const budgetAmount = sqliteTable(
+  'budget_amount',
+  {
+    bookId: ref('book_id').notNull(),
+    targetKind: text('target_kind').notNull(),
+    targetId: ref('target_id').notNull(),
+    fromMonth: month('from_month').notNull(),
+    amount: money('amount').notNull(),
+    createdAt: epochMs('created_at').notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.bookId, table.targetKind, table.targetId, table.fromMonth] }),
+  ],
 );
