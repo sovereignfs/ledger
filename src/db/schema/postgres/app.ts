@@ -1,6 +1,6 @@
 import { index, pgSchema, primaryKey, text, uniqueIndex } from 'drizzle-orm/pg-core';
 import { APP_STORE } from '../../config';
-import { bool, counter, decimal, epochMs, id, isoDate, money, month, ref } from './columns';
+import { bool, counter, decimal, epochMs, id, isoDate, json, money, month, ref } from './columns';
 
 /** The app's schema; better-auth's is `ledger_auth` (DESIGN.md §18.1). */
 export const app = pgSchema(APP_STORE);
@@ -228,4 +228,39 @@ export const budgetAmount = app.table(
   (table) => [
     primaryKey({ columns: [table.bookId, table.targetKind, table.targetId, table.fromMonth] }),
   ],
+);
+
+/** See `schema/sqlite/app.ts`. */
+export const recurring = app.table(
+  'recurring',
+  {
+    id: id('id'),
+    bookId: ref('book_id').notNull(),
+    template: json('template').notNull(),
+    unit: text('unit').notNull(),
+    every: counter('every').notNull(),
+    anchorDate: isoDate('anchor_date').notNull(),
+    endDate: isoDate('end_date'),
+    mode: text('mode').notNull(),
+    nextDate: isoDate('next_date'),
+    loanAccountId: ref('loan_account_id'),
+    endedAt: epochMs('ended_at'),
+    createdAt: epochMs('created_at').notNull(),
+    updatedAt: epochMs('updated_at').notNull(),
+  },
+  (table) => [
+    index('recurring_next_idx').on(table.nextDate),
+    index('recurring_book_idx').on(table.bookId),
+  ],
+);
+
+/** See `schema/sqlite/app.ts`. */
+export const recurringSkip = app.table(
+  'recurring_skip',
+  {
+    recurringId: ref('recurring_id').notNull(),
+    occurrenceDate: isoDate('occurrence_date').notNull(),
+    bookId: ref('book_id').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.recurringId, table.occurrenceDate] })],
 );

@@ -29,6 +29,7 @@ import { sayRate } from './rate';
 import { TargetSelect } from './TargetSelect';
 import { monthNote } from './month';
 import { EntrySurface } from './EntrySurface';
+import { RepeatSection } from './RepeatSection';
 import styles from './Entry.module.css';
 
 /**
@@ -562,6 +563,17 @@ export function EntryProvider({ children }: { children: ReactNode }) {
               />
             )}
           </FormField>
+          {mode.kind === 'edit' ? (
+            <RepeatSection
+              key={mode.id}
+              entryId={mode.id}
+              onMade={() => {
+                setOpen(false);
+                setStatus('It repeats now.');
+                router.refresh();
+              }}
+            />
+          ) : null}
           <div className={styles.actions}>
             <Button type="submit" disabled={working || !account}>
               {mode.kind === 'edit' ? 'Save changes' : 'Save'}

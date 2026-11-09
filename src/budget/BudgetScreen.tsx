@@ -50,6 +50,8 @@ export function BudgetScreen({
         {' · '}
         <Link href="/budget/income">Income</Link>
         {' · '}
+        <Link href="/budget/bills">Bills</Link>
+        {' · '}
         <Link href="/payees">Payees</Link>
       </p>
       {empty ? (

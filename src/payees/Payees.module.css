@@ -91,3 +91,9 @@
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sv-space-2);
+}

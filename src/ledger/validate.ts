@@ -55,6 +55,11 @@ export interface TxnInput {
    * Who was paid, by name: the payee is made if the name is new (DESIGN.md §6.5). On a change, `undefined` keeps the payee the entry has and `null` removes it.
    */
   readonly payee?: string | null;
+  /**
+   * That this entry is an occurrence of a recurring entry (DESIGN.md §8.2): its id and the day it is the occurrence of. The pair is unique, so an occurrence
+   * is posted once however many try; it is set by the recurring code and by nothing a person sends (`txn-input.ts` never reads it).
+   */
+  readonly recurring?: { readonly id: string; readonly occurrenceDate: string };
   /** Pending unless given; an opening and an adjustment are cleared (DESIGN.md §6.7). */
   readonly status?: TxnStatus;
   /** What was charged in another currency, for information only (§6.8); not on a transfer. */

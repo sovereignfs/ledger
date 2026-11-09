@@ -40,6 +40,7 @@ export const ROUTES: RouteRule[] = [
   { route: '/budget', page: { kind: 'book' } },
   { route: '/budget/categories', page: { kind: 'book' } },
   { route: '/budget/income', page: { kind: 'book' } },
+  { route: '/budget/bills', page: { kind: 'book' } },
   { route: '/payees', page: { kind: 'book' } },
   { route: '/payees/[id]', page: { kind: 'book' } },
   { route: '/accounts', page: { kind: 'book' } },
@@ -96,6 +97,9 @@ export const ROUTES: RouteRule[] = [
   // Payees (DESIGN.md §6.5): the person's own. Nothing in a request names whose.
   { route: '/api/payees', methods: { GET: { kind: 'book' } } },
   { route: '/api/payees/[id]', methods: { GET: { kind: 'book' }, PATCH: { kind: 'book' } } },
+  // Recurring entries (DESIGN.md §8): the person's own. Nothing in a request names whose.
+  { route: '/api/recurring', methods: { GET: { kind: 'book' }, POST: { kind: 'book' } } },
+  { route: '/api/recurring/[id]', methods: { PATCH: { kind: 'book' }, DELETE: { kind: 'book' } } },
   // The instance asks it before it sends anyone to the app, and a container's health check does: it says only whether the database answers.
   { route: '/api/health', methods: { GET: { kind: 'public' } } },
   // better-auth's own: it checks `Origin` and the session cookie itself, and rate-limits sign-in (src/auth/auth.ts). Absent, with a 404, when sign-in is off.

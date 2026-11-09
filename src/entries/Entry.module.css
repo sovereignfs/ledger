@@ -62,3 +62,13 @@
   color: var(--sv-color-text-muted);
   font-size: var(--sv-font-size-sm);
 }
+
+.repeat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-3);
+  margin: 0;
+  padding: var(--sv-space-3);
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-md);
+}

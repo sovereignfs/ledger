@@ -13,6 +13,7 @@ import { createAccount } from '../ledger/accounts';
 import { addCurrency } from '../ledger/currencies';
 import { seedAccount, seedIncomeSource, seedSubcategory } from '../ledger/testing';
 import { createTransaction } from '../ledger/transactions';
+import { createRecurring } from '../recurring/recurring';
 import type { TxnInput } from '../ledger/validate';
 import { BOOK_TABLES } from '../ledger/tables';
 import { RateLimiter } from '../limits/rate';
@@ -141,6 +142,29 @@ describe(`deleting a person (${leg})`, () => {
         },
       });
       expect(loan.ok).toBe(true);
+      // A recurring entry, and an occurrence of it the person skipped.
+      const repeating = await createRecurring(database, who, book, {
+        template: {
+          type: 'expense',
+          lines: [
+            { account: bank, amount: -700, currency: 'USD' },
+            { subcategory: food, amount: 700, currency: 'USD' },
+          ],
+          payee: 'Landlord',
+          note: null,
+        },
+        unit: 'month',
+        every: 1,
+        anchor: '2099-01-01',
+        mode: 'confirm',
+      });
+      expect(repeating.ok).toBe(true);
+      if (repeating.ok)
+        await dbAll(
+          database,
+          sql`INSERT INTO ${tableNamed(database, 'recurring_skip')} (recurring_id, occurrence_date, book_id)
+              VALUES (${repeating.id}, '2099-01-01', ${book}) RETURNING recurring_id`,
+        );
       const entries: [TxnInput['type'], TxnInput['lines']][] = [
         [
           'expense',

@@ -1,5 +1,5 @@
 import { index, primaryKey, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
-import { bool, counter, decimal, epochMs, id, isoDate, money, month, ref } from './columns';
+import { bool, counter, decimal, epochMs, id, isoDate, json, money, month, ref } from './columns';
 
 /**
  * What the app holds, in the app store (DESIGN.md §18.3). An account is better-auth's, in the other store, so `account_id` is a reference by
@@ -277,4 +277,45 @@ export const budgetAmount = sqliteTable(
   (table) => [
     primaryKey({ columns: [table.bookId, table.targetKind, table.targetId, table.fromMonth] }),
   ],
+);
+
+/**
+ * A recurring entry (DESIGN.md §8.2): a template of a transaction (`template`, JSON: type, lines, payee, note) with the repeat rule (`unit`, `every`,
+ * `anchor_date`, `end_date`), a `mode` (`auto` posts itself, `confirm` waits for the person) and `next_date`, the next occurrence **not yet handled**. The
+ * job and the person's own posting move `next_date` on with a conditional update, which is how two of them racing post an occurrence once; the transaction
+ * made carries `(recurring_id, occurrence_date)`, unique, as the backstop. Editing it changes the occurrences to come and no posted transaction.
+ * `loan_account_id` is a loan's instalment (task 6.5).
+ */
+export const recurring = sqliteTable(
+  'recurring',
+  {
+    id: id('id'),
+    bookId: ref('book_id').notNull(),
+    template: json('template').notNull(),
+    unit: text('unit').notNull(),
+    every: counter('every').notNull(),
+    anchorDate: isoDate('anchor_date').notNull(),
+    endDate: isoDate('end_date'),
+    mode: text('mode').notNull(),
+    nextDate: isoDate('next_date'),
+    loanAccountId: ref('loan_account_id'),
+    endedAt: epochMs('ended_at'),
+    createdAt: epochMs('created_at').notNull(),
+    updatedAt: epochMs('updated_at').notNull(),
+  },
+  (table) => [
+    index('recurring_next_idx').on(table.nextDate),
+    index('recurring_book_idx').on(table.bookId),
+  ],
+);
+
+/** An occurrence of a recurring entry that the person skipped (DESIGN.md §8.2, task 6.3): it is not posted, and the entry goes on to the next. */
+export const recurringSkip = sqliteTable(
+  'recurring_skip',
+  {
+    recurringId: ref('recurring_id').notNull(),
+    occurrenceDate: isoDate('occurrence_date').notNull(),
+    bookId: ref('book_id').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.recurringId, table.occurrenceDate] })],
 );

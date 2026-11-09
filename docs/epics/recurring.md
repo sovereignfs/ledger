@@ -2,7 +2,7 @@
 
 ## Status
 
-⏳ In progress: 1 of 5 tasks is done.
+⏳ In progress: 2 of 5 tasks are done.
 
 ## Overview
 
@@ -26,7 +26,7 @@ the last day of a shorter month; `monthlyEquivalent(rule, amount)` (§8.4), pure
 
 **Done as:** `src/recurring/rule.ts`, pure, **written and not copied from Tusk's `recurrence.ts`**, which this task said to copy and trim: Tusk's rule is an RFC 5545 `RRULE` run by the `rrule` package, which **skips a month that lacks the day** (a monthly rule on the 31st never lands in February), and `DESIGN.md` §8.1 says the opposite, that **the 31st falls on the last day of a shorter month**, so rent due on the 31st is due every month. That is a short piece of calendar arithmetic, so there is no new dependency, and the rule is the one `DESIGN.md` §18.3 stores (`unit`, `every`, `anchor`, `end`); Tusk's names are kept where they fit (`nextOccurrence`, `firstOnOrAfter`, an occurrences-between). **Every occurrence is counted from the anchor and not from the one before**, so 31 January monthly is 28 February and then 31 March, not 28 March; 29 February yearly is the 28th in a year that is not a leap year and the 29th again in the next that is; every 3 months from 30 November is 28 February and then 30 May. A date crosses into the arithmetic only through `Date.UTC` and comes back only through `getUTC*`, and the tests run the same dates under UTC, Los Angeles and Kiritimati (+14) with the clocks changing in March. `nextOccurrence(rule, after)` is the first occurrence strictly after a day (given the day an entry was last posted for, the day it is next due), `firstOnOrAfter`, `occurrenceIs`, and `occurrencesBetween` (the same dates that posting in turn would make, oldest first, at most `limit`), all found by a search over a sequence that only grows, bounded by the year 9999 so that a search always ends and no date is one the calendar cannot write; `null` once the rule has ended (the end is inclusive and the last occurrence is the last on or before it). **`monthlyEquivalent(rule, amount)`** is daily × 365/12, weekly × 52/12, monthly ÷ N and yearly ÷ 12N (a yearly 600 is 50 a month; every 2 weeks is half a weekly one), in integers, **rounded half to even** and keeping the sign; the conversion to the budget's currency is 6.4's. `checkRule` says in sentences what is wrong with a rule (every 1 to 999, a real start, an end not before it) and `describeRule` writes it for a screen ("Every 2 weeks, until 2027-06-30"). 18 tests: the worked examples above and a leap year, every 2 weeks across both clock changes, the three zones, strict next, ended rules, between against a walk of next-after-next, 300 random rules against the calendar (strictly increasing, the anchor's day clamped to the month's length, nothing between two occurrences), and the monthly equivalents with their halves. Each key test was seen to fail against the code it guards (the 31st skipping or clamping to 28, a next that is not strict, a monthly equivalent that ignores N, a leap day lost). No table or screen: recurring entries are 6.2.
 
-#### 📋 6.2 — Recurring entries and auto-posting
+#### ✅ 6.2 — Recurring entries and auto-posting
 
 **Goal:** a template that posts itself. **Design:** §8.2. **Depends on:** 6.1, 4.3.
 
@@ -36,6 +36,27 @@ for each book, the entries whose `next_date` is today or past in the book's zone
 
 **Accepts when:** a monthly rent posts on the 1st once, even with the job run twice and from two processes; a server down for three days posts the
 three missed occurrences once each.
+
+**Done as:** two book tables, `recurring` (the template as JSON, the rule's `unit`, `every`, `anchor_date` and `end_date`, the `mode`, `next_date`, `ended_at`, and a
+`loan_account_id` that 6.5 fills) and `recurring_skip` (primary key `(recurring_id, occurrence_date)`, which 6.3 writes), in both dialects by migration `0008`,
+both in `BOOK_TABLES` and so deleted with the person and seeded in `people.test.ts`; `txn` already had `recurring_id` and `occurrence_date`, with a unique
+index on the pair, so **the table itself refuses a second posting of an occurrence**. `src/recurring/recurring.ts`: `createRecurring` (from scratch: the
+anchor is the first occurrence), `repeatEntry` ("Repeat…": the entry is the anchor's occurrence, tied to the series in the same statement that checks it is
+the book's and does not repeat already, so the next to post is the one after it), `updateRecurring` (mode, end, how often counted from the next occurrence,
+or the template; no posted entry is touched; an end before the next occurrence ends it), `endRecurring`, `listRecurring`, and `postOccurrence` / `postDue`.
+**Posting is one transaction:** the claim (`UPDATE recurring SET next_date = <the one after> … WHERE next_date = <this one> AND ended_at IS NULL AND inBook(…)
+RETURNING`) first, then the skip and already-posted checks, then the entry through `insertTransaction`, the same write path as any other (so a template that
+no longer makes a valid entry, such as a subcategory archived since, **rolls the claim back, stays due and is tried again** each hour, and never wedges the
+others). `postDue` takes every automatic, un-ended entry due by UTC's tomorrow, then decides each by **its book's own day** (a book in Kiritimati's 2nd is due
+when it is the 2nd there), posts as the book's owner, and catches up at most 400 missed occurrences an entry per run. The job `post-recurring` runs at start
+and hourly, logs only a count of failures, and is registered in `jobsFor`. Mode `confirm` is kept and never auto-posted: 6.3 lists and posts those. Routes
+`/api/recurring` (GET, POST) and `/api/recurring/[id]` (PATCH, DELETE = end), with the template and the rule read as hostile input and checked again where
+they are written; another person's is a 404 with nothing in it. **The screen:** _Repeat…_ in the edit dialog (how often, a stop day, "Ask me before it posts") and
+a _Bills_ page (`/budget/bills`, linked from the Budget) that lists each entry with its amount, rule, next day and mode, to switch between _Posts itself_ and
+_Asks first_ or to end. 21 data-layer and route tests on all three databases (concurrent runs, a three-day catch-up, skip, end, a failing template, time zone,
+second person, the one-posting key) and 4 browser tests. Each key test was seen to fail against the code it guards (the mode filter, the skip check, the
+permission on ending); removing the `next_date` condition from the claim alone changes nothing visible, because the already-posted check and the unique index
+back it up, and is kept as the claim that keeps `next_date` from moving twice. Not copied from Tusk. Left out: upcoming and confirm (6.3), the budget (6.4), loans (6.5).
 
 #### 📋 6.3 — Upcoming, and confirming
 

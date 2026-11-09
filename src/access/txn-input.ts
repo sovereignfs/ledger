@@ -15,7 +15,7 @@ import type { Parsed } from './account-input';
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
-function lineOf(value: unknown): LineInput | undefined {
+export function lineOf(value: unknown): LineInput | undefined {
   if (!isObject(value)) return undefined;
   const { account, subcategory, incomeSource, equity, amount, currency } = value;
   if (typeof amount !== 'number' || typeof currency !== 'string') return undefined;

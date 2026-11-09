@@ -121,7 +121,7 @@ function checkInput(input: TxnInput): Extract<WriteResult, { ok: false }> | unde
  * What needs the accounts the lines name, **after the entry's own row has been written under the permission**: that every target is the book's, and that the
  * accounts are what the lines say. A refusal rolls the row back with the rest, so nothing is left of it.
  */
-async function checkTargets(
+export async function verifyTargets(
   tx: Database,
   accountId: string,
   bookId: string,
@@ -282,15 +282,16 @@ export async function insertTransaction(
   const id = crypto.randomUUID();
   const inserted = await dbAll<{ id: string }>(
     tx,
-    sql`INSERT INTO ${s.txn} (id, book_id, type, date, note, status, original_amount, original_currency, created_by, created_at, updated_at)
+    sql`INSERT INTO ${s.txn} (id, book_id, type, date, note, status, recurring_id, occurrence_date, original_amount, original_currency, created_by, created_at, updated_at)
         SELECT ${id}, b.id, ${input.type}, ${input.date}, ${noteOf(input.note)}, ${input.status ?? defaultStatus(input.type)},
+               ${input.recurring?.id ?? null}, ${input.recurring?.occurrenceDate ?? null},
                ${input.original?.amount ?? null}, ${input.original?.currency ?? null}, ${accountId}, ${now}, ${now}
           FROM ${bookTable(tx)} b
          WHERE b.id = ${bookId} AND ${inBook(tx, sql`b.id`, accountId)}
         RETURNING id`,
   );
   if (inserted.length === 0) throw new Refused(NOT_FOUND);
-  await checkTargets(tx, accountId, bookId, input);
+  await verifyTargets(tx, accountId, bookId, input);
   await writeLines(tx, accountId, bookId, id, input.lines);
   await setPayee(tx, accountId, bookId, id, input, now, false);
   return id;
@@ -346,7 +347,7 @@ export async function updateTransaction(
       sql`SELECT l.subcategory_id AS id FROM ${s.txnLine} l
            WHERE l.txn_id = ${txnId} AND l.book_id = ${bookId} AND l.subcategory_id IS NOT NULL`,
     );
-    await checkTargets(tx, accountId, bookId, input, new Set(existing.map((row) => row.id)));
+    await verifyTargets(tx, accountId, bookId, input, new Set(existing.map((row) => row.id)));
     await dbAll(
       tx,
       sql`DELETE FROM ${s.txnLine} WHERE txn_id = ${txnId} AND book_id = ${bookId} RETURNING id`,
