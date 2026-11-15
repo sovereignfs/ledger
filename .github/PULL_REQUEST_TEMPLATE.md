@@ -21,7 +21,7 @@
 - [ ] A new route or server action is in `src/access/routes.ts`, with a test calling it as a second person
 - [ ] A new table is deleted by `People.deletePerson` and in the export, with a test
 - [ ] A write keeps the ledger's invariants (lines add up; a balance is never written)
-- [ ] `## [Unreleased]` in `CHANGELOG.md` is updated (for a change in behaviour)
+- [ ] A version set here has its section in `CHANGELOG.md` (RELEASING.md)
 - [ ] The task is marked done in `ROADMAP.md` and written up in its epic
 - [ ] Relevant docs updated (README, DESIGN, AGENTS)
 
