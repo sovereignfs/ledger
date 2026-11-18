@@ -664,7 +664,7 @@ docker run -v ledger:/data -e LEDGER_DB_DIALECT=sqlite -e LEDGER_SQLITE_URL=file
   `@sovereignfs/config`, in `.env.example`, and in the README.
 - **Hosted:** `sv app add ledger`, from the manifest; the operator grants the three app scopes and sets SMTP only if they want email when core's is not
   used.
-- **Releases** as Tusk's: `scripts/release.sh`, a `vX.Y.Z` tag publishes amd64 and arm64 to `ghcr.io`; a patch has no migration.
+- **Releases** as every app's: a promotion titled `Release vX.Y.Z` tags and publishes amd64 and arm64 to `ghcr.io` on merge (`RELEASING.md`); a patch has no migration.
 - `/api/health` answers `200` once the database is ready.
 
 ### Testing

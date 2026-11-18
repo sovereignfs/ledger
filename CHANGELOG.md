@@ -3,10 +3,15 @@
 All notable changes to Ledger are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
-Each release's section is also its GitHub release notes: the release workflow reads this file when a release is cut. Write the notes under
-`## [Unreleased]` as you go; a release turns them into the version's section.
+Each version's section is also its GitHub release notes. It is written in the change that sets the version, dated that day, and a promotion
+titled `Release vX.Y.Z` is refused without it (RELEASING.md).
 
-## [Unreleased]
+## [0.2.0] - 2026-11-18
+
+### Added
+
+- Opened from Sovereign's launcher, or from any link to it, an installed Ledger now opens as itself on desktop Chrome and Edge and on Android Chrome, on the page the link names, rather than in a browser view. On an iPhone, an iPad and in Safari the link opens a browser view, as before.
+- Added to an iPhone's Home Screen from Safari, it opens as an app without Safari's bars, under its own name.
 
 ## [0.1.0] - 2026-11-09
 
@@ -58,5 +63,4 @@ Each release's section is also its GitHub release notes: the release workflow re
 - Recurring entries: make an entry repeat from its dialog (Repeat…) and a Bills page shows what repeats, its next day and whether it posts itself or asks first, to switch or end. A job posts what is due each hour in the book's own time zone, catches up days a server was down, and never posts one occurrence twice, even run twice or from two processes.
 - The repeat rule for recurring entries: every so many days, weeks, months or years from a start day, optionally until an end, with the 31st falling on the last day of a shorter month and a leap day on the 28th in other years, and what a bill comes to in a month for the budget.
 
-[Unreleased]: https://github.com/sovereignfs/ledger/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/sovereignfs/ledger/releases/tag/v0.1.0

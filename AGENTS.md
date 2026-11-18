@@ -43,25 +43,36 @@ Directories are created when they are needed. Research (`docs/research/`), RFCs 
   the work.
 - **Copying from Tusk is said, not hidden:** a task that copies a file names it in its Done as, and changes in behaviour from Tusk's are stated.
 
-## Working conventions
+<!-- sovereign:shared:begin -->
 
-- **One task, one branch, one draft PR.** Branch from an up-to-date `main`, named `feat/<slug>`, `fix/<slug>`, `docs/<slug>` or `chore/<slug>`. Do not
-  start a second task on a branch whose PR is not merged.
-- **Nothing goes to `main` directly,** except the owner's bypass, which is theirs to use.
-- **Never commit or push without being asked.** Prepare changes in the working tree and stop.
-- **Commits explain why.** `type(scope): summary` under 72 characters, body wrapped at 100, a `Verified:` line naming what was run, one logical change
-  per commit. Every commit an agent makes ends with `Co-Authored-By: Claude Code <noreply@anthropic.com>`: model-agnostic, never a specific model
-  name.
-- **PRs target `main`, are opened as drafts** (`gh pr create --draft --base main`), and are marked ready only on instruction. The body says what changed
-  and why, cites the `DESIGN.md` section, carries no task numbers, and ends with `🤖 Generated with [Claude Code](https://claude.com/claude-code)`.
-- **Merge with rebase and merge,** never squash and never a merge commit. **Never merge a PR automatically.**
-- **Verify before claiming done.** Run the commands under Commands and show the output. A regression test is trusted only after it has been seen to
-  fail against the code it guards.
-- **Docs are part of the change.** A statement a change makes false is fixed in the same PR; a change to behaviour adds a line under `## [Unreleased]`
-  in `CHANGELOG.md`.
-- **Releases are their own PR,** as Tusk's: `scripts/release.sh`, a `vX.Y.Z` tag publishes the image. A patch has no migration and no setting change.
-- **Flag Docker-config impact immediately:** a new setting, port, path or native dependency updates the `Dockerfile` and `.dockerignore` in the same
-  change.
+## Working conventions (shared by every app of the suite)
+
+- **Two branches.** Work lands on `develop`, committed directly or through a feature branch (`feat/`, `fix/`, `docs/`, `chore/` and a
+  slug) cut from an up-to-date `develop` and merged into it by draft pull request with rebase and merge. `main` is what is released: it
+  is protected and changes only by a promotion pull request from `develop`, merged with a merge commit (`CONTRIBUTING.md`).
+- **Never commit or push without being asked.** Prepare changes in the working tree and stop. **Never merge a pull request
+  automatically.**
+- **Commits explain why, not just what:** `type(scope): summary` (`feat`, `fix`, `docs`, `chore`) under 72 characters, a body wrapped at
+  100, a `Verified:` line naming what was run, one logical change each. An agent's commits end with its own model-agnostic trailer:
+  `Co-Authored-By: Claude Code <noreply@anthropic.com>` or `Co-Authored-By: Codex <noreply@openai.com>`, never one naming a model (the
+  promotion check refuses it).
+- **Pull requests into `develop` are drafts,** marked ready only on instruction; the body says what changed and why and ends with the
+  agent's footer.
+- **A version is set with its changelog section,** in the same change: `version` in `package.json` (or, in a repository of several
+  components, the file `sovereign.json` names for it) and `## [X.Y.Z] - date` in its changelog, in plain words for someone upgrading. A
+  promotion titled `Release` with that version's tag publishes it on merge (`RELEASING.md`).
+- **CI runs only for `main`:** on pull requests into it that are not drafts, before a release and by hand; never for `develop` or a
+  feature branch, which the pre-push hook (`npm run verify`) checks locally.
+- **Verify before claiming done,** and show the output. A regression test is trusted only after it has been seen to fail against the code
+  it guards.
+- **Docs are part of the change:** a statement a change makes false is fixed in the same change.
+- **Flag Docker-config impact immediately:** a new or renamed environment variable, port, on-disk path or native dependency updates the
+  `Dockerfile`, `.dockerignore` and Compose files in the same change.
+- **Shared files are written, not edited:** the files `npm create @sovereignfs app sync` writes (this section among them) are changed
+  in the template, in sovereignfs/sovereign, and taken with the next sync; a file this app keeps as its own is listed in `package.json`
+  under `sovereign.unmanaged`.
+
+<!-- sovereign:shared:end -->
 
 ## Rules of an app
 
@@ -135,8 +146,6 @@ pnpm e2e                         # after pnpm build: browser tests (pnpm exec pl
 pnpm e2e:fast                    # after pnpm build: the same, in shards at once (scripts/e2e-shard.mjs)
 scripts/deploy-check.sh          # every setup of deploy/, from nothing (needs the image: see deploy/README.md)
 scripts/test-ci-changes.sh       # the CI classifier's tests
-scripts/test-release.sh          # the release script's tests, against throwaway repositories
-scripts/release.sh check|prepare|propose|tag|verify X.Y.Z   # a release (RELEASING.md); never `tag` or push without being asked
 eval "docker build $(pnpm exec sovereign-manifest docker-args) -t ledger:ci ."   # the image, with its port and label from the manifest
 ```
 
@@ -175,7 +184,7 @@ A command a task adds is written here in that task's change, and `verify` means 
 | `src/portability/`             | The book in one file: `format.ts` (`TABLES`, the one list of what is in it and what points at what, and the export), `validate.ts` (the file read whole, pure), `import.ts`                                                                                                                                                                                                     |
 | `src/reports/`                 | Reports: `month.ts` (a month's figures, pure over the screens' own, and the list of months), `ReportsScreen`                                                                                                                                                                                                                                                                    |
 | `src/seed/`                    | The development seed: `seed.ts` (`seedBook`, `clearBook`: a year of data), `states.ts` (the states of every feature, listed in `docs/seed.md`: a task that adds a screen adds its state), `local.ts` (which databases it may write to, pure); run by `scripts/seed.ts`                                                                                                          |
-| `scripts/`                     | The CI classifier, `db-generate.mjs`, `dev-db.mjs`, `seed.ts` (with `lib/ts-resolve.mjs`), `boot-check.mjs`, `serve-standalone.mjs`, `e2e-shard.mjs`, `deploy-check.sh`, `release.sh` with `lib/release.sh` and `release/ledger.sh` (and `test-release.sh`)                                                                                                                     |
+| `scripts/`                     | The CI classifier, `db-generate.mjs`, `dev-db.mjs`, `seed.ts` (with `lib/ts-resolve.mjs`), `boot-check.mjs`, `serve-standalone.mjs`, `e2e-shard.mjs`, `deploy-check.sh`. There is no release script: a promotion titled `Release vX.Y.Z` releases (`RELEASING.md`)                                                                                                              |
 | `sovereign.manifest.json`      | What an instance reads to host the app, held to its schema and to the code it names by `src/sovereign-manifest.test.ts`                                                                                                                                                                                                                                                         |
 | `Dockerfile`, `deploy/`        | One image on Debian (libSQL has no musl build), not root, on the manifest's port; the Compose setups for sqld, a file and PostgreSQL                                                                                                                                                                                                                                            |
 | `.github/workflows/`           | `ci.yml` and `publish.yml` (a `vX.Y.Z` tag publishes the image to `ghcr.io`, with provenance)                                                                                                                                                                                                                                                                                   |
