@@ -18,6 +18,8 @@ export const metadata: Metadata = {
     icon: [{ url: '/icons/icon.svg', type: 'image/svg+xml' }],
     apple: [{ url: '/icons/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
   },
+  // Added to an iPhone's Home Screen from Safari, it opens as an app, without Safari's bars, under its own name.
+  appleWebApp: { capable: true, title: site.name, statusBarStyle: 'default' },
 };
 
 export const viewport: Viewport = {
