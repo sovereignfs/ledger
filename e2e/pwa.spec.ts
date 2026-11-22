@@ -3,7 +3,7 @@ import { signedIn } from './helpers';
 
 /**
  * The installable app (task 1.11, DESIGN.md §14.6): a manifest and icons a browser installs from, and a service worker that keeps **the build's files, the icons and the
- * manifest only**, never a page with money on it, and says Ledger needs a connection when there is none.
+ * manifest only**, never a page with money on it, and says the app is offline when there is no connection.
  */
 test('serves a manifest with icons that are images, and a worker that is never cached by the browser', async ({
   request,
@@ -31,7 +31,7 @@ test('serves a manifest with icons that are images, and a worker that is never c
   expect(await worker.text()).toContain('ledger-shell-');
 });
 
-test('installs in Chromium, keeps only the build’s files, and says it needs a connection offline', async ({
+test('installs in Chromium, keeps only the build’s files, and says it is offline', async ({
   page,
   context,
   browserName,
@@ -79,12 +79,10 @@ test('installs in Chromium, keeps only the build’s files, and says it needs a 
       /^\/(_next\/static\/|icons\/[a-z0-9._-]+$|manifest\.webmanifest$|icon\.svg$|favicon\.ico$)/,
     );
 
-  // Offline: a page of Ledger is not here, and the worker says so in a page of its own, with nothing of the person's.
+  // Offline: a page of Ledger is not here, and the worker says so in a page of its own (the suite's, from `@sovereignfs/pwa`), with nothing of the person's.
   await context.setOffline(true);
   await page.goto('/accounts');
-  await expect(
-    page.getByRole('heading', { level: 1, name: 'Ledger needs a connection' }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'You’re offline' })).toBeVisible();
   await expect(page.locator('body')).not.toContainText('Bank');
   await context.setOffline(false);
 });

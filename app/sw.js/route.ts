@@ -1,9 +1,10 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { serviceWorkerResponse } from '@sovereignfs/pwa';
 import { inertWorkerSource, workerSource } from '@/src/sw/source';
 
 /**
- * The service worker (`src/sw/source.ts`, DESIGN.md §14.6), served at `/sw.js` from the root so that it controls the whole app. Its version is the build's, so a new
+ * The service worker (`src/sw/source.ts`, the suite's from `@sovereignfs/pwa`, DESIGN.md §14.6), served at `/sw.js` from the root so that it controls the whole app. Its version is the build's, so a new
  * build is a new worker and a new cache; it is never cached by the browser, which checks it at each load. It is the same for everyone and holds nothing of a person.
  */
 export const dynamic = 'force-dynamic';
@@ -39,11 +40,5 @@ function builtFiles(): string[] {
 export function GET() {
   const version = buildId();
   // A development server has no build to keep: its worker keeps nothing and goes.
-  return new Response(version ? workerSource(version, builtFiles()) : inertWorkerSource(), {
-    headers: {
-      'content-type': 'text/javascript; charset=utf-8',
-      'cache-control': 'no-cache, max-age=0',
-      'service-worker-allowed': '/',
-    },
-  });
+  return serviceWorkerResponse(version ? workerSource(version, builtFiles()) : inertWorkerSource());
 }
