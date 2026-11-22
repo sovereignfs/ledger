@@ -6,7 +6,7 @@ import './globals.css';
 import { site } from '@/src/site';
 import { themeScript } from '@/src/theme/script';
 import { ToastProvider } from '@sovereignfs/ui';
-import { RegisterWorker } from '@/src/pwa/RegisterWorker';
+import { ServiceWorkerRegistration } from '@sovereignfs/pwa/client';
 
 // The typeface is Hanken Grotesk, which `@sovereignfs/ui` ships with its tokens and serves from this app's own origin: nothing is fetched from
 // another site, and no font is loaded here.
@@ -18,6 +18,8 @@ export const metadata: Metadata = {
     icon: [{ url: '/icons/icon.svg', type: 'image/svg+xml' }],
     apple: [{ url: '/icons/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
   },
+  // Added to an iPhone's Home Screen from Safari, it opens as an app, without Safari's bars, under its own name.
+  appleWebApp: { capable: true, title: site.name, statusBarStyle: 'default' },
 };
 
 export const viewport: Viewport = {
@@ -38,8 +40,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body>
-        <RegisterWorker />
         <ToastProvider>{children}</ToastProvider>
+        {/* Registers the service worker in production, and says when a new version is ready (`@sovereignfs/pwa`). */}
+        <ServiceWorkerRegistration appName={site.name} />
       </body>
     </html>
   );

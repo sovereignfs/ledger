@@ -545,7 +545,8 @@ spending by category), accessible (a table of the same data beside each), token-
 
 One responsive tree: the same routes and decisions at every width, with only rendering forked (Tusk §17, the guide's rule). On a phone the sidebar
 becomes `MobileFooter` (Overview, Transactions, Budget, Accounts; Reports from Overview), Add is a floating button opening the drawer, and detail
-columns become full pages. Installable as a PWA; the service worker keeps the shell only, never a page with money on it.
+columns become full pages. Installable as a PWA from the suite's `@sovereignfs/pwa`: its manifest, its service worker, which keeps the build's
+files and icons only, never a page with money on it, and its registration, which announces a new version with Reload.
 
 ## 15. Setup and settings
 
@@ -578,6 +579,10 @@ first screen.
 - **Export:** one JSON file of the book: settings, currencies, money accounts, transactions and lines, payees, categories, subcategories, income
   sources, budget history, recurring entries, jars and movements, reviews. A `format` and `version` at the top; ids kept. Not the rates (public) or
   sign-in data. Downloaded from Settings > Data, logged to core's activity.
+- **Core's export of a person** (`signIn.export`, manifest 5): when the person downloads their data from Sovereign, core asks Ledger for its part
+  at `/api/sovereign/export` with a signed token the SDK checks. The part is the same book as records of the suite's export format
+  (`apps/ledger/records/<table>.jsonl`, the settings as `book`, times in ISO 8601), from `src/portability/core-export.ts`; a person Ledger does not
+  know gets an empty part.
 - **Import:** into an empty book only (a new person, or after delete everything), validated whole before anything is written, written in one
   transaction, with new ids mapped consistently. A file from a newer version is refused with a sentence that says so.
 - **A round trip is a test:** export, import into a second account, export again, and the two files match but for ids and times.
@@ -664,7 +669,7 @@ docker run -v ledger:/data -e LEDGER_DB_DIALECT=sqlite -e LEDGER_SQLITE_URL=file
   `@sovereignfs/config`, in `.env.example`, and in the README.
 - **Hosted:** `sv app add ledger`, from the manifest; the operator grants the three app scopes and sets SMTP only if they want email when core's is not
   used.
-- **Releases** as Tusk's: `scripts/release.sh`, a `vX.Y.Z` tag publishes amd64 and arm64 to `ghcr.io`; a patch has no migration.
+- **Releases** as every app's: a promotion titled `Release vX.Y.Z` tags and publishes amd64 and arm64 to `ghcr.io` on merge (`RELEASING.md`); a patch has no migration.
 - `/api/health` answers `200` once the database is ready.
 
 ### Testing

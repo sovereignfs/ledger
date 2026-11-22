@@ -1,5 +1,6 @@
 import vm from 'node:vm';
 import { describe, expect, it } from 'vitest';
+import { TAKE_OVER_MESSAGE } from '@sovereignfs/pwa';
 import { CACHE_PREFIX, inertWorkerSource, workerSource } from './source';
 
 /**
@@ -19,8 +20,11 @@ type Listener = (event: Record<string, unknown>) => void;
 function load(version = 'v1', files: readonly string[] = FILES) {
   const stores = new Map<string, Map<string, Response>>();
   const requested: string[] = [];
-  const state = { online: true };
-  const network = async (input: Request | string): Promise<Response> => {
+  const state = { online: true, tookOver: false };
+  /** What a browser's fetch gives for a same-origin request: a response of type `basic`, which is the only kind the worker keeps. */
+  const network = async (input: Request | string): Promise<Response> =>
+    Object.defineProperty(await answer(input), 'type', { value: 'basic' });
+  const answer = async (input: Request | string): Promise<Response> => {
     const request = typeof input === 'string' ? new Request(`${ORIGIN}${input}`) : input;
     const path = new URL(request.url).pathname;
     requested.push(path);
@@ -41,8 +45,9 @@ function load(version = 'v1', files: readonly string[] = FILES) {
     let store = stores.get(name);
     if (!store) stores.set(name, (store = new Map()));
     const kept = store;
+    // The worker names what it keeps by its whole address (`self.location.origin + path`) or by its request.
     const keyOf = (r: Request | string) =>
-      (typeof r === 'string' ? new Request(`${ORIGIN}${r}`) : r).url;
+      typeof r === 'string' ? new URL(r, ORIGIN).href : r.url;
     return {
       match: async (r: Request | string) => kept.get(keyOf(r))?.clone(),
       put: async (r: Request | string, response: Response) => void kept.set(keyOf(r), response),
@@ -64,7 +69,8 @@ function load(version = 'v1', files: readonly string[] = FILES) {
       delete: async (name: string) => stores.delete(name),
     },
     registration: { unregister: async () => true },
-    skipWaiting: () => undefined,
+    skipWaiting: () => void (state.tookOver = true),
+    clients: { claim: async () => undefined, matchAll: async () => [] },
   };
   const context = vm.createContext({
     self: scope,
@@ -72,7 +78,12 @@ function load(version = 'v1', files: readonly string[] = FILES) {
     fetch: network,
     Request,
     Response,
+    Headers,
     URL,
+    AbortController,
+    setTimeout,
+    clearTimeout,
+    clients: scope.clients,
     console,
   });
   vm.runInContext(workerSource(version, files), context);
@@ -170,31 +181,33 @@ describe('the service worker keeps an allow-list, and nothing else', () => {
     expect(w.requested).toEqual([]);
   });
 
-  it('does not keep what is not an icon, though it is under the icons’ address: a path with a slash, a query a page might add', async () => {
+  it('keeps what is under the icons’ address, which is the same for everyone, but not with a query a page might add, nor a path that leaves it', async () => {
     const w = load();
     await w.get('/icons/a/b.png');
+    await w.get('/icons/icon-192.png?for=ada@example.com');
     await w.get('/icons/../api/accounts');
-    expect(w.kept().filter((entry) => entry.includes('api') || entry.includes('/a/'))).toEqual([]);
+    expect(w.kept()).toEqual([`${CACHE_PREFIX}v1 /icons/a/b.png`]);
   });
 });
 
 describe('with no network', () => {
-  it('answers a page with one of its own that says Ledger needs a connection, holding nothing of a person and no script', async () => {
+  it('answers a page with one of its own that says the app is offline, holding nothing of a person and no script', async () => {
     const w = load();
     await w.fire('install');
     await w.get('/accounts', 'navigate');
     w.state.online = false;
     const page = await w.get('/accounts', 'navigate');
     const body = (await page?.text()) ?? '';
-    expect(page?.status).toBe(200);
-    expect(body).toContain('Ledger needs a connection');
+    // The suite's page (`@sovereignfs/pwa`): a 503, so nothing takes it for the page that was asked for.
+    expect(page?.status).toBe(503);
+    expect(body).toContain('You’re offline');
     expect(body).not.toContain('$1,234.56');
     expect(body).not.toContain('ada@example.com');
     expect(body).not.toContain('<script');
     expect(page?.headers.get('content-security-policy')).toContain("default-src 'none'");
     expect(page?.headers.get('cache-control')).toBe('no-store');
     // And the same for the front address, where Overview is: it is not kept either.
-    expect(await (await w.get('/', 'navigate'))?.text()).toContain('needs a connection');
+    expect(await (await w.get('/', 'navigate'))?.text()).toContain('You’re offline');
   });
 
   it('serves a kept built file with no network, and lets an API request fail as it would', async () => {
@@ -207,14 +220,21 @@ describe('with no network', () => {
 });
 
 describe('a new version', () => {
-  it('removes the caches of the old ones, and no others, and does not take over a page that is open', async () => {
+  it('removes the caches of the old ones, and no others', async () => {
     const w = load('v2');
     w.stores.set(`${CACHE_PREFIX}v1`, new Map());
     w.stores.set('another-app-cache', new Map());
     await w.fire('activate');
     expect([...w.stores.keys()].sort()).toEqual(['another-app-cache']);
-    expect(workerSource('v2', FILES)).not.toContain('skipWaiting');
-    expect(workerSource('v2', FILES)).not.toContain('clients.claim');
+  });
+
+  it('does not take over a page that is open until the page asks, which it does when the person chooses Reload', async () => {
+    const w = load('v2');
+    await w.fire('install');
+    await w.fire('message', { data: 'something else' });
+    expect(w.state.tookOver).toBe(false);
+    await w.fire('message', { data: TAKE_OVER_MESSAGE });
+    expect(w.state.tookOver).toBe(true);
   });
 
   it('is a worker of its own build: the version is in the name of its cache', async () => {
